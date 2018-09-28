@@ -1,2 +1,2 @@
 # itpro-functions
-IT Pro Database serverless functions and proxies
+IT Pro Database serverless functions and proxies 
