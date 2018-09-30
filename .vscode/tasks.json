@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "clean",
+      "command": "dotnet clean",
+      "type": "shell",
+      "presentation": {
+        "reveal": "always"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/functions"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build",
+      "command": "dotnet build && cp local.settings.json bin/Debug/netstandard2.0",
+      "type": "shell",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/functions"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "clean release",
+      "command": "dotnet clean --configuration Release",
+      "type": "shell",
+      "presentation": {
+        "reveal": "always"
+      }, 
+      "options": {
+        "cwd": "${workspaceFolder}/functions"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "publish",
+      "command": "dotnet publish --configuration Release",
+      "type": "shell",
+      "dependsOn": "clean release",
+      "presentation": {
+        "reveal": "always"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/functions"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "start",
+      "identifier": "runFunctionsHost",
+      "type": "shell",
+      "dependsOn": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/functions/bin/Debug/netstandard2.0"
+      },
+      "command": "func host start --useHttps --cert ../../../localhost.pfx --password Abcd1234!",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

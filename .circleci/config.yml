@@ -1,0 +1,135 @@
+# Javascript Node CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-javascript/ for more details
+#
+version: 2.1
+
+commands: 
+  deploy:
+    description: "Publish package to specified environment"
+    parameters:
+      environment:
+        type: string
+        default: "test"
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - run:
+          name: Login with Azure Service Principal
+          command: az login --service-principal -u $SERVICE_PRINCIPAL_USER -p $SERVICE_PRINCIPAL_PASSWORD --tenant $SERVICE_PRINCIPAL_TENANT
+      - run: 
+          name: Publish Functions + SPA package to Test Function App
+          command: az webapp deployment source config-zip --name $FUNCTION_APP_<<parameters.environment>> --resource-group $RESOURCE_GROUP --src /tmp/workspace/publish/publish.zip
+  migrate_db:
+    description: "Migrate database in specified environment"
+    parameters:
+      environment:
+        type: string
+        default: "test"
+    steps:
+      - checkout 
+      - run: 
+          name: Build database migrator
+          command: cd database && dotnet build
+      - run:
+          name: Migrate test database
+          command: dotnet database/bin/Debug/netcoreapp2.1/database.dll "$DB_CONNECTION_<<parameters.environment>>" up 
+
+# Job definitions. Job execution is orchestrated in the 'workflows' section.
+jobs:
+  # Build and test the Azure Functions
+  build:
+    docker:
+      - image: microsoft/dotnet:2.1-sdk
+    steps:
+      - run:
+          # A workspace allows us to pass files/artifacts from job to job.
+          # https://circleci.com/blog/deep-diving-into-circleci-workspaces/
+          name: Create workspace
+          command: mkdir -p /tmp/workspace
+      - checkout 
+      - run: 
+          name: Build Functions
+          command: cd functions && dotnet build -c Release
+      - run:
+          name: Save compiled Functions to workspace
+          command: cp -a functions/bin/Release/netstandard2.0/. /tmp/workspace/publish/
+      - persist_to_workspace:
+          root: /tmp/workspace
+          paths:
+            - publish
+  # Build (zip) a functions deployment package
+  package:
+    docker:
+      - image: circleci/node:8
+    steps:
+      - checkout 
+      - attach_workspace:
+          at: /tmp/workspace
+      - run: 
+          name: Create Functions publish package
+          command: cd /tmp/workspace/publish && zip -r publish.zip ./*
+      - persist_to_workspace:
+          root: /tmp/workspace
+          paths:
+            - publish/publish.zip
+  # Publish the deployment package to the TEST Azure Function App
+  deploy_to_test:
+    docker:
+      - image: microsoft/azure-cli
+    steps:
+      - deploy:
+          environment: "test"
+  deploy_to_production:
+    docker:
+      - image: microsoft/azure-cli
+    steps:
+      - deploy:
+          environment: "production"
+  migrate_test_db:
+    docker:
+      - image: microsoft/dotnet:2.1-sdk
+    steps:
+      - migrate_db:
+          environment: "test"
+  migrate_production_db:
+    docker:
+      - image: microsoft/dotnet:2.1-sdk
+    steps:
+      - migrate_db:
+          environment: "production"
+# Job orchestration
+workflows:
+  version: 2
+  # Build and test the code on every commit. 
+  # Publish the style guide on successful build/test of master.
+  build-deploy-migrate:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: gh-pages          
+      - package:
+          requires:
+            - build
+          context: itpro
+      - deploy_to_test:
+          requires:
+            - package
+          context: itpro
+#      - migrate_test_db:
+#          requires:
+#            - deploy_to_test
+#          context: azfun-fsharp
+      - deploy_to_production:
+          filters:
+            branches:
+              only:
+                - master
+          requires:
+            - package
+          context: itpro
+      - migrate_production_db:
+          requires:
+            - deploy_to_production
+          context: itpro
