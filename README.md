@@ -1,6 +1,6 @@
-# Azure Functions + SPA Experiments in F#
+# itpro-functions
+IT Pro Database serverless functions and proxies 
 
-This repo contains (or will contain) a functional React SPA + Azure Functions implementation. 
 Azure Functions provide a serverless (and cheap!) API alternative to the standard ASP.Net Web API application. 
 In serverless architectures, API controllers are eschewed in favor of discrete functions that are triggered by HTTP requests. 
 The functions are ultimately hosted within a web application by the Azure Functions runtime, but a key advange of serverless architectures is that the web app configuration and startup is abstracted away and we don't have to worry about it.
