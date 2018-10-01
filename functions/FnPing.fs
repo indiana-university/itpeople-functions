@@ -14,34 +14,12 @@ open System.Net.Http
 ///</summary>
 module Get =
     
-    type ResponseModel = {
-        token: string
+    let sayPong = trial {
+        return "pong!" |> jsonResponse Status.OK 
     }
-
-    /// <summary> 
-    /// Asynchronously generate some result.
-    let doSync x =
-        ok (x @ ["doSync"])
-
-    let doAsync x = async {
-        do! Async.Sleep(1000)
-        return x @ ["doAsync"] |> ok
-    }
-    
-    /// <summary>
-    /// Send a friendly hello message to the client
-    /// </summary>
-    let sayHello resp = 
-        let chain = resp |> String.concat " -> "
-        {token = chain } 
-        |> jsonResponse Status.OK 
-        |> ok
 
     let workflow (req: HttpRequest) = asyncTrial {
-        let! syncResult = doSync ["workflow start"]
-        let! asyncResult = bindAsyncResult (fun () -> doAsync syncResult)
-        let! syncResult2 = doSync asyncResult
-        let! result = sayHello (syncResult2 @ ["workflow end"]) 
+        let! result = sayPong
         return result
     }
 
