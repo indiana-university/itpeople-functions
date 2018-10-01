@@ -109,27 +109,27 @@ workflows:
           filters:
             branches:
               ignore: gh-pages          
-      - package:
-          requires:
-            - build
-          context: itpro
-      - deploy_to_test:
-          requires:
-            - package
-          context: itpro
+#      - package:
+#          requires:
+#            - build
+#          context: itpro
+#      - deploy_to_test:
+#          requires:
+#            - package
+#          context: itpro
 #      - migrate_test_db:
 #          requires:
 #            - deploy_to_test
 #          context: azfun-fsharp
-      - deploy_to_production:
-          filters:
-            branches:
-              only:
-                - master
-          requires:
-            - package
-          context: itpro
-      - migrate_production_db:
-          requires:
-            - deploy_to_production
-          context: itpro
+#      - deploy_to_production:
+#          filters:
+#            branches:
+#              only:
+#                - master
+#          requires:
+#            - package
+#          context: itpro
+#      - migrate_production_db:
+#          requires:
+#            - deploy_to_production
+#          context: itpro
