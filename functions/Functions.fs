@@ -79,3 +79,21 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext) =
             context |> appConfig |> Search.GetSimple.run req log data |> Async.StartAsTask
+
+
+    [<FunctionName("UnitGetAll")>]
+    let unitGetAll
+        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units")>]
+        req: HttpRequest,
+        log: TraceWriter,
+        context: ExecutionContext) =
+            context |> appConfig |> Unit.GetAll.run req log data |> Async.StartAsTask
+
+    [<FunctionName("UnitGetId")>]
+    let unitGetId
+        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>]
+        req: HttpRequest,
+        log: TraceWriter,
+        context: ExecutionContext,
+        id: Id) =
+            context |> appConfig |> Unit.GetId.run req log data id |> Async.StartAsTask

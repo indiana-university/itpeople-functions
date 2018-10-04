@@ -18,6 +18,7 @@
     <Compile Include="FnPing.fs" />
     <Compile Include="FnSearch.fs" />
     <Compile Include="FnUser.fs" />
+    <Compile Include="FnUnit.fs" />
     <Compile Include="Functions.fs" />
   </ItemGroup>
   <ItemGroup>

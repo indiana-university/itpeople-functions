@@ -39,11 +39,11 @@ module Fakes =
         UnitId=1
     }
 
-    let cito = {Id=1; Name="College IT Office (CITO)"; Description=""}
-    let clientServices = {Id=1; Name="Client Services"; Description=""}
+    let cito:Unit = {Id=1; Name="College IT Office (CITO)"; Description=""}
+    let clientServices:Unit = {Id=1; Name="Client Services"; Description=""}
 
-    let arsd = {Id=1; Name="BL-ARSD"; Description="Arts and Sciences Deans Office"}
-    let dema = {Id=1; Name="BL-DEMA"; Description=""}
+    let arsd:Department = {Id=1; Name="BL-ARSD"; Description="Arts and Sciences Deans Office"}
+    let dema:Department = {Id=1; Name="BL-DEMA"; Description=""}
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
     let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
 
@@ -53,21 +53,39 @@ module Fakes =
     }
 
     let getFakeProfile arg = async {
-        let! user = async.Return ulrik
-        let! unit = async.Return cito
-        let! department = async.Return arsd
-        let! supportedDepartments = async.Return [arsd; dema]
-        let! toolsAccess = async.Return [iuware; itproMail]
-        let profile = {User=user;Unit=unit;Department=department;SupportedDepartments=supportedDepartments;ToolsAccess=toolsAccess}       
+        let! profile = async.Return {
+            User=ulrik;
+            Unit=cito;
+            Department=arsd;
+            SupportedDepartments=[arsd; dema];
+            ToolsAccess=[iuware; itproMail]
+        }       
         return profile |> ok
     }
 
-    let GetSimpleSearchByTerm term = async {
-        let! users = async.Return [ulrik; brent]
-        let! departments = async.Return [arsd; dema]
-        let! units = async.Return [cito; clientServices ]
-        let simpleSearch = {Users=users; Departments=departments; Units=units}
+    let getFakeSimpleSearchByTerm term = async {
+        let! simpleSearch = async.Return {
+            Users=[ulrik; brent]
+            Departments=[arsd; dema]
+            Units=[cito; clientServices]
+        }
         return simpleSearch |> ok
+    }
+
+    let getFakeUnits () = async {
+        let! units = async.Return { Units= [cito; clientServices] }
+        return units |> ok
+    }
+
+    let getFakeUnit id = async {
+        let! profile = async.Return {
+            Unit=cito
+            Admins=[ulrik]
+            ItPros=[brent] 
+            Selfs=[]
+            SupportedDepartments=[arsd; dema]
+        }
+        return profile |> ok
     }
 
     type FakesRepository() =
@@ -75,4 +93,6 @@ module Fakes =
             member this.GetUserByNetId netId = getFakeUser netId
             member this.GetProfileById id = getFakeProfile id
             member this.GetProfileByNetId netId = getFakeProfile netId
-            member this.GetSimpleSearchByTerm term = GetSimpleSearchByTerm term
+            member this.GetSimpleSearchByTerm term = getFakeSimpleSearchByTerm term
+            member this.GetUnits () = getFakeUnits ()
+            member this.GetUnitById id = getFakeUnit id

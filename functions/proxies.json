@@ -1,17 +1,17 @@
 {
     "$schema": "http://json.schemastore.org/proxies",
     "proxies": {
-        "apiUsers": {
+        "apiId": {
             "matchCondition": {
-                "route": "/api/users/{*id}"
+                "route": "/api/{action}/{id}"
             },
-            "backendUri": "https://%API_HOST%/api/users/{id}"
+            "backendUri": "https://%API_HOST%/api/{action}/{id}"
         },
-        "apiAuth": {
+        "api": {
             "matchCondition": {
-                "route": "/api/{*url}"
+                "route": "/api/{action}"
             },
-            "backendUri": "https://%API_HOST%/api/{url}"
+            "backendUri": "https://%API_HOST%/api/{action}"
         },
         "spaManifest": {
             "matchCondition": {

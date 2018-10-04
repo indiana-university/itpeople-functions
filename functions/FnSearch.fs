@@ -23,3 +23,4 @@ module GetSimple =
         let! result = workflow req config querySearch |> Async.ofAsyncResult
         return constructResponse log result
     }
+

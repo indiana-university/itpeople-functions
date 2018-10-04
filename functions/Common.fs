@@ -103,12 +103,24 @@ module Types =
         ToolId: Id
     }
 
-    type Profile = {
+    type UserProfile = {
         User: User
         Unit: Unit
         Department: Department
         SupportedDepartments: seq<Department>
         ToolsAccess: seq<Tool>
+    }
+
+    type UnitList = {
+        Units: seq<Unit>
+    }
+
+    type UnitProfile = {
+        Unit: Unit
+        Admins: seq<User>
+        ItPros: seq<User>
+        Selfs: seq<User>
+        SupportedDepartments: seq<Department>
     }
 
     type SimpleSearch = {
@@ -120,9 +132,11 @@ module Types =
     type IDataRepository =
         // abstract method
         abstract member GetUserByNetId: NetId -> Async<Result<User,Error>>
-        abstract member GetProfileById: Id -> Async<Result<Profile,Error>>
-        abstract member GetProfileByNetId: NetId -> Async<Result<Profile,Error>>
+        abstract member GetProfileById: Id -> Async<Result<UserProfile,Error>>
+        abstract member GetProfileByNetId: NetId -> Async<Result<UserProfile,Error>>
         abstract member GetSimpleSearchByTerm: string -> Async<Result<SimpleSearch,Error>>
+        abstract member GetUnits: unit -> Async<Result<UnitList,Error>>
+        abstract member GetUnitById: Id -> Async<Result<UnitProfile,Error>>
 
 
 ///<summary>
