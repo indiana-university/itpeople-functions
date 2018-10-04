@@ -11,27 +11,15 @@ open System.Net.Http
 
 module GetSimple =
 
-    type SimpleSearchResult = {
-        Term: string
-        Page: int
-        Items: int
-        Results: array<User>
-    }
-
     let workflow (req: HttpRequest) config getSearchResults = asyncTrial {
         let! _ = requireMembership config req
         let! term = getQueryParam "term" req
-        let! page = getQueryParamInt "page" req
-        let! items = getQueryParamInt' "items" 1 100 req 
-        let! results = bindAsyncResult (fun () -> getSearchResults term page items)
-        let response = 
-            { Term=term; Page=page; Items=items; Results=results }
-            |> jsonResponse Status.OK
-        return response
+        let! result = bindAsyncResult (fun () -> getSearchResults term)
+        return result |> jsonResponse Status.OK
     }
 
-    let run (req: HttpRequest) (log: TraceWriter) config = async {
-        let querySearch = querySearch config.DbConnectionString
+    let run (req: HttpRequest) (log: TraceWriter) (data: IDataRepository) config = async {
+        let querySearch = data.GetSimpleSearchByTerm
         let! result = workflow req config querySearch |> Async.ofAsyncResult
         return constructResponse log result
     }

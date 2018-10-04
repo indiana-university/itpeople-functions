@@ -12,6 +12,8 @@ open Microsoft.Extensions.Configuration
 ///</summary
 module Functions =
 
+    let data = Fakes.FakesRepository ()
+
     let appConfig (context:ExecutionContext) = 
         let config = 
             ConfigurationBuilder()
@@ -41,7 +43,7 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            context |> appConfig |> Auth.Get.run req log |> Async.StartAsTask
+            context |> appConfig |> Auth.Get.run req log data |> Async.StartAsTask
 
     [<FunctionName("UserGetId")>]
     let profileGet
@@ -50,7 +52,8 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =
-            context |> appConfig |> User.GetId.run req log id |> Async.StartAsTask
+            sprintf "Id is: %d" id |> log.Info
+            context |> appConfig |> User.GetId.run req log data id |> Async.StartAsTask
 
     [<FunctionName("UserGetMe")>]
     let profileGetMe
@@ -58,7 +61,7 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            context |> appConfig |> User.GetMe.run req log |> Async.StartAsTask
+            context |> appConfig |> User.GetMe.run req log data |> Async.StartAsTask
 
     [<FunctionName("UserPut")>]
     let profilePut
@@ -75,4 +78,4 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            context |> appConfig |> Search.GetSimple.run req log |> Async.StartAsTask
+            context |> appConfig |> Search.GetSimple.run req log data |> Async.StartAsTask

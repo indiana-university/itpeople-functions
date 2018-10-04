@@ -23,7 +23,8 @@ module Types =
     let ROLE_USER = "user"
 
     type Status = HttpStatusCode
-
+    type Message = string
+    type Error = Status * Message
     type ErrorModel = {
         errors: array<string>
     }
@@ -40,6 +41,11 @@ module Types =
     type Id = int
     type Name = string
     type NetId = string
+    type Entity = {
+        Id: Id
+        Name: Name
+        Description: Name
+    }
     type Role =
         | SelfReport=1
         | ItPro=2
@@ -50,55 +56,73 @@ module Types =
     [<Table("Users")>]
     type User = {
         Id: Id
+        [<JsonIgnore>]
         Hash: string
         NetId: NetId
         Name: Name
+        Role: Role
         Position: string
-        LocationCode: string
         Location: string
         CampusPhone: string
         CampusEmail: string
+        Campus: string
         Expertise: string
+        Responsibilities: string
+        // 
+        HrDepartmentId: Id
+        UnitId: Id
     }
-
 
     [<CLIMutable>]
     [<Table("Departments")>]
-    type Department = {
-        Id: Id
-        Name: Name
-    }
+    type Department = Entity
 
     [<CLIMutable>]
-    [<Table("UserDepartments")>]
-    type UserDepartment = {
+    [<Table("Units")>]
+    type Unit = Entity
+
+    [<CLIMutable>]
+    [<Table("Tools")>]
+    type Tool = Entity
+
+    [<CLIMutable>]
+    [<Table("SupportedDepartments")>]
+    type SupportedDepartment = {
         [<Key>]
         UserId: Id
         [<Key>]
         DepartmentId: Id
-        Role: Role
     }
 
     [<CLIMutable>]
-    type UserRole = {
+    [<Table("ToolPermissions")>]
+    type ToolPermission = {
+        [<Key>]
         UserId: Id
-        Name: Name
-        NetId: NetId
-        DepartmentId: Id
-        Department: Name
-        [<JsonConverter(typedefof<StringEnumConverter>)>]
-        Role: Role
+        [<Key>]
+        ToolId: Id
     }
 
-
-    type UserRequest = {
-        NetId: string
-    }
-
-    type UserReponse = {
+    type Profile = {
         User: User
-        Roles: array<UserRole>
+        Unit: Unit
+        Department: Department
+        SupportedDepartments: seq<Department>
+        ToolsAccess: seq<Tool>
     }
+
+    type SimpleSearch = {
+        Users: seq<User>
+        Departments: seq<Department>
+        Units: seq<Unit>
+    }
+
+    type IDataRepository =
+        // abstract method
+        abstract member GetUserByNetId: NetId -> Async<Result<User,Error>>
+        abstract member GetProfileById: Id -> Async<Result<Profile,Error>>
+        abstract member GetProfileByNetId: NetId -> Async<Result<Profile,Error>>
+        abstract member GetSimpleSearchByTerm: string -> Async<Result<SimpleSearch,Error>>
 
 
 ///<summary>

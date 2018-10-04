@@ -1,7 +1,6 @@
 namespace MyFunctions
 
 open Chessie.ErrorHandling
-open Common
 open Types
 open Dapper
 open System.Data.SqlClient
@@ -51,7 +50,7 @@ JOIN UserDepartments ud on ud.UserId = u.Id
 JOIN Departments d on d.Id = ud.DepartmentId
 WHERE u.Id = @Id"""
         try
-            let! queryResult = cn.QueryAsync<UserRole>(query, Map["Id", id :> obj]) |> Async.AwaitTask
+            let! queryResult = cn.QueryAsync<User>(query, Map["Id", id :> obj]) |> Async.AwaitTask
             match box queryResult with
             | null -> return fail (Status.NotFound, sprintf "No roles found for user id %d" id)
             | _ -> return ok queryResult

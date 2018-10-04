@@ -16,22 +16,19 @@ open System.Net.Http
 /// It demonstrates a basic GET request and response.
 ///</summary>
 module GetMe =
-    let workflow (req: HttpRequest) (config:AppConfig) queryUserByNetId queryRolesByUser = asyncTrial {
+    let workflow (req: HttpRequest) (config:AppConfig) queryUser = asyncTrial {
         let! claims = requireMembership config req
-        let! user = bindAsyncResult<User> (fun () -> queryUserByNetId claims.UserName)
-        let! roles = bindAsyncResult (fun () -> queryRolesByUser user.Id)
-        let response = {User=user; Roles=Seq.toArray roles} |> jsonResponse Status.OK
+        let! profile = bindAsyncResult (fun () -> queryUser claims.UserName)
+        let response = profile |> jsonResponse Status.OK
         return response
     }
 
     /// <summary>
     /// Say hello to a person by name.
     /// </summary>
-    let run (req: HttpRequest) (log: TraceWriter) config = async {
-        use cn = new SqlConnection(config.DbConnectionString);
-        let queryUserByNetId = queryUserByNetId cn
-        let queryRolesByUser = queryRolesByUser cn
-        let! result = workflow req config queryUserByNetId queryRolesByUser |> Async.ofAsyncResult
+    let run (req: HttpRequest) (log: TraceWriter) (data:IDataRepository) config = async {
+        let getProfileByNetId = data.GetProfileByNetId
+        let! result = workflow req config getProfileByNetId |> Async.ofAsyncResult
         return constructResponse log result
     }
 
@@ -40,22 +37,19 @@ module GetMe =
 /// It demonstrates a basic GET request and response.
 ///</summary>
 module GetId =
-    let workflow (req: HttpRequest) (config:AppConfig) queryUserById queryRolesByUser = asyncTrial {
+    let workflow (req: HttpRequest) (config:AppConfig) id queryProfileById = asyncTrial {
         let! _ = requireMembership config req
-        let! user = bindAsyncResult (fun () -> queryUserById)
-        let! roles = bindAsyncResult (fun () -> queryRolesByUser)
-        let response = {User=user; Roles=Seq.toArray roles} |> jsonResponse Status.OK
+        let! user = bindAsyncResult (fun () -> queryProfileById id)
+        let response = user |> jsonResponse Status.OK
         return response
     }
 
     /// <summary>
     /// Say hello to a person by name.
     /// </summary>
-    let run (req: HttpRequest) (log: TraceWriter) id config = async {
-        use cn = new SqlConnection(config.DbConnectionString);
-        let queryUserById = queryUser cn id
-        let queryRolesByUser = queryRolesByUser cn id
-        let! result = workflow req config queryUserById queryRolesByUser |> Async.ofAsyncResult
+    let run (req: HttpRequest) (log: TraceWriter) (data:IDataRepository) id config = async {
+        let getProfileById = data.GetProfileById
+        let! result = workflow req config id getProfileById |> Async.ofAsyncResult
         return constructResponse log result
     }
 
