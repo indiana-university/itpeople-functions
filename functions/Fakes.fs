@@ -88,6 +88,20 @@ module Fakes =
         return profile |> ok
     }
 
+    let getFakeDepartments () = async {
+        let! departments = async.Return {Departments = [arsd; dema]}
+        return departments |> ok
+    }
+
+    let getFakeDepartment id = async {
+        let! profile = async.Return {
+            Department=arsd
+            Servicers=[clientServices]
+            Units=[cito]
+        }
+        return profile |> ok
+    }
+
     type FakesRepository() =
         interface IDataRepository with 
             member this.GetUserByNetId netId = getFakeUser netId
@@ -96,3 +110,5 @@ module Fakes =
             member this.GetSimpleSearchByTerm term = getFakeSimpleSearchByTerm term
             member this.GetUnits () = getFakeUnits ()
             member this.GetUnitById id = getFakeUnit id
+            member this.GetDepartments () = getFakeDepartments ()
+            member this.GetDepartmentById id = getFakeDepartment id

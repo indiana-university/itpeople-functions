@@ -97,3 +97,20 @@ module Functions =
         context: ExecutionContext,
         id: Id) =
             context |> appConfig |> Unit.GetId.run req log data id |> Async.StartAsTask
+
+    [<FunctionName("DepartmentGetAll")>]
+    let departmentGetAll
+        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments")>]
+        req: HttpRequest,
+        log: TraceWriter,
+        context: ExecutionContext) =
+            context |> appConfig |> Department.GetAll.run req log data |> Async.StartAsTask
+
+    [<FunctionName("DepartmentGetId")>]
+    let departmentGetId
+        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>]
+        req: HttpRequest,
+        log: TraceWriter,
+        context: ExecutionContext,
+        id: Id) =
+            context |> appConfig |> Department.GetId.run req log data id |> Async.StartAsTask

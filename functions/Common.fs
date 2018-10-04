@@ -123,6 +123,16 @@ module Types =
         SupportedDepartments: seq<Department>
     }
 
+    type DepartmentList = {
+        Departments: seq<Department>
+    }
+
+    type DepartmentProfile = {
+        Department: Department
+        Servicers: seq<Unit>
+        Units: seq<Unit>
+    }
+
     type SimpleSearch = {
         Users: seq<User>
         Departments: seq<Department>
@@ -137,6 +147,8 @@ module Types =
         abstract member GetSimpleSearchByTerm: string -> Async<Result<SimpleSearch,Error>>
         abstract member GetUnits: unit -> Async<Result<UnitList,Error>>
         abstract member GetUnitById: Id -> Async<Result<UnitProfile,Error>>
+        abstract member GetDepartments: unit -> Async<Result<DepartmentList,Error>>
+        abstract member GetDepartmentById: Id -> Async<Result<DepartmentProfile,Error>>
 
 
 ///<summary>
