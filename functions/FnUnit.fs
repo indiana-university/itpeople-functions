@@ -8,9 +8,9 @@ open Microsoft.Azure.WebJobs.Host
 
 module GetAll =
 
-    let workflow (req: HttpRequest) config queryUnits = asyncTrial {
+    let workflow (req: HttpRequest) config (queryUnits:FetchAll<UnitList>) = asyncTrial {
         let! _ = requireMembership config req
-        let! result = bindAsyncResult (fun () -> queryUnits())
+        let! result = queryUnits()
         return result |> jsonResponse Status.OK
     }
 
@@ -22,14 +22,14 @@ module GetAll =
         
 module GetId =
 
-    let workflow (req: HttpRequest) config id queryUnit  = asyncTrial {
+    let workflow (req: HttpRequest) config id (queryUnit:FetchById<UnitProfile>)  = asyncTrial {
         let! _ = requireMembership config req
-        let! result = bindAsyncResult (fun () -> queryUnit id)
+        let! result = queryUnit id
         return result |> jsonResponse Status.OK
     }
 
     let run (req: HttpRequest) (log: TraceWriter) (data: IDataRepository) id config = async {
-        let queryUnit = data.GetUnitById
+        let queryUnit = data.GetUnit
         let! result = workflow req config id queryUnit |> Async.ofAsyncResult
         return constructResponse log result
     }

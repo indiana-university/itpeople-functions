@@ -47,12 +47,12 @@ module Fakes =
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
     let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
 
-    let getFakeUser netId = async {
+    let getFakeUser () = asyncTrial {
         let! user = async.Return ulrik
-        return user |> ok
+        return user
     }
 
-    let getFakeProfile arg = async {
+    let getFakeProfile () : AsyncResult<UserProfile,Error> = asyncTrial {
         let! profile = async.Return {
             User=ulrik;
             Unit=cito;
@@ -60,24 +60,24 @@ module Fakes =
             SupportedDepartments=[arsd; dema];
             ToolsAccess=[iuware; itproMail]
         }       
-        return profile |> ok
+        return profile
     }
 
-    let getFakeSimpleSearchByTerm term = async {
-        let! simpleSearch = async.Return {
-            Users=[ulrik; brent]
-            Departments=[arsd; dema]
-            Units=[cito; clientServices]
-        }
-        return simpleSearch |> ok
+    let getFakeSimpleSearchByTerm () : AsyncResult<SimpleSearch,Error> = asyncTrial {
+        let result = {
+                Users=[ulrik; brent]
+                Departments=[arsd; dema]
+                Units=[cito; clientServices]
+            }
+        return result
     }
 
-    let getFakeUnits () = async {
+    let getFakeUnits () = asyncTrial {
         let! units = async.Return { Units= [cito; clientServices] }
-        return units |> ok
+        return units
     }
 
-    let getFakeUnit id = async {
+    let getFakeUnit () = asyncTrial {
         let! profile = async.Return {
             Unit=cito
             Admins=[ulrik]
@@ -85,30 +85,29 @@ module Fakes =
             Selfs=[]
             SupportedDepartments=[arsd; dema]
         }
-        return profile |> ok
+        return profile
     }
 
-    let getFakeDepartments () = async {
+    let getFakeDepartments () = asyncTrial {
         let! departments = async.Return {Departments = [arsd; dema]}
-        return departments |> ok
+        return departments
     }
 
-    let getFakeDepartment id = async {
+    let getFakeDepartment () = asyncTrial {
         let! profile = async.Return {
             Department=arsd
             SupportingUnits=[clientServices]
             OrganizationUnits=[cito]
         }
-        return profile |> ok
+        return profile
     }
 
     type FakesRepository() =
         interface IDataRepository with 
-            member this.GetUserByNetId netId = getFakeUser netId
-            member this.GetProfileById id = getFakeProfile id
-            member this.GetProfileByNetId netId = getFakeProfile netId
-            member this.GetSimpleSearchByTerm term = getFakeSimpleSearchByTerm term
+            member this.GetUserByNetId netId = getFakeUser ()
+            member this.GetProfile id = getFakeProfile ()
+            member this.GetSimpleSearchByTerm term = getFakeSimpleSearchByTerm ()
             member this.GetUnits () = getFakeUnits ()
-            member this.GetUnitById id = getFakeUnit id
+            member this.GetUnit id = getFakeUnit ()
             member this.GetDepartments () = getFakeDepartments ()
-            member this.GetDepartmentById id = getFakeDepartment id
+            member this.GetDepartment id = getFakeDepartment ()

@@ -16,9 +16,11 @@ open System.Net.Http
 /// It demonstrates a basic GET request and response.
 ///</summary>
 module GetMe =
-    let workflow (req: HttpRequest) (config:AppConfig) queryUser = asyncTrial {
+
+
+    let workflow (req: HttpRequest) (config:AppConfig) (queryUser: FetchById<UserProfile>) = asyncTrial {
         let! claims = requireMembership config req
-        let! profile = bindAsyncResult (fun () -> queryUser claims.UserName)
+        let! profile = queryUser claims.UserId
         let response = profile |> jsonResponse Status.OK
         return response
     }
@@ -27,8 +29,8 @@ module GetMe =
     /// Say hello to a person by name.
     /// </summary>
     let run (req: HttpRequest) (log: TraceWriter) (data:IDataRepository) config = async {
-        let getProfileByNetId = data.GetProfileByNetId
-        let! result = workflow req config getProfileByNetId |> Async.ofAsyncResult
+        let getProfileById = data.GetProfile
+        let! result = workflow req config getProfileById |> Async.ofAsyncResult
         return constructResponse log result
     }
 
@@ -37,10 +39,10 @@ module GetMe =
 /// It demonstrates a basic GET request and response.
 ///</summary>
 module GetId =
-    let workflow (req: HttpRequest) (config:AppConfig) id queryProfileById = asyncTrial {
+    let workflow (req: HttpRequest) (config:AppConfig) id (queryUser: FetchById<UserProfile>) = asyncTrial {
         let! _ = requireMembership config req
-        let! user = bindAsyncResult (fun () -> queryProfileById id)
-        let response = user |> jsonResponse Status.OK
+        let! profile = queryUser id
+        let response = profile |> jsonResponse Status.OK
         return response
     }
 
@@ -48,31 +50,32 @@ module GetId =
     /// Say hello to a person by name.
     /// </summary>
     let run (req: HttpRequest) (log: TraceWriter) (data:IDataRepository) id config = async {
-        let getProfileById = data.GetProfileById
+        let getProfileById = data.GetProfile
         let! result = workflow req config id getProfileById |> Async.ofAsyncResult
         return constructResponse log result
     }
 
-module Put =
-    let validatePostBody body = ok body
 
-    let validateUserCanEditRecord claims record = ok record
+// module Put =
+//     let validatePostBody body = ok body
 
-    let workflow (req: HttpRequest) (config:AppConfig) getProfileRecord updateProfileRecord = asyncTrial {
-        let! claims = requireMembership config req
-        let! body = deserializeBody<User> req
-        let! update = validatePostBody body
-        let! record = bindAsyncResult (fun () -> getProfileRecord)
-        let! _ = validateUserCanEditRecord claims record
-        let! updatedRecord = bindAsyncResult (fun () -> updateProfileRecord record update)
-        let response = updatedRecord |> jsonResponse Status.OK
-        return response
-    }
+//     let validateUserCanEditRecord claims record = ok record
 
-    let run req log id config = async {
-        use cn = new SqlConnection(config.DbConnectionString);
-        let getUser = queryUser cn id
-        let updateUser = updateUser cn id
-        let! result = workflow req config getUser updateUser |> Async.ofAsyncResult
-        return constructResponse log result
-    }
+//     let workflow (req: HttpRequest) (config:AppConfig) getProfileRecord updateProfileRecord = asyncTrial {
+//         let! claims = requireMembership config req
+//         let! body = deserializeBody<User> req
+//         let! update = validatePostBody body
+//         let! record = bindAsyncResult (fun () -> getProfileRecord)
+//         let! _ = validateUserCanEditRecord claims record
+//         let! updatedRecord = bindAsyncResult (fun () -> updateProfileRecord record update)
+//         let response = updatedRecord |> jsonResponse Status.OK
+//         return response
+//     }
+
+//     let run req log id config = async {
+//         use cn = new SqlConnection(config.DbConnectionString);
+//         let getUser = queryUser cn id
+//         let updateUser = updateUser cn id
+//         let! result = workflow req config getUser updateUser |> Async.ofAsyncResult
+//         return constructResponse log result
+//     }

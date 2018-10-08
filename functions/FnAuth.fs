@@ -48,16 +48,15 @@ module Get =
             |> jsonResponse Status.OK
         tryf Status.InternalServerError fn
     
-    let workflow (req: HttpRequest) config queryUserByName = asyncTrial {
+    let workflow (req: HttpRequest) config (queryUserByName:string -> AsyncResult<User,Error>) = asyncTrial {
         let getUaaJwt request = bindAsyncResult (fun () -> postAsync<ResponseModel> config.OAuth2TokenUrl request)
-        let getAppRole username = bindAsyncResult (fun () -> getAppRole queryUserByName username)
 
         let! oauthCode = getQueryParam "code" req
         let! uaaRequest = createTokenRequest config.OAuth2ClientId config.OAuth2ClientSecret config.OAuth2RedirectUrl oauthCode
         let! uaaJwt = getUaaJwt uaaRequest
         let! uaaClaims = decodeUaaJwt uaaJwt.access_token
-        let! appRole = getAppRole uaaClaims.UserName
-        let! appJwt = encodeJwt config.JwtSecret uaaClaims.Expiration uaaClaims.UserName appRole
+        let! user = queryUserByName uaaClaims.UserName
+        let! appJwt = encodeJwt config.JwtSecret uaaClaims.Expiration user.Id user.NetId user.Role
         let! response = returnToken appJwt         
         return response
     }

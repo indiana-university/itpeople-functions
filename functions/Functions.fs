@@ -12,8 +12,6 @@ open Microsoft.Extensions.Configuration
 ///</summary
 module Functions =
 
-    let data = Fakes.FakesRepository ()
-
     let appConfig (context:ExecutionContext) = 
         let config = 
             ConfigurationBuilder()
@@ -30,6 +28,12 @@ module Functions =
             DbConnectionString = config.["DbConnectionString"]
         }
 
+    let getDependencies(context: ExecutionContext) = 
+        let config = context |> appConfig
+        let data = Database.DatabaseRepository(config.DbConnectionString)
+        (config,data)
+
+
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
@@ -43,7 +47,8 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            context |> appConfig |> Auth.Get.run req log data |> Async.StartAsTask
+            let (config,data) = getDependencies(context)
+            Auth.Get.run req log data config |> Async.StartAsTask
 
     [<FunctionName("UserGetId")>]
     let profileGet
@@ -52,8 +57,8 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =
-            sprintf "Id is: %d" id |> log.Info
-            context |> appConfig |> User.GetId.run req log data id |> Async.StartAsTask
+            let (config,data) = getDependencies(context)
+            User.GetId.run req log data id config |> Async.StartAsTask
 
     [<FunctionName("UserGetMe")>]
     let profileGetMe
@@ -61,16 +66,17 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            context |> appConfig |> User.GetMe.run req log data |> Async.StartAsTask
+            let (config,data) = getDependencies(context)
+            User.GetMe.run req log data config |> Async.StartAsTask
 
-    [<FunctionName("UserPut")>]
-    let profilePut
-        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "put", Route = "users/{id}")>]
-        req: HttpRequest,
-        log: TraceWriter,
-        context: ExecutionContext,
-        id: Id) =
-            context |> appConfig |> User.Put.run req log id |> Async.StartAsTask
+    // [<FunctionName("UserPut")>]
+    // let profilePut
+    //     ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "put", Route = "users/{id}")>]
+    //     req: HttpRequest,
+    //     log: TraceWriter,
+    //     context: ExecutionContext,
+    //     id: Id) =
+    //         context |> appConfig |> User.Put.run req log id |> Async.StartAsTask
 
     [<FunctionName("SearchGet")>]
     let searchSimpleGet
@@ -78,7 +84,8 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            context |> appConfig |> Search.GetSimple.run req log data |> Async.StartAsTask
+            let (config,data) = getDependencies(context)
+            Search.GetSimple.run req log data config |> Async.StartAsTask
 
 
     [<FunctionName("UnitGetAll")>]
@@ -87,7 +94,8 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            context |> appConfig |> Unit.GetAll.run req log data |> Async.StartAsTask
+            let (config,data) = getDependencies(context)
+            Unit.GetAll.run req log data config |> Async.StartAsTask
 
     [<FunctionName("UnitGetId")>]
     let unitGetId
@@ -96,7 +104,8 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =
-            context |> appConfig |> Unit.GetId.run req log data id |> Async.StartAsTask
+            let (config,data) = getDependencies(context)
+            Unit.GetId.run req log data id config |> Async.StartAsTask
 
     [<FunctionName("DepartmentGetAll")>]
     let departmentGetAll
@@ -104,7 +113,8 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            context |> appConfig |> Department.GetAll.run req log data |> Async.StartAsTask
+            let (config,data) = getDependencies(context)
+            Department.GetAll.run req log data config |> Async.StartAsTask
 
     [<FunctionName("DepartmentGetId")>]
     let departmentGetId
@@ -113,4 +123,5 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =
-            context |> appConfig |> Department.GetId.run req log data id |> Async.StartAsTask
+            let (config,data) = getDependencies(context)
+            Department.GetId.run req log data id config |> Async.StartAsTask

@@ -11,16 +11,15 @@ open System.Net.Http
 
 module GetSimple =
 
-    let workflow (req: HttpRequest) config getSearchResults = asyncTrial {
+    let workflow (req: HttpRequest) config (getSearchResults: string -> AsyncResult<SimpleSearch,Error>) = asyncTrial {
         let! _ = requireMembership config req
         let! term = getQueryParam "term" req
-        let! result = bindAsyncResult (fun () -> getSearchResults term)
+        let! result = getSearchResults term
         return result |> jsonResponse Status.OK
     }
 
     let run (req: HttpRequest) (log: TraceWriter) (data: IDataRepository) config = async {
-        let querySearch = data.GetSimpleSearchByTerm
-        let! result = workflow req config querySearch |> Async.ofAsyncResult
+        let! result = workflow req config (data.GetSimpleSearchByTerm) |> Async.ofAsyncResult
         return constructResponse log result
     }
 

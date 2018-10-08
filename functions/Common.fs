@@ -49,7 +49,7 @@ module Types =
     type Role =
         | SelfReport=1
         | ItPro=2
-        | Manager=3
+        | ItManager=3
         | Admin=4
 
     [<CLIMutable>]
@@ -75,15 +75,27 @@ module Types =
 
     [<CLIMutable>]
     [<Table("Departments")>]
-    type Department = Entity
+    type Department = {
+        Id: Id
+        Name: Name
+        Description: Name
+    }
 
     [<CLIMutable>]
     [<Table("Units")>]
-    type Unit = Entity
+    type Unit = {
+        Id: Id
+        Name: Name
+        Description: Name
+    }
 
     [<CLIMutable>]
     [<Table("Tools")>]
-    type Tool = Entity
+    type Tool = {
+        Id: Id
+        Name: Name
+        Description: Name
+    }
 
     [<CLIMutable>]
     [<Table("SupportedDepartments")>]
@@ -102,6 +114,8 @@ module Types =
         [<Key>]
         ToolId: Id
     }
+
+    // DOMAIN MODELS
 
     type UserProfile = {
         User: User
@@ -129,8 +143,8 @@ module Types =
 
     type DepartmentProfile = {
         Department: Department
-        Servicers: seq<Unit>
-        Units: seq<Unit>
+        SupportingUnits: seq<Unit>
+        OrganizationUnits: seq<Unit>
     }
 
     type SimpleSearch = {
@@ -139,16 +153,18 @@ module Types =
         Units: seq<Unit>
     }
 
+    type FetchById<'T> = Id -> AsyncResult<'T,Error>
+    type FetchAll<'T> = unit -> AsyncResult<'T,Error>
+
     type IDataRepository =
         // abstract method
-        abstract member GetUserByNetId: NetId -> Async<Result<User,Error>>
-        abstract member GetProfileById: Id -> Async<Result<UserProfile,Error>>
-        abstract member GetProfileByNetId: NetId -> Async<Result<UserProfile,Error>>
-        abstract member GetSimpleSearchByTerm: string -> Async<Result<SimpleSearch,Error>>
-        abstract member GetUnits: unit -> Async<Result<UnitList,Error>>
-        abstract member GetUnitById: Id -> Async<Result<UnitProfile,Error>>
-        abstract member GetDepartments: unit -> Async<Result<DepartmentList,Error>>
-        abstract member GetDepartmentById: Id -> Async<Result<DepartmentProfile,Error>>
+        abstract member GetUserByNetId: NetId -> AsyncResult<User,Error>
+        abstract member GetProfile: Id -> AsyncResult<UserProfile,Error>
+        abstract member GetSimpleSearchByTerm: string -> AsyncResult<SimpleSearch,Error>
+        abstract member GetUnits: unit -> AsyncResult<UnitList,Error>
+        abstract member GetUnit: Id -> AsyncResult<UnitProfile,Error>
+        abstract member GetDepartments: unit -> AsyncResult<DepartmentList,Error>
+        abstract member GetDepartment: Id -> AsyncResult<DepartmentProfile,Error>
 
 
 ///<summary>
@@ -183,6 +199,26 @@ module Common =
     /// of any element matches the provided predicate
     let any pred s = s |> Seq.exists (fun li -> fst li = pred)
 
+   /// <summary>
+    /// Given an async computation expression that returns a Result<TSuccess,TFailure>,
+    /// bind and return the TSuccess.
+    /// </summary>
+    let bindAsyncResult<'T> (asyncFn: unit -> Async<Result<'T,(HttpStatusCode*string)>>) = asyncTrial {
+        let! result = asyncFn()
+        let! bound = result
+        return bound
+    }
+
+    /// <summary>
+    /// Given an async computation expression that returns a Result<TSuccess,TFailure>,
+    /// bind and return the TSuccess.
+    /// </summary>
+    let bindAsync<'T> (asyncResult: Async<Result<'T,(HttpStatusCode*string)>>) = asyncTrial {
+        let! result = asyncResult
+        let! bound = result
+        return bound
+    }
+
     /// <summary>
     /// ROP: Attempt to execute a function.
     /// If it succeeds, pass along the result. 
@@ -205,7 +241,26 @@ module Common =
         with
         | exn -> fail (status, sprintf "%s: %s" msg (exn.Message))
 
-    
+
+    let foo status msg fn = async {
+        try
+            let! result = fn()
+            return result
+        with
+        | exn -> return fail (status, sprintf "%s: %s" msg (exn.Message))
+    }
+
+    /// <summary>
+    /// ROP: Attempt to execute a function.
+    /// If it succeeds, pass along the result. 
+    /// If it throws, wrap the exception message in a failure with the provided status.
+    /// </summary>
+    let tryfResult<'T> status msg (fn:unit -> Async<Result<'T,Error>>) = asyncTrial {
+        let! result = foo status msg fn |> bindAsync
+        return result
+    }
+
+
     // HTTP REQUEST
 
     let tryDeserialize<'T> status str =
@@ -357,15 +412,7 @@ module Common =
             jsonResponse status errors
 
 
-    /// <summary>
-    /// Given an async computation expression that returns a Result<TSuccess,TFailure>,
-    /// bind and return the TSuccess.
-    /// </summary>
-    let bindAsyncResult<'T> (asyncFn: unit -> Async<Result<'T,(HttpStatusCode*string)>>) = asyncTrial {
-        let! result = asyncFn()
-        let! bound = result
-        return bound
-    }
+ 
 
 
 /// *******************
@@ -373,24 +420,27 @@ module Common =
 /// *******************
 
     type JwtClaims = {
+        UserId: Id
         UserName: NetId
         Expiration: System.DateTime
     }
 
     let ExpClaim = "exp"
+    let UserIdClaim = "user_id"
     let UserNameClaim = "user_name"
     let UserRoleClaim = "user_role"
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
     // Create and sign a JWT
-    let encodeJwt secret exp username userrole = 
+    let encodeJwt secret exp id netId role = 
         let fn() =
             JwtBuilder()
                 .WithAlgorithm(new HMACSHA256Algorithm())
                 .WithSecret(secret)
                 .ExpirationTime(exp)
-                .AddClaim(UserNameClaim, username)
-                .AddClaim(UserRoleClaim, userrole)
+                .AddClaim(UserIdClaim, (id.ToString()))
+                .AddClaim(UserNameClaim, netId)
+                .AddClaim(UserRoleClaim, (role.ToString()))
                 .Build();
         tryf' Status.InternalServerError "Failed to create access token" fn
 
@@ -410,6 +460,7 @@ module Common =
                 JwtBuilder()
                     .Decode<IDictionary<string, obj>>(jwt)
             let claims = {
+                UserId = 0
                 UserName = decoded.[UserNameClaim] |> string
                 Expiration = decoded.[ExpClaim] |> decodeExp
             }
@@ -431,6 +482,7 @@ module Common =
                     .MustVerifySignature()
                     .Decode<IDictionary<string, string>>(jwt)
             let claims = {
+                UserId = decoded.[UserIdClaim] |> Int32.Parse
                 UserName = decoded.[UserNameClaim] |> string
                 Expiration = decoded.[ExpClaim] |> decodeExp
             }
