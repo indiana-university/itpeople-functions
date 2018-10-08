@@ -96,8 +96,8 @@ module Fakes =
     let getFakeDepartment id = async {
         let! profile = async.Return {
             Department=arsd
-            Servicers=[clientServices]
-            Units=[cito]
+            SupportingUnits=[clientServices]
+            OrganizationUnits=[cito]
         }
         return profile |> ok
     }
