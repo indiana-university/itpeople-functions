@@ -67,7 +67,8 @@ module Database =
 SELECT d.* FROM Departments d
 JOIN SupportedDepartments sd on d.Id = sd.DepartmentId 
 WHERE sd.UserId = @Id
-ORDER BY Name ASC"""
+GROUP BY d.Id, d.Name, d.Description
+ORDER BY d.Name ASC"""
         let msg = "Failed to query supported departments by user id"
         let! result = queryAll<Department> connStr query msg userId
         return result
@@ -78,8 +79,9 @@ ORDER BY Name ASC"""
 SELECT d.* FROM Departments d
 JOIN SupportedDepartments sd on d.Id = sd.DepartmentId 
 JOIN Users u on u.Id = sd.UserId
-WHERE u.UnitId = @Id 
-ORDER BY Name ASC"""
+WHERE u.UnitId = @Id
+GROUP BY d.Id, d.Name, d.Description
+ORDER BY d.Name ASC"""
         let msg = "Failed to supported departments by unit id"
         let! result = queryAll<Department> connStr query msg unitId
         return result
@@ -90,7 +92,8 @@ ORDER BY Name ASC"""
 SELECT un.* FROM Units un
 JOIN Users u on un.Id = u.UnitId
 WHERE u.HrDepartmentId = @Id 
-ORDER BY Name ASC"""
+GROUP BY un.Id, un.Name, un.Description
+ORDER BY un.Name ASC"""
         let msg = "Failed to get org units in department"
         let! result = queryAll<Unit> connStr query msg deptId
         return result
@@ -102,7 +105,8 @@ SELECT un.* FROM Units un
 JOIN Users u on un.Id = u.UnitId
 JOIN SupportedDepartments sd on u.Id = sd.UserId 
 WHERE sd.DepartmentId = @Id 
-ORDER BY Name ASC"""
+GROUP BY un.Id, un.Name, un.Description
+ORDER BY un.Name ASC"""
         let msg = "Failed to get units supporting department"
         let! result = queryAll<Unit> connStr query msg deptId
         return result
@@ -142,9 +146,9 @@ ORDER BY Name ASC"""
         let! units = querySearch<Unit> connStr term "WHERE Name LIKE @Term OR Description LIKE @Term"
         let! depts = querySearch<Department> connStr term "WHERE Name LIKE @Term OR Description LIKE @Term"
         return {
-            Users=users
-            Units=units
-            Departments=depts
+            Users=users |> Seq.sortBy (fun u -> u.Name)
+            Units=units |> Seq.sortBy (fun u -> u.Name)
+            Departments=depts |> Seq.sortBy (fun u -> u.Name)
         }
     }
 
@@ -152,7 +156,7 @@ ORDER BY Name ASC"""
         let fn () = async {
             use cn = new SqlConnection(connStr)
             let! seq = cn.GetListAsync<Unit>() |> Async.AwaitTask
-            return { Units = seq } |> ok 
+            return { Units = seq |> Seq.sortBy (fun u -> u.Name)} |> ok 
         }
         let! result = tryfResult Status.InternalServerError "Failed to fetch user by netId" fn
         return result
@@ -166,7 +170,7 @@ ORDER BY Name ASC"""
         let fn() = async {
             use cn = new SqlConnection(connStr)
             let! seq = cn.GetListAsync<User>({UnitId=id})  |> Async.AwaitTask
-            return ok seq
+            return seq |> Seq.sortBy (fun u -> u.Name) |> ok
         }
         let! result = tryfResult Status.InternalServerError "Failed to get members by unit id" fn
         return result        
@@ -181,10 +185,10 @@ ORDER BY Name ASC"""
         let selfs = people |> Seq.filter (fun p -> p.Role = Role.SelfReport)
         return {
             Unit=unit
-            Admins=admins
-            ItPros=itpros
-            Selfs=selfs
-            SupportedDepartments=supportedDepartments
+            Admins=admins |> Seq.sortBy (fun u -> u.Name)
+            ItPros=itpros |> Seq.sortBy (fun u -> u.Name)
+            Selfs=selfs |> Seq.sortBy (fun u -> u.Name)
+            SupportedDepartments=supportedDepartments |> Seq.sortBy (fun u -> u.Name)
         }
     }
 
@@ -192,7 +196,7 @@ ORDER BY Name ASC"""
         let fn () = async {
             use cn = new SqlConnection(connStr)
             let! seq = cn.GetListAsync<Department>() |> Async.AwaitTask
-            return { Departments = seq } |> ok 
+            return { Departments = seq |> Seq.sortBy (fun u -> u.Name) } |> ok 
         }
         let! result = tryfResult Status.InternalServerError "Failed to fetch user by netId" fn
         return result
@@ -206,8 +210,8 @@ ORDER BY Name ASC"""
         let! supportingUnits = getUnitsSupportingDepartment connStr id
         return {
             Department=dept
-            OrganizationUnits=orgUnits
-            SupportingUnits=supportingUnits
+            OrganizationUnits=orgUnits |> Seq.sortBy (fun u -> u.Name)
+            SupportingUnits=supportingUnits |> Seq.sortBy (fun u -> u.Name)
         }
     }
 
