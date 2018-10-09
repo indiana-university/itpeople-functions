@@ -6,36 +6,40 @@ open Chessie.ErrorHandling
 module Fakes =
 
     let ulrik = {
-        Id=1;
-        Hash="";
-        NetId="ulrik";
-        Name="Knudsen, Ulrik Palle";
-        Role=Role.Admin;
-        Position="Chief Technology Officer";
-        Location="SMR Room 024";
-        Campus="IUBLA";
-        CampusPhone="812-856-0207";
-        CampusEmail="ulrik@iu.edu";
-        Expertise="Life, the universe, everything";
-        Responsibilities="IT Director";
-        HrDepartmentId=1;
+        Id=1
+        Hash=""
+        NetId="ulrik"
+        Name="Knudsen, Ulrik Palle"
+        Role=Role.Admin
+        Position="Chief Technology Officer"
+        Location="SMR Room 024"
+        Campus="IUBLA"
+        CampusPhone="812-856-0207"
+        CampusEmail="ulrik@iu.edu"
+        Expertise="Life, the universe, everything"
+        Notes="foo"
+        Tools = Tools.IUware
+        Responsibilities = Responsibilities.BizSysAnalysis
+        HrDepartmentId=1
         UnitId=1
     }
 
     let brent = {
-        Id=2;
-        Hash="";
-        NetId="bmoberly";
-        Name="Moberly, Brent Maximus";
-        Role=Role.ItPro;
-        Position="Very Senior Software Developer Lead Architect Analyst";
-        Location="CIB";
-        Campus="IUBLA";
-        CampusPhone="812-856-2138";
-        CampusEmail="bmoberly@iu.edu";
-        Expertise="Snivlin', grovlin', code expansion, copying/pasting from Stack Overflow";
-        Responsibilities="Typing, shirking";
-        HrDepartmentId=1;
+        Id=2
+        Hash=""
+        NetId="bmoberly"
+        Name="Moberly, Brent Maximus"
+        Role=Role.ItPro
+        Position="Very Senior Software Developer Lead Architect Analyst"
+        Location="CIB"
+        Campus="IUBLA"
+        CampusPhone="812-856-2138"
+        CampusEmail="bmoberly@iu.edu"
+        Expertise="Snivlin', grovlin', code expansion, copying/pasting from Stack Overflow"
+        Notes="foo"
+        Tools = Tools.IUware
+        Responsibilities = Responsibilities.BizSysAnalysis
+        HrDepartmentId=1
         UnitId=1
     }
 
@@ -58,7 +62,7 @@ module Fakes =
             Unit=cito;
             Department=arsd;
             SupportedDepartments=[arsd; dema];
-            ToolsAccess=[iuware; itproMail]
+            ToolsAccess=[]
         }       
         return profile
     }

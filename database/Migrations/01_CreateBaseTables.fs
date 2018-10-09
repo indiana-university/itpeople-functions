@@ -9,13 +9,13 @@ type CreateBaseTables() =
     base.Execute("""
     CREATE TABLE Departments( 
       Id INT NOT NULL IDENTITY PRIMARY KEY,
-      Name VARCHAR(16) NOT NULL UNIQUE,
+      Name VARCHAR(128) NOT NULL UNIQUE,
       Description VARCHAR(128) NULL
     )
 
     CREATE TABLE Units( 
       Id INT NOT NULL IDENTITY PRIMARY KEY,
-      Name VARCHAR(16) NOT NULL UNIQUE,
+      Name VARCHAR(128) NOT NULL UNIQUE,
       Description VARCHAR(128) NULL
     )
 
@@ -30,8 +30,10 @@ type CreateBaseTables() =
       Campus VARCHAR(16) NOT NULL,
       CampusPhone VARCHAR(16) NULL,
       CampusEmail VARCHAR(32) NOT NULL,
-      Expertise VARCHAR(1024) NULL,
-      Responsibilities VARCHAR(1024) NULL,
+      Expertise VARCHAR(2048) NULL,
+      Notes VARCHAR(2048) NULL,
+      Responsibilities INT NOT NULL DEFAULT 0,
+      Tools INT NOT NULL DEFAULT 7,
       HrDepartmentId INT NOT NULL,
       UnitId INT NOT NULL,
       CONSTRAINT FK_HrDepartment 

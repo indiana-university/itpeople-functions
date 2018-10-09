@@ -180,7 +180,7 @@ ORDER BY un.Name ASC"""
         let! unit = queryTypeById<Unit> connStr id
         let! people = getUnitMembers connStr id
         let! supportedDepartments = queryDepartmentsSupportedByUnit connStr id
-        let admins = people |> Seq.filter (fun p -> p.Role = Role.ItManager)
+        let admins = people |> Seq.filter (fun p -> p.Role = Role.Admin || p.Role = Role.CoAdmin)
         let itpros = people |> Seq.filter (fun p -> p.Role = Role.ItPro)
         let selfs = people |> Seq.filter (fun p -> p.Role = Role.SelfReport)
         return {

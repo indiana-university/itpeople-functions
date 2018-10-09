@@ -46,11 +46,42 @@ module Types =
         Name: Name
         Description: Name
     }
+
     type Role =
         | SelfReport=1
         | ItPro=2
-        | ItManager=3
+        | CoAdmin=3
         | Admin=4
+
+    [<Flags>]
+    type Tools =
+        | ItProWeb      = 0b000000001
+        | ItProMail     = 0b000000010
+        | IUware        = 0b000000100
+        | MAS           = 0b000001000
+        | ProductKeys   = 0b000010000
+        | AccountMgt    = 0b000100000
+        | AMSAdmin      = 0b001000000
+        | UIPOUnblocker = 0b010000000
+        | SuperPass     = 0b100000000
+
+    [<Flags>]
+    type Responsibilities =
+        | ItLeadership          = 0b00000000000000001
+        | BizSysAnalysis        = 0b00000000000000010
+        | DataAdminAnalysis     = 0b00000000000000100
+        | DatabaseArchDesign    = 0b00000000000001000
+        | InstructionalTech     = 0b00000000000010000
+        | ItProjectMgt          = 0b00000000000100000
+        | ItSecurityPrivacy     = 0b00000000001000000
+        | ItUserSupport         = 0b00000000010000000
+        | ItMultiDiscipline     = 0b00000000100000000
+        | Networks              = 0b00000001000000000
+        | SoftwareAdminAnalysis = 0b00000010000000000
+        | SoftwareDevEng        = 0b00000100000000000
+        | UserExperience        = 0b00001000000000000
+        | WebAdminDevEng        = 0b00010000000000000
+    
 
     [<CLIMutable>]
     [<Table("Users")>]
@@ -67,7 +98,9 @@ module Types =
         CampusEmail: string
         Campus: string
         Expertise: string
-        Responsibilities: string
+        Notes: string
+        Responsibilities: Responsibilities
+        Tools: Tools
         // 
         HrDepartmentId: Id
         UnitId: Id
@@ -90,29 +123,12 @@ module Types =
     }
 
     [<CLIMutable>]
-    [<Table("Tools")>]
-    type Tool = {
-        Id: Id
-        Name: Name
-        Description: Name
-    }
-
-    [<CLIMutable>]
     [<Table("SupportedDepartments")>]
     type SupportedDepartment = {
         [<Key>]
         UserId: Id
         [<Key>]
         DepartmentId: Id
-    }
-
-    [<CLIMutable>]
-    [<Table("ToolPermissions")>]
-    type ToolPermission = {
-        [<Key>]
-        UserId: Id
-        [<Key>]
-        ToolId: Id
     }
 
     // DOMAIN MODELS
@@ -122,7 +138,7 @@ module Types =
         Unit: Unit
         Department: Department
         SupportedDepartments: seq<Department>
-        ToolsAccess: seq<Tool>
+        ToolsAccess: seq<Tools>
     }
 
     type UnitList = {
