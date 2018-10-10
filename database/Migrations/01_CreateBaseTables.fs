@@ -10,7 +10,8 @@ type CreateBaseTables() =
     CREATE TABLE Departments( 
       Id INT NOT NULL IDENTITY PRIMARY KEY,
       Name VARCHAR(128) NOT NULL UNIQUE,
-      Description VARCHAR(128) NULL
+      Description VARCHAR(128) NULL,
+      DisplayUnits BIT NOT NULL DEFAULT 0
     )
 
     CREATE TABLE Units( 
@@ -24,7 +25,6 @@ type CreateBaseTables() =
       Hash VARCHAR(128) NOT NULL,
       NetId VARCHAR(16) NOT NULL UNIQUE,
       Name VARCHAR(128) NOT NULL,
-      Role TINYINT NOT NULL,
       Position VARCHAR(128) NOT NULL,
       Location VARCHAR(256) NULL,
       Campus VARCHAR(16) NOT NULL,
@@ -35,26 +35,38 @@ type CreateBaseTables() =
       Responsibilities INT NOT NULL DEFAULT 0,
       Tools INT NOT NULL DEFAULT 7,
       HrDepartmentId INT NOT NULL,
-      UnitId INT NOT NULL,
-      CONSTRAINT FK_HrDepartment 
+      CONSTRAINT FK_Users_HrDepartment 
         FOREIGN KEY (HrDepartmentId) REFERENCES Departments (Id),
-      CONSTRAINT FK_Unit 
-        FOREIGN KEY (UnitId) REFERENCES Units (Id)
     )
 
     CREATE TABLE SupportedDepartments (
       UserId INT,
       DepartmentId INT,
-      CONSTRAINT PK_UserDepartment PRIMARY KEY (UserId, DepartmentId),
-      CONSTRAINT FK_User 
+      UnitId INT,
+      CONSTRAINT PK_SupportedDepartments_UserDepartment PRIMARY KEY (UserId, DepartmentId),
+      CONSTRAINT FK_SupportedDepartments_User 
         FOREIGN KEY (UserId) REFERENCES Users (Id),
-      CONSTRAINT FK_Department 
-        FOREIGN KEY (DepartmentId) REFERENCES Departments (Id) 
+      CONSTRAINT FK_SupportedDepartments_Department 
+        FOREIGN KEY (DepartmentId) REFERENCES Departments (Id),
+      CONSTRAINT FK_SupportedDepartments_Unit 
+        FOREIGN KEY (UnitId) REFERENCES Units (Id) 
+    )
+
+    CREATE TABLE UnitMembers (
+      UserId INT,
+      UnitId INT,
+      Role TINYINT NOT NULL,
+      CONSTRAINT PK_UnitMembers_UnitMember PRIMARY KEY (UserId, UnitId),
+      CONSTRAINT FK_UnitMembers_User 
+        FOREIGN KEY (UserId) REFERENCES Users (Id),
+      CONSTRAINT FK_UnitMembers_Unit 
+        FOREIGN KEY (UnitId) REFERENCES Units (Id) 
     )
 """)
 
   override __.Down() =
     base.Execute("""
+    DROP TABLE UnitMembers
     DROP TABLE SupportedDepartments
     DROP TABLE Users
     DROP TABLE Units

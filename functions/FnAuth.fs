@@ -56,7 +56,7 @@ module Get =
         let! uaaJwt = getUaaJwt uaaRequest
         let! uaaClaims = decodeUaaJwt uaaJwt.access_token
         let! user = queryUserByName uaaClaims.UserName
-        let! appJwt = encodeJwt config.JwtSecret uaaClaims.Expiration user.Id user.NetId user.Role
+        let! appJwt = encodeJwt config.JwtSecret uaaClaims.Expiration user.Id user.NetId
         let! response = returnToken appJwt         
         return response
     }

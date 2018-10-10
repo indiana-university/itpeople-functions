@@ -31,6 +31,7 @@ module Functions =
     let getDependencies(context: ExecutionContext) = 
         let config = context |> appConfig
         let data = Database.DatabaseRepository(config.DbConnectionString)
+        // let data = Fakes.FakesRepository()
         (config,data)
 
 

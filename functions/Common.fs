@@ -38,20 +38,29 @@ module Types =
         DbConnectionString: string
     }
 
+    type Role =
+        | SelfSupport=1
+        | ItPro=2
+        | CoAdmin=3
+        | Admin=4
+
+
     type Id = int
     type Name = string
     type NetId = string
+    [<CLIMutable>]
     type Entity = {
         Id: Id
         Name: Name
         Description: Name
     }
+    [<CLIMutable>]
+    type EntityRole = {
+        Id: Id
+        Name: Name
+        Role: Role
+    }
 
-    type Role =
-        | SelfReport=1
-        | ItPro=2
-        | CoAdmin=3
-        | Admin=4
 
     [<Flags>]
     type Tools =
@@ -91,7 +100,6 @@ module Types =
         Hash: string
         NetId: NetId
         Name: Name
-        Role: Role
         Position: string
         Location: string
         CampusPhone: string
@@ -103,7 +111,6 @@ module Types =
         Tools: Tools
         // 
         HrDepartmentId: Id
-        UnitId: Id
     }
 
     [<CLIMutable>]
@@ -112,6 +119,7 @@ module Types =
         Id: Id
         Name: Name
         Description: Name
+        DisplayUnits: Boolean
     }
 
     [<CLIMutable>]
@@ -129,14 +137,30 @@ module Types =
         UserId: Id
         [<Key>]
         DepartmentId: Id
+        [<Key>]
+        UnitId: Id
+    }
+
+    [<CLIMutable>]
+    [<Table("UnitMembers")>]
+    type UnitMember = {
+        [<Key>]
+        UserId: Id
+        [<Key>]
+        UnitId: Id
+        Role: Role
     }
 
     // DOMAIN MODELS
-
+    [<CLIMutable>]
+    type Member = Entity
+    [<CLIMutable>]
+    type MemberWithRole = EntityRole
+    
     type UserProfile = {
         User: User
-        Unit: Unit
         Department: Department
+        UnitMemberships: seq<MemberWithRole>
         SupportedDepartments: seq<Department>
         ToolsAccess: seq<Tools>
     }
@@ -147,9 +171,7 @@ module Types =
 
     type UnitProfile = {
         Unit: Unit
-        Admins: seq<User>
-        ItPros: seq<User>
-        Selfs: seq<User>
+        Members: seq<MemberWithRole>
         SupportedDepartments: seq<Department>
     }
 
@@ -160,7 +182,8 @@ module Types =
     type DepartmentProfile = {
         Department: Department
         SupportingUnits: seq<Unit>
-        OrganizationUnits: seq<Unit>
+        Units: seq<Unit>
+        Members: seq<Member>
     }
 
     type SimpleSearch = {
@@ -168,6 +191,8 @@ module Types =
         Departments: seq<Department>
         Units: seq<Unit>
     }
+
+
 
     type FetchById<'T> = Id -> AsyncResult<'T,Error>
     type FetchAll<'T> = unit -> AsyncResult<'T,Error>
@@ -377,6 +402,7 @@ module Common =
         httpResponse status content "text/plain"
 
     let jsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
+    jsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
 
     /// <summary>
     /// Construct an HTTP response with JSON content
@@ -448,7 +474,7 @@ module Common =
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
     // Create and sign a JWT
-    let encodeJwt secret exp id netId role = 
+    let encodeJwt secret exp id netId = 
         let fn() =
             JwtBuilder()
                 .WithAlgorithm(new HMACSHA256Algorithm())
@@ -456,7 +482,7 @@ module Common =
                 .ExpirationTime(exp)
                 .AddClaim(UserIdClaim, (id.ToString()))
                 .AddClaim(UserNameClaim, netId)
-                .AddClaim(UserRoleClaim, (role.ToString()))
+                // .AddClaim(UserRoleClaim, (role.ToString()))
                 .Build();
         tryf' Status.InternalServerError "Failed to create access token" fn
 

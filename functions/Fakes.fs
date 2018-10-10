@@ -10,7 +10,6 @@ module Fakes =
         Hash=""
         NetId="ulrik"
         Name="Knudsen, Ulrik Palle"
-        Role=Role.Admin
         Position="Chief Technology Officer"
         Location="SMR Room 024"
         Campus="IUBLA"
@@ -21,7 +20,6 @@ module Fakes =
         Tools = Tools.IUware
         Responsibilities = Responsibilities.BizSysAnalysis
         HrDepartmentId=1
-        UnitId=1
     }
 
     let brent = {
@@ -29,7 +27,6 @@ module Fakes =
         Hash=""
         NetId="bmoberly"
         Name="Moberly, Brent Maximus"
-        Role=Role.ItPro
         Position="Very Senior Software Developer Lead Architect Analyst"
         Location="CIB"
         Campus="IUBLA"
@@ -40,14 +37,14 @@ module Fakes =
         Tools = Tools.IUware
         Responsibilities = Responsibilities.BizSysAnalysis
         HrDepartmentId=1
-        UnitId=1
     }
 
     let cito:Unit = {Id=1; Name="College IT Office (CITO)"; Description=""}
-    let clientServices:Unit = {Id=1; Name="Client Services"; Description=""}
+    let biology:Unit = {Id=2; Name="Biology IT"; Description=""}
+    let clientServices:Unit = {Id=3; Name="Client Services"; Description=""}
 
-    let arsd:Department = {Id=1; Name="BL-ARSD"; Description="Arts and Sciences Deans Office"}
-    let dema:Department = {Id=1; Name="BL-DEMA"; Description=""}
+    let arsd:Department = {Id=1; Name="BL-ARSD"; Description="Arts and Sciences Deans Office"; DisplayUnits=false}
+    let dema:Department = {Id=1; Name="BL-DEMA"; Description=""; DisplayUnits=false}
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
     let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
 
@@ -59,8 +56,10 @@ module Fakes =
     let getFakeProfile () : AsyncResult<UserProfile,Error> = asyncTrial {
         let! profile = async.Return {
             User=ulrik;
-            Unit=cito;
             Department=arsd;
+            UnitMemberships = 
+              [ {MemberWithRole.Id=cito.Id; Name=cito.Name; Role=Role.Admin}
+                {MemberWithRole.Id=biology.Id; Name=biology.Name; Role=Role.CoAdmin} ]
             SupportedDepartments=[arsd; dema];
             ToolsAccess=[]
         }       
@@ -84,9 +83,9 @@ module Fakes =
     let getFakeUnit () = asyncTrial {
         let! profile = async.Return {
             Unit=cito
-            Admins=[ulrik]
-            ItPros=[brent] 
-            Selfs=[]
+            Members=
+              [ {MemberWithRole.Id=ulrik.Id; Name=ulrik.Name; Role=Role.Admin}
+                {MemberWithRole.Id=brent.Id; Name=brent.Name; Role=Role.ItPro} ]
             SupportedDepartments=[arsd; dema]
         }
         return profile
@@ -100,8 +99,11 @@ module Fakes =
     let getFakeDepartment () = asyncTrial {
         let! profile = async.Return {
             Department=arsd
-            SupportingUnits=[clientServices]
-            OrganizationUnits=[cito]
+            SupportingUnits=[cito]
+            Units=[clientServices]
+            Members= 
+              [ {Member.Id=brent.Id; Name=brent.Name; Description=""}
+                {Member.Id=ulrik.Id; Name=ulrik.Name; Description=""} ]
         }
         return profile
     }

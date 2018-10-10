@@ -24,6 +24,10 @@ module Database =
         NetId: NetId
     }
 
+    let emptySeq<'a> () : AsyncResult<'a seq,Error> = asyncTrial {
+        return Seq.empty<'a>
+    }
+
     let tryGetFirst seq msg = 
         match seq |> Seq.tryHead with
             | None -> fail (Status.NotFound, msg)
@@ -56,7 +60,7 @@ module Database =
         let fn() = async {
             use cn = new SqlConnection(connStr)
             let! seq = cn.QueryAsync<'T>(query, {Id=id}) |> Async.AwaitTask
-            return ok seq
+            return seq |> Seq.cast<'T> |> ok
         }
         let! result = tryfResult Status.InternalServerError msg fn
         return result        
@@ -64,63 +68,94 @@ module Database =
 
     let queryDepartmentsSupportedByUser connStr userId = asyncTrial {
         let query = """
-SELECT d.* FROM Departments d
+SELECT d.Id, d.Name, d.Description FROM Departments d
 JOIN SupportedDepartments sd on d.Id = sd.DepartmentId 
 WHERE sd.UserId = @Id
 GROUP BY d.Id, d.Name, d.Description
 ORDER BY d.Name ASC"""
         let msg = "Failed to query supported departments by user id"
         let! result = queryAll<Department> connStr query msg userId
-        return result
+        return result |> Seq.sortBy (fun u -> u.Name)
     }
 
     let queryDepartmentsSupportedByUnit connStr unitId = asyncTrial {
         let query = """
-SELECT d.* FROM Departments d
+SELECT d.Id, d.Name, d.Description FROM Departments d
 JOIN SupportedDepartments sd on d.Id = sd.DepartmentId 
-JOIN Users u on u.Id = sd.UserId
-WHERE u.UnitId = @Id
+WHERE sd.UnitId = @Id
 GROUP BY d.Id, d.Name, d.Description
 ORDER BY d.Name ASC"""
         let msg = "Failed to supported departments by unit id"
         let! result = queryAll<Department> connStr query msg unitId
-        return result
+        return result |> Seq.sortBy (fun u -> u.Name)
     }
 
-    let getOrgUnitsInDepartment connStr deptId = asyncTrial {
+    let queryOrgUnitsInDepartment connStr deptId = asyncTrial {
         let query = """
 SELECT un.* FROM Units un
-JOIN Users u on un.Id = u.UnitId
+JOIN UnitMembers m on un.Id = m.UnitId
+JOIN Users u on u.Id = m.UserId
 WHERE u.HrDepartmentId = @Id 
 GROUP BY un.Id, un.Name, un.Description
 ORDER BY un.Name ASC"""
         let msg = "Failed to get org units in department"
         let! result = queryAll<Unit> connStr query msg deptId
-        return result
+        return result |> Seq.sortBy (fun u -> u.Name)
     }
 
     let getUnitsSupportingDepartment connStr deptId = asyncTrial {
         let query = """
 SELECT un.* FROM Units un
-JOIN Users u on un.Id = u.UnitId
-JOIN SupportedDepartments sd on u.Id = sd.UserId 
+JOIN SupportedDepartments sd on un.Id = sd.UnitId
 WHERE sd.DepartmentId = @Id 
 GROUP BY un.Id, un.Name, un.Description
 ORDER BY un.Name ASC"""
         let msg = "Failed to get units supporting department"
         let! result = queryAll<Unit> connStr query msg deptId
-        return result
+        return result |> Seq.sortBy (fun u -> u.Name)
+    }
+
+    let queryPeopleInDepartment connStr deptId = asyncTrial {
+        let query = """
+SELECT u.Id, u.Name FROM Users u
+WHERE u.HrDepartmentId = @Id
+ORDER BY u.Name ASC"""
+        let msg = "Failed to get people in department"
+        let! result = queryAll<Member> connStr query msg deptId
+        return result |> Seq.sortBy (fun u -> u.Name)
+    }
+
+    let queryPeopleInUnit connStr unitId = asyncTrial {
+        let query = """
+SELECT u.Id, u.Name, m.Role FROM Users u
+JOIN UnitMembers m ON u.Id = m.UserId
+WHERE m.UnitId = @Id
+ORDER BY u.Name ASC"""
+        let msg = "Failed to get people in unit"
+        let! result = queryAll<MemberWithRole> connStr query msg unitId
+        return result |> Seq.sortBy (fun u -> u.Name)
+    }
+
+    let queryUnitMemberships connStr userId = asyncTrial {
+        let query = """
+SELECT u.Id, u.Name, m.Role FROM Units u
+JOIN UnitMembers m ON u.Id = m.UnitId
+WHERE m.UserId = @Id
+ORDER BY u.Name ASC"""
+        let msg = "Failed to get people in department"
+        let! result = queryAll<MemberWithRole> connStr query msg userId
+        return result |> Seq.sortBy (fun u -> u.Name)
     }
 
     let queryUserProfile connStr id = asyncTrial {
         let! user = queryTypeById<User> connStr id
-        let! unit = queryTypeById<Unit> connStr user.UnitId
+        let! unitMemberships = queryUnitMemberships connStr id
         let! dept = queryTypeById<Department> connStr user.HrDepartmentId
         let! supportedDepartments = queryDepartmentsSupportedByUser connStr user.Id
         let profile = {
             User=user
-            Unit=unit
             Department=dept
+            UnitMemberships=unitMemberships
             SupportedDepartments=supportedDepartments
             ToolsAccess=[]
         }       
@@ -166,29 +201,14 @@ ORDER BY un.Name ASC"""
         UnitId: Id
     }
 
-    let getUnitMembers connStr id = asyncTrial {
-        let fn() = async {
-            use cn = new SqlConnection(connStr)
-            let! seq = cn.GetListAsync<User>({UnitId=id})  |> Async.AwaitTask
-            return seq |> Seq.sortBy (fun u -> u.Name) |> ok
-        }
-        let! result = tryfResult Status.InternalServerError "Failed to get members by unit id" fn
-        return result        
-    }
-
     let queryUnit connStr id = asyncTrial {
         let! unit = queryTypeById<Unit> connStr id
-        let! people = getUnitMembers connStr id
+        let! members = queryPeopleInUnit connStr id
         let! supportedDepartments = queryDepartmentsSupportedByUnit connStr id
-        let admins = people |> Seq.filter (fun p -> p.Role = Role.Admin || p.Role = Role.CoAdmin)
-        let itpros = people |> Seq.filter (fun p -> p.Role = Role.ItPro)
-        let selfs = people |> Seq.filter (fun p -> p.Role = Role.SelfReport)
         return {
             Unit=unit
-            Admins=admins |> Seq.sortBy (fun u -> u.Name)
-            ItPros=itpros |> Seq.sortBy (fun u -> u.Name)
-            Selfs=selfs |> Seq.sortBy (fun u -> u.Name)
-            SupportedDepartments=supportedDepartments |> Seq.sortBy (fun u -> u.Name)
+            Members=members
+            SupportedDepartments=supportedDepartments
         }
     }
 
@@ -203,15 +223,16 @@ ORDER BY un.Name ASC"""
     }
 
 
-
     let queryDepartment connStr id = asyncTrial {
         let! dept = queryTypeById<Department> connStr id
-        let! orgUnits = getOrgUnitsInDepartment connStr id
+        let! members = if (not dept.DisplayUnits) then queryPeopleInDepartment connStr id else emptySeq<Member>()
+        let! orgUnits = if dept.DisplayUnits then queryOrgUnitsInDepartment connStr id else emptySeq<Unit>()
         let! supportingUnits = getUnitsSupportingDepartment connStr id
         return {
             Department=dept
-            OrganizationUnits=orgUnits |> Seq.sortBy (fun u -> u.Name)
-            SupportingUnits=supportingUnits |> Seq.sortBy (fun u -> u.Name)
+            Units = orgUnits
+            Members = members
+            SupportingUnits=supportingUnits
         }
     }
 
