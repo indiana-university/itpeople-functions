@@ -66,18 +66,6 @@ module Database =
         return result        
     }
 
-    let queryDepartmentsSupportedByUser connStr userId = asyncTrial {
-        let query = """
-SELECT d.Id, d.Name, d.Description FROM Departments d
-JOIN SupportedDepartments sd on d.Id = sd.DepartmentId 
-WHERE sd.UserId = @Id
-GROUP BY d.Id, d.Name, d.Description
-ORDER BY d.Name ASC"""
-        let msg = "Failed to query supported departments by user id"
-        let! result = queryAll<Department> connStr query msg userId
-        return result |> Seq.sortBy (fun u -> u.Name)
-    }
-
     let queryDepartmentsSupportedByUnit connStr unitId = asyncTrial {
         let query = """
 SELECT d.Id, d.Name, d.Description FROM Departments d
@@ -85,32 +73,32 @@ JOIN SupportedDepartments sd on d.Id = sd.DepartmentId
 WHERE sd.UnitId = @Id
 GROUP BY d.Id, d.Name, d.Description
 ORDER BY d.Name ASC"""
-        let msg = "Failed to supported departments by unit id"
+        let msg =  "Failed to queryDepartmentsSupportedByUnit"
         let! result = queryAll<Department> connStr query msg unitId
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
     let queryOrgUnitsInDepartment connStr deptId = asyncTrial {
         let query = """
-SELECT un.* FROM Units un
+SELECT un.Id, un.Name, un.Description FROM Units un
 JOIN UnitMembers m on un.Id = m.UnitId
 JOIN Users u on u.Id = m.UserId
 WHERE u.HrDepartmentId = @Id 
 GROUP BY un.Id, un.Name, un.Description
 ORDER BY un.Name ASC"""
-        let msg = "Failed to get org units in department"
+        let msg = "Failed to queryOrgUnitsInDepartment"
         let! result = queryAll<Unit> connStr query msg deptId
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
-    let getUnitsSupportingDepartment connStr deptId = asyncTrial {
+    let queryUnitsSupportingDepartment connStr deptId = asyncTrial {
         let query = """
-SELECT un.* FROM Units un
+SELECT un.Id, un.Name, un.Description FROM Units un
 JOIN SupportedDepartments sd on un.Id = sd.UnitId
 WHERE sd.DepartmentId = @Id 
 GROUP BY un.Id, un.Name, un.Description
 ORDER BY un.Name ASC"""
-        let msg = "Failed to get units supporting department"
+        let msg = "Failed to queryUnitsSupportingDepartment"
         let! result = queryAll<Unit> connStr query msg deptId
         return result |> Seq.sortBy (fun u -> u.Name)
     }
@@ -120,29 +108,29 @@ ORDER BY un.Name ASC"""
 SELECT u.Id, u.Name FROM Users u
 WHERE u.HrDepartmentId = @Id
 ORDER BY u.Name ASC"""
-        let msg = "Failed to get people in department"
+        let msg = "Failed to queryPeopleInDepartment"
         let! result = queryAll<Member> connStr query msg deptId
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
     let queryPeopleInUnit connStr unitId = asyncTrial {
         let query = """
-SELECT u.Id, u.Name, m.Role FROM Users u
-JOIN UnitMembers m ON u.Id = m.UserId
+SELECT u.Id, u.Name, u.Role FROM Users u
+JOIN UnitMembers m ON u.Id = m.UserId 
 WHERE m.UnitId = @Id
 ORDER BY u.Name ASC"""
-        let msg = "Failed to get people in unit"
+        let msg = "Failed to queryPeopleInUnit"
         let! result = queryAll<MemberWithRole> connStr query msg unitId
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
     let queryUnitMemberships connStr userId = asyncTrial {
         let query = """
-SELECT u.Id, u.Name, m.Role FROM Units u
+SELECT u.Id, u.Name, u.Url FROM Units u
 JOIN UnitMembers m ON u.Id = m.UnitId
 WHERE m.UserId = @Id
 ORDER BY u.Name ASC"""
-        let msg = "Failed to get people in department"
+        let msg = "Failed to queryUnitMemberships"
         let! result = queryAll<MemberWithRole> connStr query msg userId
         return result |> Seq.sortBy (fun u -> u.Name)
     }
@@ -151,13 +139,10 @@ ORDER BY u.Name ASC"""
         let! user = queryTypeById<User> connStr id
         let! unitMemberships = queryUnitMemberships connStr id
         let! dept = queryTypeById<Department> connStr user.HrDepartmentId
-        let! supportedDepartments = queryDepartmentsSupportedByUser connStr user.Id
         let profile = {
             User=user
             Department=dept
             UnitMemberships=unitMemberships
-            SupportedDepartments=supportedDepartments
-            ToolsAccess=[]
         }       
         return profile
     }
@@ -227,7 +212,7 @@ ORDER BY u.Name ASC"""
         let! dept = queryTypeById<Department> connStr id
         let! members = if (not dept.DisplayUnits) then queryPeopleInDepartment connStr id else emptySeq<Member>()
         let! orgUnits = if dept.DisplayUnits then queryOrgUnitsInDepartment connStr id else emptySeq<Unit>()
-        let! supportingUnits = getUnitsSupportingDepartment connStr id
+        let! supportingUnits = queryUnitsSupportingDepartment connStr id
         return {
             Department=dept
             Units = orgUnits

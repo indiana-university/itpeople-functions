@@ -88,8 +88,9 @@ module Types =
         | Networks              = 0b00000001000000000
         | SoftwareAdminAnalysis = 0b00000010000000000
         | SoftwareDevEng        = 0b00000100000000000
-        | UserExperience        = 0b00001000000000000
-        | WebAdminDevEng        = 0b00010000000000000
+        | SystemDevEng          = 0b00001000000000000
+        | UserExperience        = 0b00010000000000000
+        | WebAdminDevEng        = 0b00100000000000000
     
 
     [<CLIMutable>]
@@ -129,13 +130,12 @@ module Types =
         Id: Id
         Name: Name
         Description: Name
+        Url: string
     }
 
     [<CLIMutable>]
     [<Table("SupportedDepartments")>]
     type SupportedDepartment = {
-        [<Key>]
-        UserId: Id
         [<Key>]
         DepartmentId: Id
         [<Key>]
@@ -149,7 +149,6 @@ module Types =
         UserId: Id
         [<Key>]
         UnitId: Id
-        Role: Role
     }
 
     // DOMAIN MODELS
@@ -162,8 +161,6 @@ module Types =
         User: User
         Department: Department
         UnitMemberships: seq<MemberWithRole>
-        SupportedDepartments: seq<Department>
-        ToolsAccess: seq<Tools>
     }
 
     type UnitList = {
@@ -192,8 +189,6 @@ module Types =
         Departments: seq<Department>
         Units: seq<Unit>
     }
-
-
 
     type FetchById<'T> = Id -> AsyncResult<'T,Error>
     type FetchAll<'T> = unit -> AsyncResult<'T,Error>

@@ -41,9 +41,9 @@ module Fakes =
         HrDepartmentId=1
     }
 
-    let cito:Unit = {Id=1; Name="College IT Office (CITO)"; Description=""}
-    let biology:Unit = {Id=2; Name="Biology IT"; Description=""}
-    let clientServices:Unit = {Id=3; Name="Client Services"; Description=""}
+    let cito:Unit = {Id=1; Name="College IT Office (CITO)"; Description=""; Url=""}
+    let biology:Unit = {Id=2; Name="Biology IT"; Description=""; Url=""}
+    let clientServices:Unit = {Id=3; Name="Client Services"; Description=""; Url=""}
 
     let arsd:Department = {Id=1; Name="BL-ARSD"; Description="Arts and Sciences Deans Office"; DisplayUnits=false}
     let dema:Department = {Id=1; Name="BL-DEMA"; Description=""; DisplayUnits=false}
@@ -62,8 +62,6 @@ module Fakes =
             UnitMemberships = 
               [ {MemberWithRole.Id=cito.Id; Name=cito.Name; Role=Role.Admin}
                 {MemberWithRole.Id=biology.Id; Name=biology.Name; Role=Role.CoAdmin} ]
-            SupportedDepartments=[arsd; dema];
-            ToolsAccess=[]
         }       
         return profile
     }

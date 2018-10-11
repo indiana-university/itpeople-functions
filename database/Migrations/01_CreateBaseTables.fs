@@ -17,7 +17,8 @@ type CreateBaseTables() =
     CREATE TABLE Units( 
       Id INT NOT NULL IDENTITY PRIMARY KEY,
       Name VARCHAR(128) NOT NULL UNIQUE,
-      Description VARCHAR(128) NULL
+      Description VARCHAR(128) NULL,
+      Url VARCHAR(256) NULL
     )
 
     CREATE TABLE Users (
@@ -41,12 +42,9 @@ type CreateBaseTables() =
     )
 
     CREATE TABLE SupportedDepartments (
-      UserId INT,
       DepartmentId INT,
       UnitId INT,
-      CONSTRAINT PK_SupportedDepartments_UserDepartment PRIMARY KEY (UserId, DepartmentId),
-      CONSTRAINT FK_SupportedDepartments_User 
-        FOREIGN KEY (UserId) REFERENCES Users (Id),
+      CONSTRAINT PK_SupportedDepartments_UserDepartment PRIMARY KEY (UnitId, DepartmentId),
       CONSTRAINT FK_SupportedDepartments_Department 
         FOREIGN KEY (DepartmentId) REFERENCES Departments (Id),
       CONSTRAINT FK_SupportedDepartments_Unit 
