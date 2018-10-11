@@ -107,6 +107,7 @@ module Types =
         Campus: string
         Expertise: string
         Notes: string
+        Role: Role
         Responsibilities: Responsibilities
         Tools: Tools
         // 

@@ -32,6 +32,7 @@ type CreateBaseTables() =
       CampusEmail VARCHAR(32) NOT NULL,
       Expertise VARCHAR(2048) NULL,
       Notes VARCHAR(2048) NULL,
+      Role TINYINT NOT NULL,
       Responsibilities INT NOT NULL DEFAULT 0,
       Tools INT NOT NULL DEFAULT 7,
       HrDepartmentId INT NOT NULL,
@@ -55,7 +56,6 @@ type CreateBaseTables() =
     CREATE TABLE UnitMembers (
       UserId INT,
       UnitId INT,
-      Role TINYINT NOT NULL,
       CONSTRAINT PK_UnitMembers_UnitMember PRIMARY KEY (UserId, UnitId),
       CONSTRAINT FK_UnitMembers_User 
         FOREIGN KEY (UserId) REFERENCES Users (Id),
