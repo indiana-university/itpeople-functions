@@ -8,9 +8,7 @@
     <PackageReference Include="System.Data.Sqlclient" Version="4.5.1" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Migrations/01_CreateUsers.fs" />
-    <Compile Include="Migrations/02_CreateDepartments.fs" />
-    <Compile Include="Migrations/03_CreateUserDepartments.fs" />
+    <Compile Include="Migrations/01_CreateBaseTables.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

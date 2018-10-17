@@ -23,7 +23,8 @@ module Types =
     let ROLE_USER = "user"
 
     type Status = HttpStatusCode
-
+    type Message = string
+    type Error = Status * Message
     type ErrorModel = {
         errors: array<string>
     }
@@ -37,68 +38,170 @@ module Types =
         DbConnectionString: string
     }
 
+    type Role =
+        | SelfSupport=1
+        | ItPro=2
+        | CoAdmin=3
+        | Admin=4
+
+
     type Id = int
     type Name = string
     type NetId = string
-    type Role =
-        | SelfReport=1
-        | ItPro=2
-        | Manager=3
-        | Admin=4
+    [<CLIMutable>]
+    type Entity = {
+        Id: Id
+        Name: Name
+        Description: Name
+    }
+    [<CLIMutable>]
+    type EntityRole = {
+        Id: Id
+        Name: Name
+        Role: Role
+    }
+
+
+    [<Flags>]
+    type Tools =
+        | ItProWeb      = 0b000000001
+        | ItProMail     = 0b000000010
+        | IUware        = 0b000000100
+        | MAS           = 0b000001000
+        | ProductKeys   = 0b000010000
+        | AccountMgt    = 0b000100000
+        | AMSAdmin      = 0b001000000
+        | UIPOUnblocker = 0b010000000
+        | SuperPass     = 0b100000000
+
+    [<Flags>]
+    type Responsibilities =
+        | ItLeadership          = 0b00000000000000001
+        | BizSysAnalysis        = 0b00000000000000010
+        | DataAdminAnalysis     = 0b00000000000000100
+        | DatabaseArchDesign    = 0b00000000000001000
+        | InstructionalTech     = 0b00000000000010000
+        | ItProjectMgt          = 0b00000000000100000
+        | ItSecurityPrivacy     = 0b00000000001000000
+        | ItUserSupport         = 0b00000000010000000
+        | ItMultiDiscipline     = 0b00000000100000000
+        | Networks              = 0b00000001000000000
+        | SoftwareAdminAnalysis = 0b00000010000000000
+        | SoftwareDevEng        = 0b00000100000000000
+        | SystemDevEng          = 0b00001000000000000
+        | UserExperience        = 0b00010000000000000
+        | WebAdminDevEng        = 0b00100000000000000
+    
 
     [<CLIMutable>]
     [<Table("Users")>]
     type User = {
         Id: Id
+        [<JsonIgnore>]
         Hash: string
         NetId: NetId
         Name: Name
         Position: string
-        LocationCode: string
         Location: string
         CampusPhone: string
         CampusEmail: string
+        Campus: string
         Expertise: string
+        Notes: string
+        Role: Role
+        Responsibilities: Responsibilities
+        Tools: Tools
+        // 
+        HrDepartmentId: Id
     }
-
 
     [<CLIMutable>]
     [<Table("Departments")>]
     type Department = {
         Id: Id
         Name: Name
+        Description: Name
+        DisplayUnits: Boolean
     }
 
     [<CLIMutable>]
-    [<Table("UserDepartments")>]
-    type UserDepartment = {
-        [<Key>]
-        UserId: Id
-        [<Key>]
-        DepartmentId: Id
-        Role: Role
-    }
-
-    [<CLIMutable>]
-    type UserRole = {
-        UserId: Id
+    [<Table("Units")>]
+    type Unit = {
+        Id: Id
         Name: Name
-        NetId: NetId
+        Description: Name
+        Url: string
+    }
+
+    [<CLIMutable>]
+    [<Table("SupportedDepartments")>]
+    type SupportedDepartment = {
+        [<Key>]
         DepartmentId: Id
-        Department: Name
-        [<JsonConverter(typedefof<StringEnumConverter>)>]
-        Role: Role
+        [<Key>]
+        UnitId: Id
     }
 
-
-    type UserRequest = {
-        NetId: string
+    [<CLIMutable>]
+    [<Table("UnitMembers")>]
+    type UnitMember = {
+        [<Key>]
+        UserId: Id
+        [<Key>]
+        UnitId: Id
     }
 
-    type UserReponse = {
+    // DOMAIN MODELS
+    [<CLIMutable>]
+    type Member = Entity
+    [<CLIMutable>]
+    type MemberWithRole = EntityRole
+    
+    type UserProfile = {
         User: User
-        Roles: array<UserRole>
+        Department: Department
+        UnitMemberships: seq<MemberWithRole>
     }
+
+    type UnitList = {
+        Units: seq<Unit>
+    }
+
+    type UnitProfile = {
+        Unit: Unit
+        Members: seq<MemberWithRole>
+        SupportedDepartments: seq<Department>
+    }
+
+    type DepartmentList = {
+        Departments: seq<Department>
+    }
+
+    type DepartmentProfile = {
+        Department: Department
+        SupportingUnits: seq<Unit>
+        Units: seq<Unit>
+        Members: seq<Member>
+    }
+
+    type SimpleSearch = {
+        Users: seq<User>
+        Departments: seq<Department>
+        Units: seq<Unit>
+    }
+
+    type FetchById<'T> = Id -> AsyncResult<'T,Error>
+    type FetchAll<'T> = unit -> AsyncResult<'T,Error>
+
+    type IDataRepository =
+        // abstract method
+        abstract member GetUserByNetId: NetId -> AsyncResult<User,Error>
+        abstract member GetProfile: Id -> AsyncResult<UserProfile,Error>
+        abstract member GetSimpleSearchByTerm: string -> AsyncResult<SimpleSearch,Error>
+        abstract member GetUnits: unit -> AsyncResult<UnitList,Error>
+        abstract member GetUnit: Id -> AsyncResult<UnitProfile,Error>
+        abstract member GetDepartments: unit -> AsyncResult<DepartmentList,Error>
+        abstract member GetDepartment: Id -> AsyncResult<DepartmentProfile,Error>
 
 
 ///<summary>
@@ -133,6 +236,26 @@ module Common =
     /// of any element matches the provided predicate
     let any pred s = s |> Seq.exists (fun li -> fst li = pred)
 
+   /// <summary>
+    /// Given an async computation expression that returns a Result<TSuccess,TFailure>,
+    /// bind and return the TSuccess.
+    /// </summary>
+    let bindAsyncResult<'T> (asyncFn: unit -> Async<Result<'T,(HttpStatusCode*string)>>) = asyncTrial {
+        let! result = asyncFn()
+        let! bound = result
+        return bound
+    }
+
+    /// <summary>
+    /// Given an async computation expression that returns a Result<TSuccess,TFailure>,
+    /// bind and return the TSuccess.
+    /// </summary>
+    let bindAsync<'T> (asyncResult: Async<Result<'T,(HttpStatusCode*string)>>) = asyncTrial {
+        let! result = asyncResult
+        let! bound = result
+        return bound
+    }
+
     /// <summary>
     /// ROP: Attempt to execute a function.
     /// If it succeeds, pass along the result. 
@@ -155,7 +278,26 @@ module Common =
         with
         | exn -> fail (status, sprintf "%s: %s" msg (exn.Message))
 
-    
+
+    let foo status msg fn = async {
+        try
+            let! result = fn()
+            return result
+        with
+        | exn -> return fail (status, sprintf "%s: %s" msg (exn.Message))
+    }
+
+    /// <summary>
+    /// ROP: Attempt to execute a function.
+    /// If it succeeds, pass along the result. 
+    /// If it throws, wrap the exception message in a failure with the provided status.
+    /// </summary>
+    let tryfResult<'T> status msg (fn:unit -> Async<Result<'T,Error>>) = asyncTrial {
+        let! result = foo status msg fn |> bindAsync
+        return result
+    }
+
+
     // HTTP REQUEST
 
     let tryDeserialize<'T> status str =
@@ -256,6 +398,7 @@ module Common =
         httpResponse status content "text/plain"
 
     let jsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
+    jsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
 
     /// <summary>
     /// Construct an HTTP response with JSON content
@@ -307,15 +450,7 @@ module Common =
             jsonResponse status errors
 
 
-    /// <summary>
-    /// Given an async computation expression that returns a Result<TSuccess,TFailure>,
-    /// bind and return the TSuccess.
-    /// </summary>
-    let bindAsyncResult<'T> (asyncFn: unit -> Async<Result<'T,(HttpStatusCode*string)>>) = asyncTrial {
-        let! result = asyncFn()
-        let! bound = result
-        return bound
-    }
+ 
 
 
 /// *******************
@@ -323,24 +458,27 @@ module Common =
 /// *******************
 
     type JwtClaims = {
+        UserId: Id
         UserName: NetId
         Expiration: System.DateTime
     }
 
     let ExpClaim = "exp"
+    let UserIdClaim = "user_id"
     let UserNameClaim = "user_name"
     let UserRoleClaim = "user_role"
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
     // Create and sign a JWT
-    let encodeJwt secret exp username userrole = 
+    let encodeJwt secret exp id netId = 
         let fn() =
             JwtBuilder()
                 .WithAlgorithm(new HMACSHA256Algorithm())
                 .WithSecret(secret)
                 .ExpirationTime(exp)
-                .AddClaim(UserNameClaim, username)
-                .AddClaim(UserRoleClaim, userrole)
+                .AddClaim(UserIdClaim, (id.ToString()))
+                .AddClaim(UserNameClaim, netId)
+                // .AddClaim(UserRoleClaim, (role.ToString()))
                 .Build();
         tryf' Status.InternalServerError "Failed to create access token" fn
 
@@ -360,6 +498,7 @@ module Common =
                 JwtBuilder()
                     .Decode<IDictionary<string, obj>>(jwt)
             let claims = {
+                UserId = 0
                 UserName = decoded.[UserNameClaim] |> string
                 Expiration = decoded.[ExpClaim] |> decodeExp
             }
@@ -381,6 +520,7 @@ module Common =
                     .MustVerifySignature()
                     .Decode<IDictionary<string, string>>(jwt)
             let claims = {
+                UserId = decoded.[UserIdClaim] |> Int32.Parse
                 UserName = decoded.[UserNameClaim] |> string
                 Expiration = decoded.[ExpClaim] |> decodeExp
             }

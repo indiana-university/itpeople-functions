@@ -15,7 +15,12 @@
     },
     {
       "label": "build",
-      "command": "dotnet build && cp local.settings.json bin/Debug/netstandard2.0",
+      "windows": {
+        "command": "dotnet build; copy local.settings.json bin/Debug/netstandard2.0"
+      },
+      "osx": {
+        "command": "dotnet build && cp local.settings.json bin/Debug/netstandard2.0"
+      },
       "type": "shell",
       "group": {
         "kind": "build",
