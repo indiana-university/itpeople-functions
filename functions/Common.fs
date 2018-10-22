@@ -203,6 +203,11 @@ module Types =
         abstract member GetDepartments: unit -> AsyncResult<DepartmentList,Error>
         abstract member GetDepartment: Id -> AsyncResult<DepartmentProfile,Error>
 
+    type JwtClaims = {
+        UserId: Id
+        UserName: NetId
+        Expiration: System.DateTime
+    }
 
 ///<summary>
 /// This module contains common types and functions to facilitate request 
@@ -456,12 +461,6 @@ module Common =
 /// *******************
 /// **  JWT          **
 /// *******************
-
-    type JwtClaims = {
-        UserId: Id
-        UserName: NetId
-        Expiration: System.DateTime
-    }
 
     let ExpClaim = "exp"
     let UserIdClaim = "user_id"
