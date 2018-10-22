@@ -102,9 +102,12 @@ module Functions =
         req: HttpRequest,
         log: TraceWriter,
         context: ExecutionContext) =
-            let (config,data) = getDependencies(context)
-            Unit.GetAll.run req log data config |> Async.StartAsTask
-
+        async {
+            let (config, data) = getDependencies(context)
+            let! result = Unit.getAll req config data.GetUnits |> Async.ofAsyncResult
+            return constructResponse log result
+        } |> Async.StartAsTask
+            
     [<FunctionName("UnitGetId")>]
     let unitGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>]
@@ -112,9 +115,12 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =
+        async {
             let (config,data) = getDependencies(context)
-            Unit.GetId.run req log data id config |> Async.StartAsTask
-
+            let! result = Unit.getById req config id data.GetUnit |> Async.ofAsyncResult
+            return constructResponse log result
+        } |> Async.StartAsTask
+            
     [<FunctionName("DepartmentGetAll")>]
     let departmentGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments")>]
