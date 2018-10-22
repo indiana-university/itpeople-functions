@@ -65,7 +65,7 @@ jobs:
     steps:
       - checkout 
       - run: 
-          name: Build Functions
+          name: Test Functions
           working_directory: functions.tests
           command: dotnet test
   # Build (zip) a functions deployment package
