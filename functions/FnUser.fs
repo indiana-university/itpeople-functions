@@ -1,58 +1,42 @@
-namespace MyFunctions.User
+namespace MyFunctions
 
+open Types
+open Common
 open Chessie.ErrorHandling
-open System.Data.SqlClient
-open MyFunctions.Types
-open MyFunctions.Common
-open MyFunctions.Database
 open Microsoft.AspNetCore.Http
-open Microsoft.Azure.WebJobs.Host
-open System.Net
-open System.Net.Http
 
+/// This module provides functions to fetch and update user profiles.
+module User =
 
-///<summary>
-/// This module provides a function to return "Pong!" to the calling client. 
-/// It demonstrates a basic GET request and response.
-///</summary>
-module GetMe =
-
-
-    let workflow (req: HttpRequest) (config:AppConfig) (queryUser: FetchById<UserProfile>) = asyncTrial {
+    /// <summary>
+    /// Get the profile of the user associated with the JWT passed in the Authentication header.
+    /// </summary>
+    /// <param name="req">The HTTP request that triggered this function</param>
+    /// <param name="config">The application configuration</param>
+    /// <param name="queryUser">A function to fetch a given user profile by its Id</param>
+    /// <returns>
+    /// A JSON-encoded user profile
+    /// </returns>
+    let getMe (req: HttpRequest) (config:AppConfig) (queryUser: FetchById<UserProfile>) = asyncTrial {
         let! claims = requireMembership config req
         let! profile = queryUser claims.UserId
-        let response = profile |> jsonResponse Status.OK
-        return response
+        return profile |> jsonResponse Status.OK
     }
 
     /// <summary>
-    /// Say hello to a person by name.
+    /// Get the profile of the user associated with the passed ID
     /// </summary>
-    let run (req: HttpRequest) (log: TraceWriter) (data:IDataRepository) config = async {
-        let getProfileById = data.GetProfile
-        let! result = workflow req config getProfileById |> Async.ofAsyncResult
-        return constructResponse log result
-    }
-
-///<summary>
-/// This module provides a function to return "Pong!" to the calling client. 
-/// It demonstrates a basic GET request and response.
-///</summary>
-module GetId =
-    let workflow (req: HttpRequest) (config:AppConfig) id (queryUser: FetchById<UserProfile>) = asyncTrial {
+    /// <param name="req">The HTTP request that triggered this function</param>
+    /// <param name="config">The application configuration</param>
+    /// <param name="id">The ID of the user profile to fetch</param>
+    /// <param name="queryUser">A function to fetch a given user profile by its ID</param>
+    /// <returns>
+    /// A JSON-encoded user profile
+    /// </returns>
+    let getById (req: HttpRequest) (config:AppConfig) id (queryUser: FetchById<UserProfile>) = asyncTrial {
         let! _ = requireMembership config req
         let! profile = queryUser id
-        let response = profile |> jsonResponse Status.OK
-        return response
-    }
-
-    /// <summary>
-    /// Say hello to a person by name.
-    /// </summary>
-    let run (req: HttpRequest) (log: TraceWriter) (data:IDataRepository) id config = async {
-        let getProfileById = data.GetProfile
-        let! result = workflow req config id getProfileById |> Async.ofAsyncResult
-        return constructResponse log result
+        return profile |> jsonResponse Status.OK
     }
 
 

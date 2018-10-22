@@ -6,6 +6,8 @@ open Microsoft.Azure.WebJobs
 open Microsoft.AspNetCore.Http
 open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
+open Common
+open Types
 
 ///<summary>
 /// This module defines the bindings and triggers for all functions in the project
@@ -28,12 +30,11 @@ module Functions =
             DbConnectionString = config.["DbConnectionString"]
         }
 
-    let getDependencies(context: ExecutionContext) = 
+    let getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
         let config = context |> appConfig
-        let data = Database.DatabaseRepository(config.DbConnectionString)
-        // let data = Fakes.FakesRepository()
+        let data = Database.DatabaseRepository(config.DbConnectionString) :> IDataRepository
+        // let data = Fakes.FakesRepository() :> IDataRepository
         (config,data)
-
 
     [<FunctionName("PingGet")>]
     let ping
@@ -58,17 +59,23 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =
+        async {
             let (config,data) = getDependencies(context)
-            User.GetId.run req log data id config |> Async.StartAsTask
+            let! result = User.getById req config id data.GetProfile |> Async.ofAsyncResult
+            return constructResponse log result
+        } |> Async.StartAsTask
 
     [<FunctionName("UserGetMe")>]
     let profileGetMe
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "me")>]
         req: HttpRequest,
         log: TraceWriter,
-        context: ExecutionContext) =
+        context: ExecutionContext) = 
+        async {
             let (config,data) = getDependencies(context)
-            User.GetMe.run req log data config |> Async.StartAsTask
+            let! result = User.getMe req config data.GetProfile |> Async.ofAsyncResult
+            return constructResponse log result
+        } |> Async.StartAsTask
 
     // [<FunctionName("UserPut")>]
     // let profilePut
