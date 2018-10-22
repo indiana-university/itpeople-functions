@@ -77,6 +77,27 @@
         "reveal": "always"
       },
       "problemMatcher": []
-    }
+    },
+    {
+      "label": "test",
+      "windows": {
+        "command": "dotnet build; dotnet test"
+      },
+      "osx": {
+        "command": "dotnet build; dotnet test"
+      },
+      "type": "shell",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/functions.tests"
+      },
+      "problemMatcher": "$msCompile"
+    },
   ]
 }
