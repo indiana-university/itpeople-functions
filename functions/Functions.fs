@@ -7,7 +7,7 @@ open Microsoft.AspNetCore.Http
 open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
 open Common
-open Types
+open System.Net.Http
 
 ///<summary>
 /// This module defines the bindings and triggers for all functions in the project
@@ -39,14 +39,14 @@ module Functions =
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter) =
             Ping.Get.run req log |> Async.StartAsTask
 
     [<FunctionName("AuthGet")>]
     let auth
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "auth")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext) =
             let (config,data) = getDependencies(context)
@@ -55,7 +55,7 @@ module Functions =
     [<FunctionName("UserGetId")>]
     let profileGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "users/{id}")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =
@@ -68,7 +68,7 @@ module Functions =
     [<FunctionName("UserGetMe")>]
     let profileGetMe
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "me")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext) = 
         async {
@@ -89,7 +89,7 @@ module Functions =
     [<FunctionName("SearchGet")>]
     let searchSimpleGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "search")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext) =
             let (config,data) = getDependencies(context)
@@ -99,7 +99,7 @@ module Functions =
     [<FunctionName("UnitGetAll")>]
     let unitGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext) =
             let (config,data) = getDependencies(context)
@@ -108,7 +108,7 @@ module Functions =
     [<FunctionName("UnitGetId")>]
     let unitGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =
@@ -118,7 +118,7 @@ module Functions =
     [<FunctionName("DepartmentGetAll")>]
     let departmentGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext) =
             let (config,data) = getDependencies(context)
@@ -127,7 +127,7 @@ module Functions =
     [<FunctionName("DepartmentGetId")>]
     let departmentGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>]
-        req: HttpRequest,
+        req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext,
         id: Id) =

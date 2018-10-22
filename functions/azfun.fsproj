@@ -9,6 +9,7 @@
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.19" />
     <PackageReference Include="Chessie" Version="0.6.0" />
     <PackageReference Include="JWT" Version="4.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.1.1"/>
   </ItemGroup>
    <ItemGroup>
     <Compile Include="Common.fs" />

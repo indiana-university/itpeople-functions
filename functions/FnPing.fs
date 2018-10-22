@@ -18,7 +18,7 @@ module Get =
         return "pong!" |> jsonResponse Status.OK 
     }
 
-    let workflow (req: HttpRequest) = asyncTrial {
+    let workflow (req: HttpRequestMessage) = asyncTrial {
         let! result = sayPong
         return result
     }
@@ -26,7 +26,7 @@ module Get =
     /// <summary>
     /// Say hello to a person by name.
     /// </summary>
-    let run (req: HttpRequest) (log: TraceWriter) = async {
+    let run (req: HttpRequestMessage) (log: TraceWriter) = async {
         let! result = (workflow req) |> Async.ofAsyncResult
         return constructResponse log result
     }

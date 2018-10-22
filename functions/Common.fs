@@ -16,6 +16,7 @@ open Newtonsoft.Json.Serialization
 open JWT
 open JWT.Algorithms
 open JWT.Builder
+open Microsoft.AspNetCore.WebUtilities
 
 module Types = 
 
@@ -322,12 +323,13 @@ module Common =
     /// <summary>
     /// Attempt to retrieve a parameter of the given name from the query string
     /// </summary>
-    let getQueryParam paramName (req: HttpRequest) =
-        if req.Query.ContainsKey paramName
-        then ok (req.Query.[paramName].ToString())
+    let getQueryParam paramName (req: HttpRequestMessage) =
+        let query = req.RequestUri.Query |> QueryHelpers.ParseQuery
+        if query.ContainsKey(paramName)
+        then ok (query.[paramName].ToString())
         else fail (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName))
 
-    let getQueryParamInt paramName (req: HttpRequest) = trial {
+    let getQueryParamInt paramName (req: HttpRequestMessage) = trial {
         let asInt p =
             match p with
             | Int i -> ok i
@@ -338,7 +340,7 @@ module Common =
         return result
     }
 
-    let getQueryParamInt' paramName min max (req: HttpRequest) = trial {
+    let getQueryParamInt' paramName min max (req: HttpRequestMessage) = trial {
         let inRange min max queryParam = 
             if (queryParam < min || queryParam > max)
             then fail (Status.BadRequest, (sprintf "Query parameter '%s' must be in range [%d, %d]" paramName min max))
@@ -537,29 +539,32 @@ module Common =
 /// **  AUTH         **
 /// *******************
 
-    let extractAuthHeader (req: HttpRequest) =
+
+    let MissingAuthHeader = "Authorization header is required in the form of 'Bearer <token>'."
+
+    let extractAuthHeader (req: HttpRequestMessage) =
         let authHeader = 
-            if req.Headers.ContainsKey("Authorization")
-            then string req.Headers.["Authorization"]
+            if req.Headers.Contains("Authorization")
+            then string req.Headers.Authorization
             else String.Empty
         if (isEmpty authHeader || authHeader.StartsWith("Bearer ") = false)
-        then fail (Status.Unauthorized, "Authorization header is required in the form of 'Bearer <token>'.")
+        then fail (Status.Unauthorized, MissingAuthHeader)
         else authHeader |> ok
 
     let extractJwt (authHeader: string) =
         let parts = authHeader.Split([|' '|])
         if parts.Length <> 2 
-        then fail (Status.Unauthorized, "Authorization header is required in the form of 'Bearer <token>'.")
+        then fail (Status.Unauthorized, MissingAuthHeader)
         else parts.[1] |> ok
 
-    let validateAuth (secret:string) (req: HttpRequest) = trial {
+    let validateAuth (secret:string) (req: HttpRequestMessage) = trial {
         let! authHeader = extractAuthHeader req
         let! jwt = extractJwt authHeader
         let! claims = decodeAppJwt secret jwt
         return claims
     }
     
-    let requireMembership (config:AppConfig) (req: HttpRequest) = trial {
+    let requireMembership (config:AppConfig) (req: HttpRequestMessage) = trial {
         let! claims = validateAuth config.JwtSecret req
         return claims
     }

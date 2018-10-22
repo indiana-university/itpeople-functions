@@ -4,6 +4,7 @@ open Types
 open Common
 open Chessie.ErrorHandling
 open Microsoft.AspNetCore.Http
+open System.Net.Http
 
 /// This module provides functions to fetch and update user profiles.
 module User =
@@ -17,7 +18,7 @@ module User =
     /// <returns>
     /// A JSON-encoded user profile
     /// </returns>
-    let getMe (req: HttpRequest) (config:AppConfig) (queryUser: FetchById<UserProfile>) = asyncTrial {
+    let getMe (req: HttpRequestMessage) (config:AppConfig) (queryUser: FetchById<UserProfile>) = asyncTrial {
         let! claims = requireMembership config req
         let! profile = queryUser claims.UserId
         return profile |> jsonResponse Status.OK
@@ -33,7 +34,7 @@ module User =
     /// <returns>
     /// A JSON-encoded user profile
     /// </returns>
-    let getById (req: HttpRequest) (config:AppConfig) id (queryUser: FetchById<UserProfile>) = asyncTrial {
+    let getById (req: HttpRequestMessage) (config:AppConfig) id (queryUser: FetchById<UserProfile>) = asyncTrial {
         let! _ = requireMembership config req
         let! profile = queryUser id
         return profile |> jsonResponse Status.OK

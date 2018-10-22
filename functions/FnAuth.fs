@@ -48,7 +48,7 @@ module Get =
             |> jsonResponse Status.OK
         tryf Status.InternalServerError fn
     
-    let workflow (req: HttpRequest) config (queryUserByName:string -> AsyncResult<User,Error>) = asyncTrial {
+    let workflow (req: HttpRequestMessage) config (queryUserByName:string -> AsyncResult<User,Error>) = asyncTrial {
         let getUaaJwt request = bindAsyncResult (fun () -> postAsync<ResponseModel> config.OAuth2TokenUrl request)
 
         let! oauthCode = getQueryParam "code" req
@@ -61,7 +61,7 @@ module Get =
         return response
     }
 
-    let run (req: HttpRequest) (log: TraceWriter) (data:IDataRepository) config = async {
+    let run (req: HttpRequestMessage) (log: TraceWriter) (data:IDataRepository) config = async {
         let queryUserByNetId = data.GetUserByNetId
         let! result = workflow req config queryUserByNetId |> Async.ofAsyncResult
         return constructResponse log result
