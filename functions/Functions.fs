@@ -11,7 +11,7 @@ open System.Net.Http
 ///</summary
 module Functions =
 
-    /// An anonymous function that simply returns, "Pong!" 
+    /// (Anonymous) A function that simply returns, "Pong!" 
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
@@ -19,7 +19,7 @@ module Functions =
         let fn () = Api.Ping.get req
         Api.Common.getResponse' log fn
 
-    /// An anonymous function that exchanges
+    /// (Anonymous) Exchanges a UAA OAuth code for an application-scoped JWT
     [<FunctionName("AuthGet")>]
     let auth
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "auth")>]
@@ -27,6 +27,7 @@ module Functions =
         let fn (config, data:IDataRepository) = Api.Auth.get req config data.GetUserByNetId
         Api.Common.getResponse log context fn
 
+    /// (Authenticated) Get a user profile for a given user 'id'
     [<FunctionName("UserGetId")>]
     let profileGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "users/{id}")>]
@@ -34,6 +35,7 @@ module Functions =
         let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetProfile
         Api.Common.getResponse log context fn
 
+    /// (Authenticated) Get a user profile associated with the JWT in the request Authorization header.
     [<FunctionName("UserGetMe")>]
     let profileGetMe
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "me")>]
@@ -50,6 +52,7 @@ module Functions =
     //     id: Id) =
     //         context |> appConfig |> User.Put.run req log id |> Async.StartAsTask
 
+    /// (Authenticated) Get all users, departments, and units that match a 'term' query.
     [<FunctionName("SearchGet")>]
     let searchSimpleGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "search")>]
@@ -58,6 +61,7 @@ module Functions =
         Api.Common.getResponse log context fn
 
 
+    /// (Authenticated) Get all units.
     [<FunctionName("UnitGetAll")>]
     let unitGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units")>]
@@ -65,6 +69,7 @@ module Functions =
         let fn (config, data:IDataRepository) = Api.Common.getAll req config data.GetUnits
         Api.Common.getResponse log context fn
             
+    /// (Authenticated) Get a unit profile for a given unit 'id'.
     [<FunctionName("UnitGetId")>]
     let unitGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>]
@@ -72,6 +77,7 @@ module Functions =
         let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetUnit
         Api.Common.getResponse log context fn
             
+    /// (Authenticated) Get all departments.
     [<FunctionName("DepartmentGetAll")>]
     let departmentGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments")>]
@@ -79,6 +85,7 @@ module Functions =
         let fn (config, data:IDataRepository) = Api.Common.getAll req config data.GetDepartments
         Api.Common.getResponse log context fn
 
+    /// (Authenticated) Get a department profile for a given department 'id'.
     [<FunctionName("DepartmentGetId")>]
     let departmentGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>]

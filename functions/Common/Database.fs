@@ -7,13 +7,9 @@ open Dapper
 open System.Data.SqlClient
 
 module Database =
-
-    let like (term:string)  = 
+    let private like (term:string)  = 
         term.Replace("[", "[[]").Replace("%", "[%]") 
         |> sprintf "%%%s%%"
-
-
-    /// USER
 
     type IdFilter = {
         Id: Id
@@ -22,7 +18,6 @@ module Database =
     type NetIdFilter = {
         NetId: NetId
     }
-
 
     /// Fetch a user given a netid (e.g. 'jhoerr')
     let queryUserByNetId connStr netId = asyncTrial {

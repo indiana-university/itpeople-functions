@@ -183,7 +183,7 @@ module Types =
     type FetchAll<'T> = unit -> AsyncResult<'T,Error>
 
     type IDataRepository =
-        /// Get a user record associated with a given net ID (e.g. 'jhoerr')
+        /// Get a user record for a given net ID (e.g. 'jhoerr')
         abstract member GetUserByNetId: NetId -> AsyncResult<User,Error>
         /// Get a user profile for a given user ID
         abstract member GetProfile: Id -> AsyncResult<UserProfile,Error>
