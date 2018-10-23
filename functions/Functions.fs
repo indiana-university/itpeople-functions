@@ -1,14 +1,9 @@
 namespace MyFunctions
 
 open MyFunctions.Common.Types
-open MyFunctions.Common.Http
-open MyFunctions.Common.Database
-open MyFunctions.Common.Fakes
-open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
 open Microsoft.AspNetCore.Http
 open Microsoft.Azure.WebJobs.Host
-open Microsoft.Extensions.Configuration
 open System.Net.Http
 
 ///<summary>
@@ -16,68 +11,33 @@ open System.Net.Http
 ///</summary
 module Functions =
 
-    let appConfig (context:ExecutionContext) = 
-        let config = 
-            ConfigurationBuilder()
-                .SetBasePath(context.FunctionAppDirectory)
-                .AddJsonFile("local.settings.json", optional=true, reloadOnChange= true)
-                .AddEnvironmentVariables()
-                .Build();
-        {
-            OAuth2ClientId = config.["OAuthClientId"]
-            OAuth2ClientSecret = config.["OAuthClientSecret"]
-            OAuth2TokenUrl = config.["OAuthTokenUrl"]
-            OAuth2RedirectUrl = config.["OAuthRedirectUrl"]
-            JwtSecret = config.["JwtSecret"]
-            DbConnectionString = config.["DbConnectionString"]
-        }
-
-    let getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
-        let config = context |> appConfig
-        let data = DatabaseRepository(config.DbConnectionString) :> IDataRepository
-        // let data = FakesRepository() :> IDataRepository
-        (config,data)
-
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
         req: HttpRequestMessage, log: TraceWriter) =
-        async {
-            let! result = Api.Ping.get req |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn () = Api.Ping.get req
+        Api.Common.getResponse' log fn
 
     [<FunctionName("AuthGet")>]
     let auth
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "auth")>]
         req: HttpRequestMessage, log: TraceWriter, context: ExecutionContext) =
-        async {
-            let (config,data) = getDependencies(context)
-            let queryUserByNetId = data.GetUserByNetId
-            let! result = Api.Auth.Get.workflow req config data.GetUserByNetId |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn (config, data:IDataRepository) = Api.Auth.get req config data.GetUserByNetId
+        Api.Common.getResponse log context fn
 
     [<FunctionName("UserGetId")>]
     let profileGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "users/{id}")>]
         req: HttpRequestMessage, log: TraceWriter, context: ExecutionContext, id: Id) =
-        async {
-            let (config,data) = getDependencies(context)
-            let fetch () = data.GetProfile id
-            let! result = Api.Common.getAll req config fetch |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetProfile
+        Api.Common.getResponse log context fn
 
     [<FunctionName("UserGetMe")>]
     let profileGetMe
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "me")>]
         req: HttpRequestMessage, log: TraceWriter, context: ExecutionContext) = 
-        async {
-            let (config,data) = getDependencies(context)
-            let! result = Api.User.getMe req config data.GetProfile |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn (config, data:IDataRepository) = Api.User.getMe req config data.GetProfile
+        Api.Common.getResponse log context fn
 
     // [<FunctionName("UserPut")>]
     // let profilePut
@@ -92,49 +52,34 @@ module Functions =
     let searchSimpleGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "search")>]
         req: HttpRequestMessage, log: TraceWriter, context: ExecutionContext) =
-        async {
-            let (config,data) = getDependencies(context)
-            let! result = Api.Search.getSimple req config data.GetSimpleSearchByTerm |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn (config, data:IDataRepository) = Api.Search.getSimple req config data.GetSimpleSearchByTerm
+        Api.Common.getResponse log context fn
 
 
     [<FunctionName("UnitGetAll")>]
     let unitGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units")>]
         req: HttpRequestMessage, log: TraceWriter, context: ExecutionContext) =
-        async {
-            let (config, data) = getDependencies(context)
-            let! result = Api.Common.getAll req config data.GetUnits |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn (config, data:IDataRepository) = Api.Common.getAll req config data.GetUnits
+        Api.Common.getResponse log context fn
             
     [<FunctionName("UnitGetId")>]
     let unitGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>]
         req: HttpRequestMessage, log: TraceWriter, context: ExecutionContext, id: Id) =
-        async {
-            let (config,data) = getDependencies(context)
-            let! result = Api.Common.getById req config id data.GetUnit |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetUnit
+        Api.Common.getResponse log context fn
             
     [<FunctionName("DepartmentGetAll")>]
     let departmentGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments")>]
         req: HttpRequestMessage, log: TraceWriter, context: ExecutionContext) =
-        async {
-            let (config,data) = getDependencies(context)
-            let! result = Api.Common.getAll req config data.GetDepartments |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn (config, data:IDataRepository) = Api.Common.getAll req config data.GetDepartments
+        Api.Common.getResponse log context fn
 
     [<FunctionName("DepartmentGetId")>]
     let departmentGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>]
         req: HttpRequestMessage, log: TraceWriter, context: ExecutionContext, id: Id) =
-        async {
-            let (config,data) = getDependencies(context)
-            let! result = Api.Common.getById req config id data.GetDepartment |> Async.ofAsyncResult
-            return constructResponse log result
-        } |> Async.StartAsTask
+        let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetDepartment
+        Api.Common.getResponse log context fn

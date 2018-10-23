@@ -1,4 +1,4 @@
-namespace MyFunctions.Api.Auth
+namespace MyFunctions.Api
 
 open Chessie.ErrorHandling
 open MyFunctions.Common.Types
@@ -14,7 +14,7 @@ open System.Collections.Generic
 /// This module provides a function to return "Pong!" to the calling client. 
 /// It demonstrates a basic GET request and response.
 ///</summary>
-module Get =
+module Auth =
     
     type ResponseModel = {
         access_token: string
@@ -40,7 +40,7 @@ module Get =
         | Bad([(Status.NotFound, _)]) -> return fail (HttpStatusCode.Forbidden, "Only registered IT Pros are allowed to view this informaiton.")
         | Bad(msgs) -> return msgs |> List.head |> fail
     }
-    let workflow (req: HttpRequestMessage) config (queryUserByName:string -> AsyncResult<User,Error>) = asyncTrial {
+    let get (req: HttpRequestMessage) config (queryUserByName:string -> AsyncResult<User,Error>) = asyncTrial {
         let getUaaJwt request = bindAsyncResult (fun () -> postAsync<ResponseModel> config.OAuth2TokenUrl request)
         let! oauthCode = getQueryParam "code" req
         let! uaaRequest = createTokenRequest config.OAuth2ClientId config.OAuth2ClientSecret config.OAuth2RedirectUrl oauthCode
@@ -50,10 +50,4 @@ module Get =
         let! appJwt = encodeJwt config.JwtSecret uaaClaims.Expiration user.Id user.NetId
         let result = { access_token = appJwt }          
         return result
-    }
-
-    let run (req: HttpRequestMessage) (log: TraceWriter) (data:IDataRepository) config = async {
-        let queryUserByNetId = data.GetUserByNetId
-        let! result = workflow req config queryUserByNetId |> Async.ofAsyncResult
-        return constructResponse log result
     }

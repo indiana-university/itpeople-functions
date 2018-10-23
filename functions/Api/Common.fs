@@ -4,9 +4,54 @@ open Chessie.ErrorHandling
 open MyFunctions.Common.Types
 open MyFunctions.Common.Jwt
 open System.Net.Http
+open MyFunctions.Common.Database
+open MyFunctions.Common.Fakes
+open Microsoft.Azure.WebJobs
+open Microsoft.Azure.WebJobs.Host
+open Microsoft.Extensions.Configuration
+open MyFunctions.Common.Http
 
 module Common =
 
+    let appConfig (context:ExecutionContext) = 
+        let config = 
+            ConfigurationBuilder()
+                .SetBasePath(context.FunctionAppDirectory)
+                .AddJsonFile("local.settings.json", optional=true, reloadOnChange= true)
+                .AddEnvironmentVariables()
+                .Build();
+        {
+            OAuth2ClientId = config.["OAuthClientId"]
+            OAuth2ClientSecret = config.["OAuthClientSecret"]
+            OAuth2TokenUrl = config.["OAuthTokenUrl"]
+            OAuth2RedirectUrl = config.["OAuthRedirectUrl"]
+            JwtSecret = config.["JwtSecret"]
+            DbConnectionString = config.["DbConnectionString"]
+        }
+
+    let getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
+        let config = context |> appConfig
+        let data = DatabaseRepository(config.DbConnectionString) :> IDataRepository
+        // let data = FakesRepository() :> IDataRepository
+        (config,data)
+
+    let getResponse<'T> 
+        (log: TraceWriter) 
+        (context: ExecutionContext) 
+        (fn:(AppConfig*IDataRepository)->AsyncResult<'T,Error>) = 
+        async {
+            let (config,data) = getDependencies(context)
+            let! result = (config, data) |> fn |> Async.ofAsyncResult
+            return constructResponse log result
+        } |> Async.StartAsTask
+
+    let getResponse'<'T> 
+        (log: TraceWriter) 
+        (fn:unit->AsyncResult<'T,Error>) = 
+        async {
+            let! result = () |> fn |> Async.ofAsyncResult
+            return constructResponse log result
+        } |> Async.StartAsTask
 
     /// <summary>
     /// Get all items.
