@@ -11,6 +11,7 @@ open System.Net.Http
 ///</summary
 module Functions =
 
+    /// An anonymous function that simply returns, "Pong!" 
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
@@ -18,6 +19,7 @@ module Functions =
         let fn () = Api.Ping.get req
         Api.Common.getResponse' log fn
 
+    /// An anonymous function that exchanges
     [<FunctionName("AuthGet")>]
     let auth
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "auth")>]

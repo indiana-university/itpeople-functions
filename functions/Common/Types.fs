@@ -183,13 +183,19 @@ module Types =
     type FetchAll<'T> = unit -> AsyncResult<'T,Error>
 
     type IDataRepository =
-        // abstract method
+        /// Get a user record associated with a given net ID (e.g. 'jhoerr')
         abstract member GetUserByNetId: NetId -> AsyncResult<User,Error>
+        /// Get a user profile for a given user ID
         abstract member GetProfile: Id -> AsyncResult<UserProfile,Error>
+        /// Get all users, units, and departments matching a given search term
         abstract member GetSimpleSearchByTerm: string -> AsyncResult<SimpleSearch,Error>
+        /// Get a list of all units
         abstract member GetUnits: unit -> AsyncResult<UnitList,Error>
+        /// Get a single unit by ID
         abstract member GetUnit: Id -> AsyncResult<UnitProfile,Error>
+        /// Get a list of all departments
         abstract member GetDepartments: unit -> AsyncResult<DepartmentList,Error>
+        /// Get a single department by ID
         abstract member GetDepartment: Id -> AsyncResult<DepartmentProfile,Error>
 
     type JwtClaims = {

@@ -15,7 +15,7 @@ module Ping =
         Message: string
     }
 
-    let sayPong () = trial {
+    let private sayPong () = trial {
         return { Message="pong!"}
     }
 

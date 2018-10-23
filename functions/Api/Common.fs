@@ -12,29 +12,27 @@ open Microsoft.Extensions.Configuration
 open MyFunctions.Common.Http
 
 module Common =
-
-    let appConfig (context:ExecutionContext) = 
-        let config = 
+    /// Get app configuration and data dependencies resolvers.
+    let private getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
+        let configRoot = 
             ConfigurationBuilder()
                 .SetBasePath(context.FunctionAppDirectory)
                 .AddJsonFile("local.settings.json", optional=true, reloadOnChange= true)
                 .AddEnvironmentVariables()
                 .Build();
-        {
-            OAuth2ClientId = config.["OAuthClientId"]
-            OAuth2ClientSecret = config.["OAuthClientSecret"]
-            OAuth2TokenUrl = config.["OAuthTokenUrl"]
-            OAuth2RedirectUrl = config.["OAuthRedirectUrl"]
-            JwtSecret = config.["JwtSecret"]
-            DbConnectionString = config.["DbConnectionString"]
+        let appConfig = {
+            OAuth2ClientId = configRoot.["OAuthClientId"]
+            OAuth2ClientSecret = configRoot.["OAuthClientSecret"]
+            OAuth2TokenUrl = configRoot.["OAuthTokenUrl"]
+            OAuth2RedirectUrl = configRoot.["OAuthRedirectUrl"]
+            JwtSecret = configRoot.["JwtSecret"]
+            DbConnectionString = configRoot.["DbConnectionString"]
         }
-
-    let getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
-        let config = context |> appConfig
-        let data = DatabaseRepository(config.DbConnectionString) :> IDataRepository
+        let data = DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
         // let data = FakesRepository() :> IDataRepository
-        (config,data)
+        (appConfig,data)
 
+    /// Given an API function, resolve required dependencies and get a response.  
     let getResponse<'T> 
         (log: TraceWriter) 
         (context: ExecutionContext) 
@@ -45,6 +43,7 @@ module Common =
             return constructResponse log result
         } |> Async.StartAsTask
 
+    /// Given an API function, get a response.  
     let getResponse'<'T> 
         (log: TraceWriter) 
         (fn:unit->AsyncResult<'T,Error>) = 

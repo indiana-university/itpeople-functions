@@ -18,7 +18,7 @@ module Jwt =
     let UserRoleClaim = "user_role"
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
-    // Create and sign a JWT
+    /// Create and sign a JWT
     let encodeJwt secret exp id netId = 
         let fn() =
             JwtBuilder()
@@ -38,14 +38,14 @@ module Jwt =
         |> System.Double.Parse 
         |> (fun unixTicks -> epoch.AddSeconds(unixTicks))
 
-    /// <summary>
     /// Decode a JWT from the UAA service
-    /// </summary>
     let decodeUaaJwt (jwt:string) = 
         try
+            // decode the UAA JWT
             let decoded = 
                 JwtBuilder()
                     .Decode<IDictionary<string, obj>>(jwt)
+            // map the claims to a domain object
             let claims = {
                 UserId = 0
                 UserName = decoded.[UserNameClaim] |> string
@@ -58,16 +58,16 @@ module Jwt =
         | exn ->
             fail (Status.Unauthorized, sprintf "Failed to decode access token: %s" (exn.Message))
 
-    /// <summary>
-    /// Decode a JWT issued by the /api/auth function.
-    /// </summary>
+    /// Decode a JWT issued by the Api.Auth.get function.
     let decodeAppJwt (secret:string) (jwt:string) =
         try
+            // decode and validate the app JWT
             let decoded = 
                 JwtBuilder()
                     .WithSecret(secret)
                     .MustVerifySignature()
                     .Decode<IDictionary<string, string>>(jwt)
+            // map the claims to a domain object
             let claims = {
                 UserId = decoded.[UserIdClaim] |> Int32.Parse
                 UserName = decoded.[UserNameClaim] |> string
@@ -84,6 +84,7 @@ module Jwt =
 
     let MissingAuthHeader = "Authorization header is required in the form of 'Bearer <token>'."
 
+    /// Attempt to parse the Authorization header from the request
     let extractAuthHeader (req: HttpRequestMessage) =
         let authHeader = 
             if req.Headers.Contains("Authorization")
@@ -93,12 +94,14 @@ module Jwt =
         then fail (Status.Unauthorized, MissingAuthHeader)
         else authHeader |> ok
 
+    /// Attempt to parse the JWT from the Authorization header. 
     let extractJwt (authHeader: string) =
         let parts = authHeader.Split([|' '|])
         if parts.Length <> 2 
         then fail (Status.Unauthorized, MissingAuthHeader)
         else parts.[1] |> ok
 
+    /// Attempt to decode the app JWT claims
     let validateAuth (secret:string) (req: HttpRequestMessage) = trial {
         let! authHeader = extractAuthHeader req
         let! jwt = extractJwt authHeader

@@ -23,15 +23,8 @@ module Database =
         NetId: NetId
     }
 
-    let emptySeq<'a> () : AsyncResult<'a seq,Error> = asyncTrial {
-        return Seq.empty<'a>
-    }
 
-    let tryGetFirst seq msg = 
-        match seq |> Seq.tryHead with
-            | None -> fail (Status.NotFound, msg)
-            | Some (resp) -> ok resp
-
+    /// Fetch a user given a netid (e.g. 'jhoerr')
     let queryUserByNetId connStr netId = asyncTrial {
         let fn () = async {
             use cn = new SqlConnection(connStr)
@@ -43,6 +36,7 @@ module Database =
         return head
     }
 
+    /// Fetch a single 'T given an ID
     let queryTypeById<'T> connStr id = asyncTrial {
         let fn () = async {
             use cn = new SqlConnection(connStr)
@@ -55,6 +49,7 @@ module Database =
         return result
     }
 
+    /// Fetch all 'T
     let queryAll<'T> connStr query msg id = asyncTrial {
         let fn() = async {
             use cn = new SqlConnection(connStr)
@@ -65,6 +60,7 @@ module Database =
         return result        
     }
 
+    /// Get all departments supported by a given unit ID
     let queryDepartmentsSupportedByUnit connStr unitId = asyncTrial {
         let query = """
 SELECT d.Id, d.Name, d.Description FROM Departments d
@@ -77,6 +73,7 @@ ORDER BY d.Name ASC"""
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
+    /// Get all organizational units that exist within a given department ID
     let queryOrgUnitsInDepartment connStr deptId = asyncTrial {
         let query = """
 SELECT un.Id, un.Name, un.Description FROM Units un
@@ -90,6 +87,8 @@ ORDER BY un.Name ASC"""
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
+    /// Get all supporting units for a given department ID
+
     let queryUnitsSupportingDepartment connStr deptId = asyncTrial {
         let query = """
 SELECT un.Id, un.Name, un.Description FROM Units un
@@ -102,6 +101,8 @@ ORDER BY un.Name ASC"""
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
+    /// Get all people with an HR relationship to a given department ID
+
     let queryPeopleInDepartment connStr deptId = asyncTrial {
         let query = """
 SELECT u.Id, u.Name FROM Users u
@@ -112,6 +113,7 @@ ORDER BY u.Name ASC"""
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
+    /// Get all people with a relationship to a given unit ID
     let queryPeopleInUnit connStr unitId = asyncTrial {
         let query = """
 SELECT u.Id, u.Name, u.Role FROM Users u
@@ -123,6 +125,7 @@ ORDER BY u.Name ASC"""
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
+    /// Get all units with a relationship to a given person ID
     let queryUnitMemberships connStr userId = asyncTrial {
         let query = """
 SELECT u.Id, u.Name, u.Url FROM Units u
@@ -134,6 +137,7 @@ ORDER BY u.Name ASC"""
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
+    /// Get the profile for a given user ID
     let queryUserProfile connStr id = asyncTrial {
         let! user = queryTypeById<User> connStr id
         let! unitMemberships = queryUnitMemberships connStr id
@@ -150,6 +154,7 @@ ORDER BY u.Name ASC"""
         Term: string
     }
 
+    /// Get all 'T whose name matches a given search term
     let querySearch<'T> connStr term conditions = asyncTrial {
         let fn() = async {
             use cn = new SqlConnection(connStr)
@@ -160,6 +165,7 @@ ORDER BY u.Name ASC"""
         return result
     }
 
+    /// Get all people, departments, and units whose name matches a given search term
     let querySimpleSearch connStr term = asyncTrial {
         let! users = querySearch<User> connStr term "WHERE Name LIKE @Term OR NetId LIKE @Term"
         let! units = querySearch<Unit> connStr term "WHERE Name LIKE @Term OR Description LIKE @Term"
@@ -171,6 +177,7 @@ ORDER BY u.Name ASC"""
         }
     }
 
+    /// Get a list of all units
     let queryUnits connStr = asyncTrial {
         let fn () = async {
             use cn = new SqlConnection(connStr)
@@ -185,6 +192,7 @@ ORDER BY u.Name ASC"""
         UnitId: Id
     }
 
+    /// Get a single unit by ID
     let queryUnit connStr id = asyncTrial {
         let! unit = queryTypeById<Unit> connStr id
         let! members = queryPeopleInUnit connStr id
@@ -196,6 +204,7 @@ ORDER BY u.Name ASC"""
         }
     }
 
+    /// Get a list of all departments
     let queryDepartments connStr = asyncTrial {
         let fn () = async {
             use cn = new SqlConnection(connStr)
@@ -206,7 +215,7 @@ ORDER BY u.Name ASC"""
         return result
     }
 
-
+    /// Get a single department by ID
     let queryDepartment connStr id = asyncTrial {
         let! dept = queryTypeById<Department> connStr id
         let! members = if (not dept.DisplayUnits) then queryPeopleInDepartment connStr id else emptySeq<Member>()
@@ -220,6 +229,7 @@ ORDER BY u.Name ASC"""
         }
     }
 
+    /// A SQL Database implementation of IDatabaseRespository
     type DatabaseRepository(connectionString:string) =
         let connStr = connectionString
 

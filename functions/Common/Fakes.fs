@@ -108,6 +108,8 @@ module Fakes =
         return profile
     }
 
+    /// A canned data implementation of IDatabaseRespository (for testing)
+
     type FakesRepository() =
         interface IDataRepository with 
             member this.GetUserByNetId netId = getFakeUser ()
