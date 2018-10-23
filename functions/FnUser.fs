@@ -1,10 +1,11 @@
 namespace MyFunctions
 
-open Types
-open Common
+open MyFunctions.Common.Types
+open MyFunctions.Common.Http
 open Chessie.ErrorHandling
-open Microsoft.AspNetCore.Http
 open System.Net.Http
+open MyFunctions.Common.Jwt
+
 
 /// This module provides functions to fetch and update user profiles.
 module User =

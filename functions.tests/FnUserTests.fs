@@ -1,18 +1,15 @@
 namespace Tests
 
 open Chessie.ErrorHandling
-open MyFunctions.Types
+open MyFunctions.Common.Types
+open MyFunctions.Common.Jwt
 open MyFunctions.User
-open MyFunctions.Common
-open System
 open Xunit
-open System.Net.Http
-open Microsoft.AspNetCore.Http
 
 module FnUserTests =
 
     let getUserById id = 
-        MyFunctions.Fakes.getFakeProfile()
+        MyFunctions.Common.Fakes.getFakeProfile()
 
     let await fn = 
         fn 

@@ -1,15 +1,14 @@
 namespace MyFunctions.Auth
 
 open Chessie.ErrorHandling
-open MyFunctions.Types
-open MyFunctions.Common
-open MyFunctions.Database
-open Microsoft.AspNetCore.Http
+open MyFunctions.Common.Types
+open MyFunctions.Common.Util
+open MyFunctions.Common.Http
+open MyFunctions.Common.Jwt
 open Microsoft.Azure.WebJobs.Host
 open System.Net
 open System.Net.Http
 open System.Collections.Generic
-open System.Data.SqlClient
 
 ///<summary>
 /// This module provides a function to return "Pong!" to the calling client. 

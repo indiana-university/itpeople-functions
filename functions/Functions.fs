@@ -1,12 +1,14 @@
 namespace MyFunctions
 
-open MyFunctions.Types
+open MyFunctions.Common.Types
+open MyFunctions.Common.Http
+open MyFunctions.Common.Database
+open MyFunctions.Common.Fakes
 open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
 open Microsoft.AspNetCore.Http
 open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
-open Common
 open System.Net.Http
 
 ///<summary>
@@ -32,8 +34,8 @@ module Functions =
 
     let getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
         let config = context |> appConfig
-        let data = Database.DatabaseRepository(config.DbConnectionString) :> IDataRepository
-        // let data = Fakes.FakesRepository() :> IDataRepository
+        let data = DatabaseRepository(config.DbConnectionString) :> IDataRepository
+        // let data = FakesRepository() :> IDataRepository
         (config,data)
 
     [<FunctionName("PingGet")>]

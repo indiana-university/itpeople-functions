@@ -1,10 +1,9 @@
 namespace MyFunctions
 
 open Chessie.ErrorHandling
-open MyFunctions.Types
-open MyFunctions.Common
-open Microsoft.AspNetCore.Http
-open Microsoft.Azure.WebJobs.Host
+open MyFunctions.Common.Types
+open MyFunctions.Common.Jwt
+open MyFunctions.Common.Http
 open System.Net.Http
 
 module Unit =

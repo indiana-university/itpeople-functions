@@ -1,11 +1,9 @@
 namespace MyFunctions.Ping
 
 open Chessie.ErrorHandling
-open MyFunctions.Types
-open MyFunctions.Common
-open Microsoft.AspNetCore.Http
+open MyFunctions.Common.Types
+open MyFunctions.Common.Http
 open Microsoft.Azure.WebJobs.Host
-open System.Net
 open System.Net.Http
 
 ///<summary>

@@ -1,20 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <AzureFunctionsVersion></AzureFunctionsVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="1.50.5" />
-    <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
-    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.19" />
-    <PackageReference Include="Chessie" Version="0.6.0" />
-    <PackageReference Include="JWT" Version="4.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.1.1"/>
-  </ItemGroup>
-   <ItemGroup>
-    <Compile Include="Common.fs" />
-    <Compile Include="Fakes.fs" />
-    <Compile Include="Database.fs" />
+    <Compile Include="Common/Types.fs" />
+    <Compile Include="Common/Util.fs" />
+    <Compile Include="Common/Jwt.fs" />
+    <Compile Include="Common/Http.fs" />
+    <Compile Include="Common/Fakes.fs" />
+    <Compile Include="Common/Database.fs" />
     <Compile Include="FnAuth.fs" />
     <Compile Include="FnPing.fs" />
     <Compile Include="FnSearch.fs" />
@@ -22,15 +16,19 @@
     <Compile Include="FnUnit.fs" />
     <Compile Include="FnDepartment.fs" />
     <Compile Include="Functions.fs" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="host.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
     <None Include="proxies.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="1.50.5" />
+    <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.19" />
+    <PackageReference Include="Chessie" Version="0.6.0" />
+    <PackageReference Include="JWT" Version="4.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.1.1" />
   </ItemGroup>
 </Project>

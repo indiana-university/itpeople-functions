@@ -1,4 +1,4 @@
-namespace MyFunctions
+namespace MyFunctions.Common
 
 open Types
 open Chessie.ErrorHandling

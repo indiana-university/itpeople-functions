@@ -1,11 +1,10 @@
-namespace MyFunctions
+namespace MyFunctions.Common
 
 open Chessie.ErrorHandling
 open Types
-open Common
+open Util
 open Dapper
 open System.Data.SqlClient
-open Fakes
 
 module Database =
 
