@@ -284,22 +284,21 @@ module Common =
         with
         | exn -> fail (status, sprintf "%s: %s" msg (exn.Message))
 
-
-    let foo status msg fn = async {
-        try
-            let! result = fn()
-            return result
-        with
-        | exn -> return fail (status, sprintf "%s: %s" msg (exn.Message))
-    }
-
     /// <summary>
     /// ROP: Attempt to execute a function.
     /// If it succeeds, pass along the result. 
     /// If it throws, wrap the exception message in a failure with the provided status.
     /// </summary>
-    let tryfResult<'T> status msg (fn:unit -> Async<Result<'T,Error>>) = asyncTrial {
-        let! result = foo status msg fn |> bindAsync
+    let tryfAsync<'T> status msg (fn:unit -> Async<Result<'T,Error>>) = asyncTrial {
+        let doAsync status msg fn = async {
+          try
+                let! result = fn()
+                return result
+            with
+            | exn -> return fail (status, sprintf "%s: %s" msg (exn.Message))
+        }
+        
+        let! result = doAsync status msg fn |> bindAsync
         return result
     }
 
@@ -329,27 +328,6 @@ module Common =
         then ok (query.[paramName].ToString())
         else fail (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName))
 
-    let getQueryParamInt paramName (req: HttpRequestMessage) = trial {
-        let asInt p =
-            match p with
-            | Int i -> ok i
-            | _ -> fail (Status.BadRequest, (sprintf "Query parameter '%s' must be a number" paramName))
-
-        let! queryParam = getQueryParam paramName req
-        let! result = asInt queryParam
-        return result
-    }
-
-    let getQueryParamInt' paramName min max (req: HttpRequestMessage) = trial {
-        let inRange min max queryParam = 
-            if (queryParam < min || queryParam > max)
-            then fail (Status.BadRequest, (sprintf "Query parameter '%s' must be in range [%d, %d]" paramName min max))
-            else ok queryParam
-        let! intParam = getQueryParamInt paramName req
-        let! result = inRange min max intParam
-        return result
-    }
-
     let postAsync<'T> (url:string) (content:HttpContent) : Async<Result<'T,(HttpStatusCode*string)>> = async {
         try
             let! response = client.PostAsync(url, content) |> Async.AwaitTask
@@ -363,47 +341,6 @@ module Common =
 
     // HTTP RESPONSE
 
-    /// <summary>
-    /// Look up common MIME types based on the file extension
-    /// </summary>
-    let mimeType (path:string) =
-        let extension = 
-            path.Split([|'.'|]) 
-            |> Array.last 
-            |> (fun str -> str.ToLowerInvariant())
-        match extension with
-        | "css" -> "text/css"
-        | "js" -> "application/javascript"
-        | "html" -> "text/html"
-        | "png" -> "image/png"
-        | "ico" -> "image/x-icon"
-        | "svg" -> "image/svg+xml"
-        | _ -> "text/plain"
-
-    /// <summary>
-    /// Construct an HTTP response.
-    /// </summary>
-    let httpResponse status content contentType =
-        let response = new HttpResponseMessage(status)
-        response.Content <- content
-        response.Content.Headers.ContentType <- contentType |> MediaTypeHeaderValue;
-        response
-
-    /// <summary>
-    /// Construct an HTTP response with file stream content
-    /// </summary>
-    let fileResponse status path = 
-        let stream = new FileStream(path, FileMode.Open)
-        let content = new StreamContent(stream)
-        httpResponse status content (path |> mimeType)
-
-    /// <summary>
-    /// Construct an HTTP response with string content
-    /// </summary>
-    let stringResponse status str =
-        let content = new StringContent(str)
-        httpResponse status content "text/plain"
-
     let jsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
     jsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
 
@@ -414,7 +351,10 @@ module Common =
         let content = 
             JsonConvert.SerializeObject(model, jsonSettings)
             |> (fun s -> new StringContent(s))
-        httpResponse status content "application/json"
+        let response = new HttpResponseMessage(status)
+        response.Content <- content
+        response.Content.Headers.ContentType <- "application/json" |> MediaTypeHeaderValue;
+        response
 
     // ROP
 
@@ -455,9 +395,6 @@ module Common =
             let (status, errors) = failure (msgs)
             sprintf "%A %O" status errors |> log.Error
             jsonResponse status errors
-
-
- 
 
 
 /// *******************

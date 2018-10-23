@@ -39,7 +39,7 @@ module Database =
             let! seq = cn.GetListAsync<User>({NetId=netId}) |> Async.AwaitTask
             return ok seq
         }
-        let! result = tryfResult Status.InternalServerError "Failed to fetch user by netId" fn
+        let! result = tryfAsync Status.InternalServerError "Failed to fetch user by netId" fn
         let! head = tryGetFirst result (sprintf "No user found with netid '%s'" netId)
         return head
     }
@@ -52,7 +52,7 @@ module Database =
             | null -> return fail (Status.NotFound, sprintf "No %s found with id %d" (typeof<'T>.Name) id)
             | _ -> return ok result
         }
-        let! result = tryfResult Status.InternalServerError (sprintf "Failed to fetch %s by id %d" (typeof<'T>.Name) id) fn
+        let! result = tryfAsync Status.InternalServerError (sprintf "Failed to fetch %s by id %d" (typeof<'T>.Name) id) fn
         return result
     }
 
@@ -62,7 +62,7 @@ module Database =
             let! seq = cn.QueryAsync<'T>(query, {Id=id}) |> Async.AwaitTask
             return seq |> Seq.cast<'T> |> ok
         }
-        let! result = tryfResult Status.InternalServerError msg fn
+        let! result = tryfAsync Status.InternalServerError msg fn
         return result        
     }
 
@@ -157,7 +157,7 @@ ORDER BY u.Name ASC"""
             let! seq = cn.GetListAsync<'T>(conditions, {Term=(like term)})  |> Async.AwaitTask
             return ok seq
         }
-        let! result = tryfResult Status.InternalServerError (sprintf "Failed to get %s by search term" typeof<'T>.Name ) fn
+        let! result = tryfAsync Status.InternalServerError (sprintf "Failed to get %s by search term" typeof<'T>.Name ) fn
         return result
     }
 
@@ -178,7 +178,7 @@ ORDER BY u.Name ASC"""
             let! seq = cn.GetListAsync<Unit>() |> Async.AwaitTask
             return { Units = seq |> Seq.sortBy (fun u -> u.Name)} |> ok 
         }
-        let! result = tryfResult Status.InternalServerError "Failed to fetch user by netId" fn
+        let! result = tryfAsync Status.InternalServerError "Failed to fetch user by netId" fn
         return result
     }
 
@@ -203,7 +203,7 @@ ORDER BY u.Name ASC"""
             let! seq = cn.GetListAsync<Department>() |> Async.AwaitTask
             return { Departments = seq |> Seq.sortBy (fun u -> u.Name) } |> ok 
         }
-        let! result = tryfResult Status.InternalServerError "Failed to fetch user by netId" fn
+        let! result = tryfAsync Status.InternalServerError "Failed to fetch user by netId" fn
         return result
     }
 
