@@ -79,7 +79,7 @@
       "problemMatcher": []
     },
     {
-      "label": "test",
+      "label": "unit",
       "windows": {
         "command": "dotnet build; dotnet test"
       },
@@ -95,9 +95,30 @@
         "reveal": "always"
       },
       "options": {
-        "cwd": "${workspaceFolder}/functions.tests"
+        "cwd": "${workspaceFolder}/functions.tests.unit"
       },
       "problemMatcher": "$msCompile"
     },
+    {
+      "label": "integration",
+      "windows": {
+        "command": "dotnet build; dotnet test"
+      },
+      "osx": {
+        "command": "dotnet build; dotnet test"
+      },
+      "type": "shell",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/functions.tests.integration"
+      },
+      "problemMatcher": "$msCompile"
+    }
   ]
 }
