@@ -17,30 +17,13 @@ module User =
     /// <param name="config">The application configuration</param>
     /// <param name="queryUser">A function to fetch a given user profile by its Id</param>
     /// <returns>
-    /// A JSON-encoded user profile
+    /// A user profile, or error information.
     /// </returns>
     let getMe (req: HttpRequestMessage) (config:AppConfig) (queryUser: FetchById<UserProfile>) = asyncTrial {
         let! claims = requireMembership config req
         let! profile = queryUser claims.UserId
-        return profile |> jsonResponse Status.OK
+        return profile
     }
-
-    /// <summary>
-    /// Get the profile of the user associated with the passed ID
-    /// </summary>
-    /// <param name="req">The HTTP request that triggered this function</param>
-    /// <param name="config">The application configuration</param>
-    /// <param name="id">The ID of the user profile to fetch</param>
-    /// <param name="queryUser">A function to fetch a given user profile by its ID</param>
-    /// <returns>
-    /// A JSON-encoded user profile
-    /// </returns>
-    let getById (req: HttpRequestMessage) (config:AppConfig) id (queryUser: FetchById<UserProfile>) = asyncTrial {
-        let! _ = requireMembership config req
-        let! profile = queryUser id
-        return profile |> jsonResponse Status.OK
-    }
-
 
 // module Put =
 //     let validatePostBody body = ok body

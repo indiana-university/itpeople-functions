@@ -1,7 +1,6 @@
-namespace MyFunctions.Api.Ping
+namespace MyFunctions.Api
 
 open Chessie.ErrorHandling
-open MyFunctions.Common.Types
 open MyFunctions.Common.Http
 open Microsoft.Azure.WebJobs.Host
 open System.Net.Http
@@ -10,21 +9,20 @@ open System.Net.Http
 /// This module provides a function to return "Pong!" to the calling client. 
 /// It demonstrates a basic GET request and response.
 ///</summary>
-module Get =
+module Ping =
     
-    let sayPong = trial {
-        return "pong!" |> jsonResponse Status.OK 
+    type PingResult = {
+        Message: string
     }
 
-    let workflow (req: HttpRequestMessage) = asyncTrial {
-        let! result = sayPong
-        return result
+    let sayPong () = trial {
+        return { Message="pong!"}
     }
 
     /// <summary>
-    /// Say hello to a person by name.
+    /// Get 'pong!.
     /// </summary>
-    let run (req: HttpRequestMessage) (log: TraceWriter) = async {
-        let! result = (workflow req) |> Async.ofAsyncResult
-        return constructResponse log result
+    let get (req: HttpRequestMessage) = asyncTrial {
+        let! result = sayPong ()
+        return result
     }

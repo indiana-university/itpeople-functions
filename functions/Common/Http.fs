@@ -102,7 +102,8 @@ module Http =
     /// </summary>
     let constructResponse (log:TraceWriter) trialResult : HttpResponseMessage =
         match trialResult with
-        | Ok(result, _) -> result
+        | Ok(result, _) -> 
+            result |> jsonResponse Status.OK
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
             sprintf "%A %O" status errors |> log.Error
