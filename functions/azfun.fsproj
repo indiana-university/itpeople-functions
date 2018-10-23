@@ -9,12 +9,12 @@
     <Compile Include="Common/Http.fs" />
     <Compile Include="Common/Fakes.fs" />
     <Compile Include="Common/Database.fs" />
-    <Compile Include="FnAuth.fs" />
-    <Compile Include="FnPing.fs" />
-    <Compile Include="FnSearch.fs" />
-    <Compile Include="FnUser.fs" />
-    <Compile Include="FnUnit.fs" />
-    <Compile Include="FnDepartment.fs" />
+    <Compile Include="Api/Auth.fs" />
+    <Compile Include="Api/Ping.fs" />
+    <Compile Include="Api/Search.fs" />
+    <Compile Include="Api/User.fs" />
+    <Compile Include="Api/Unit.fs" />
+    <Compile Include="Api/Department.fs" />
     <Compile Include="Functions.fs" />
     <None Include="host.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -1,4 +1,4 @@
-namespace MyFunctions.Search
+namespace MyFunctions.Api.Search
 
 open Chessie.ErrorHandling
 open MyFunctions.Common.Types

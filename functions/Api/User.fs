@@ -1,4 +1,4 @@
-namespace MyFunctions
+namespace MyFunctions.Api
 
 open MyFunctions.Common.Types
 open MyFunctions.Common.Http

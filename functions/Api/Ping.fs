@@ -1,4 +1,4 @@
-namespace MyFunctions.Ping
+namespace MyFunctions.Api.Ping
 
 open Chessie.ErrorHandling
 open MyFunctions.Common.Types

@@ -3,7 +3,7 @@ namespace Tests
 open Chessie.ErrorHandling
 open MyFunctions.Common.Types
 open MyFunctions.Common.Jwt
-open MyFunctions.User
+open MyFunctions.Api.User
 open Xunit
 
 module FnUserTests =

@@ -1,4 +1,4 @@
-namespace MyFunctions.Department
+namespace MyFunctions.Api.Department
 
 open Chessie.ErrorHandling
 open MyFunctions.Common.Types

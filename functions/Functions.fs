@@ -43,7 +43,7 @@ module Functions =
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
         req: HttpRequestMessage,
         log: TraceWriter) =
-            Ping.Get.run req log |> Async.StartAsTask
+            Api.Ping.Get.run req log |> Async.StartAsTask
 
     [<FunctionName("AuthGet")>]
     let auth
@@ -52,7 +52,7 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext) =
             let (config,data) = getDependencies(context)
-            Auth.Get.run req log data config |> Async.StartAsTask
+            Api.Auth.Get.run req log data config |> Async.StartAsTask
 
     [<FunctionName("UserGetId")>]
     let profileGet
@@ -63,7 +63,7 @@ module Functions =
         id: Id) =
         async {
             let (config,data) = getDependencies(context)
-            let! result = User.getById req config id data.GetProfile |> Async.ofAsyncResult
+            let! result = Api.User.getById req config id data.GetProfile |> Async.ofAsyncResult
             return constructResponse log result
         } |> Async.StartAsTask
 
@@ -75,7 +75,7 @@ module Functions =
         context: ExecutionContext) = 
         async {
             let (config,data) = getDependencies(context)
-            let! result = User.getMe req config data.GetProfile |> Async.ofAsyncResult
+            let! result = Api.User.getMe req config data.GetProfile |> Async.ofAsyncResult
             return constructResponse log result
         } |> Async.StartAsTask
 
@@ -95,7 +95,7 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext) =
             let (config,data) = getDependencies(context)
-            Search.GetSimple.run req log data config |> Async.StartAsTask
+            Api.Search.GetSimple.run req log data config |> Async.StartAsTask
 
 
     [<FunctionName("UnitGetAll")>]
@@ -106,7 +106,7 @@ module Functions =
         context: ExecutionContext) =
         async {
             let (config, data) = getDependencies(context)
-            let! result = Unit.getAll req config data.GetUnits |> Async.ofAsyncResult
+            let! result = Api.Unit.getAll req config data.GetUnits |> Async.ofAsyncResult
             return constructResponse log result
         } |> Async.StartAsTask
             
@@ -119,7 +119,7 @@ module Functions =
         id: Id) =
         async {
             let (config,data) = getDependencies(context)
-            let! result = Unit.getById req config id data.GetUnit |> Async.ofAsyncResult
+            let! result = Api.Unit.getById req config id data.GetUnit |> Async.ofAsyncResult
             return constructResponse log result
         } |> Async.StartAsTask
             
@@ -130,7 +130,7 @@ module Functions =
         log: TraceWriter,
         context: ExecutionContext) =
             let (config,data) = getDependencies(context)
-            Department.GetAll.run req log data config |> Async.StartAsTask
+            Api.Department.GetAll.run req log data config |> Async.StartAsTask
 
     [<FunctionName("DepartmentGetId")>]
     let departmentGetId
@@ -140,4 +140,4 @@ module Functions =
         context: ExecutionContext,
         id: Id) =
             let (config,data) = getDependencies(context)
-            Department.GetId.run req log data id config |> Async.StartAsTask
+            Api.Department.GetId.run req log data id config |> Async.StartAsTask
