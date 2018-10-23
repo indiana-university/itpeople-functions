@@ -94,8 +94,11 @@ module Functions =
         req: HttpRequestMessage,
         log: TraceWriter,
         context: ExecutionContext) =
+        async {
             let (config,data) = getDependencies(context)
-            Api.Search.GetSimple.run req log data config |> Async.StartAsTask
+            let! result = Api.Search.getSimple req config data.GetSimpleSearchByTerm |> Async.ofAsyncResult
+            return constructResponse log result
+        } |> Async.StartAsTask
 
 
     [<FunctionName("UnitGetAll")>]
