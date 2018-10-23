@@ -1,4 +1,4 @@
-namespace MyFunctions
+namespace MyFunctions.Common
 
 open Types
 open Chessie.ErrorHandling
@@ -107,6 +107,8 @@ module Fakes =
         }
         return profile
     }
+
+    /// A canned data implementation of IDatabaseRespository (for testing)
 
     type FakesRepository() =
         interface IDataRepository with 

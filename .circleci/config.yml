@@ -50,7 +50,8 @@ jobs:
       - checkout 
       - run: 
           name: Build Functions
-          command: cd functions && dotnet build -c Release
+          working_directory: functions
+          command: dotnet build -c Release
       - run:
           name: Save compiled Functions to workspace
           command: cp -a functions/bin/Release/netstandard2.0/. /tmp/workspace/publish/
@@ -58,6 +59,15 @@ jobs:
           root: /tmp/workspace
           paths:
             - publish
+  test:
+    docker:
+      - image: microsoft/dotnet:2.1-sdk
+    steps:
+      - checkout 
+      - run: 
+          name: Test Functions
+          working_directory: functions.tests
+          command: dotnet test
   # Build (zip) a functions deployment package
   package:
     docker:
@@ -109,6 +119,9 @@ workflows:
           filters:
             branches:
               ignore: gh-pages          
+      - test:
+          requires:
+            - build
 #      - package:
 #          requires:
 #            - build
