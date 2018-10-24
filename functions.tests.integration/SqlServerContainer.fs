@@ -13,9 +13,10 @@ module SqlServerContainer=
     open System.Runtime.InteropServices
 
     let connStr = "Server=127.0.0.1,1433;User Id=sa;Password=Abcd1234!;Timeout=5"
-    let startSqlServer = """run --name intgration_test_mssql -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Abcd1234!" -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest"""
-    let stopSqlServer = "stop intgration_test_mssql"   
-    let rmSqlServer = "rm intgration_test_mssql"   
+    let startSqlServer = """run --name integration_test_mssql -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Abcd1234!" -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest"""
+    let logsSqlServer = "logs integration_test_mssql"   
+    let stopSqlServer = "stop integration_test_mssql"   
+    let rmSqlServer = "rm integration_test_mssql"   
 
     let result b = if b then "[OK]" else "[ERROR]"
 
@@ -29,6 +30,12 @@ module SqlServerContainer=
             // sprintf "Failed to connect to server: %s" exn.Message |> Console.WriteLine
             return false
     }
+
+    let runDockerCommand cmd = 
+        Console.WriteLine(sprintf "Exec: %s" cmd)
+        let p = System.Diagnostics.Process.Start("docker",cmd)
+        p.WaitForExit() |> ignore
+
     let ensureReady () = async {
         let maxTries = 15
         let delayMs = 1000
@@ -46,19 +53,14 @@ module SqlServerContainer=
             else
                 "[YEP]" |> Console.WriteLine
         
-        if count = maxTries
-        then raise(Exception("SQL Server never became ready. :("))
+        return count = maxTries
     }
 
-    let runDockerCommand cmd = 
-        Console.WriteLine(sprintf "Exec: %s" cmd)
-        let p = System.Diagnostics.Process.Start("docker",cmd)
-        p.WaitForExit() |> ignore
-
-    let start container = async {
+    let start () = async {
         runDockerCommand startSqlServer
-        do! ensureReady()
-        return true
+        let! started = ensureReady()
+        runDockerCommand logsSqlServer
+        return started
     }
 
     let stop () =

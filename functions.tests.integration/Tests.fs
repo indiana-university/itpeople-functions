@@ -19,16 +19,15 @@ module Tests=
 
     [<Fact>]
     let ``Get unit from DB`` () = async {
-        // try 
-            // let! started = start ()
-            do! ensureReady()
+        try 
+            let! started = start ()
             migrate ()
             let! id = populate ()
             let expected = Ok({Fakes.cito with Id=id},[])
             let! actual = Database.queryUnit connStr id |> Async.ofAsyncResult
             let actualUnit = lift (fun a -> a.Unit) actual
             Assert.Equal(expected, actualUnit)
-        // finally
-            // stop () |> ignore
+        finally
+            stop () |> ignore
     }
 
