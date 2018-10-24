@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="SqlServerContainer.fs" />
@@ -15,8 +16,9 @@
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
     <PackageReference Include="Chessie" Version="0.6.0" />
+    <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.1" />
   </ItemGroup>
-    <ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../functions/azfun.fsproj" />    
     <ProjectReference Include="../database/database.fsproj" />    
   </ItemGroup>
