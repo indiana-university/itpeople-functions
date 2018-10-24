@@ -21,6 +21,7 @@ module Tests=
     let ``Get unit from DB`` () = async {
         // try 
             // let! started = start ()
+            do! ensureReady()
             migrate ()
             let! id = populate ()
             let expected = Ok({Fakes.cito with Id=id},[])

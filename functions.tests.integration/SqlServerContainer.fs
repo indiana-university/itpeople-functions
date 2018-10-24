@@ -29,7 +29,7 @@ module SqlServerContainer=
             // sprintf "Failed to connect to server: %s" exn.Message |> Console.WriteLine
             return false
     }
-    let private ensureReady () = async {
+    let ensureReady () = async {
         let maxTries = 15
         let delayMs = 1000
         let mutable count = 0
