@@ -10,10 +10,17 @@ The functions are ultimately hosted within a web application by the Azure Functi
 
 1. Install the [.NET Core SDK](https://www.microsoft.com/net/learn/get-started)
 2. Install [Node.JS and NPM](https://nodejs.org/en/) 
-3. Install the Azure Functions CLI:
+3. Install [Docker](https://docs.docker.com/install/#supported-platforms)
+4. Install the Azure Functions CLI:
 
+On Windows/Linux:
 ```
 npm i -g azure-functions-core-tools@core --unsafe-perm true
+```
+
+On Mac:
+```
+homebrew install azure-functions-core-tools
 ```
 
 ## Authentication and Authorization
@@ -38,15 +45,15 @@ In order to host the Functions app locally you must [create and trust a self-sig
         "AzureWebJobsStorage": "",
         "AzureWebJobsDashboard": "",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet",
-        "API_HOST": "<YOUR FUNCTIONS APP DOMAIN. test: localhost:7071>",
-        "SPA_HOST": "<YOUR SPA DOMAIN. test: localhost:3000>",
+        "API_HOST": "localhost:7071",
+        "SPA_HOST": "localhost:3000",
         "AZURE_FUNCTION_PROXY_BACKEND_URL_DECODE_SLASHES": true,
-        "OauthTokenUrl": "<THE UAA TOKEN URL. test: https://apps-test.iu.edu/uaa-stg/oauth/token>",
-        "OauthRedirectUrl": "<YOUR SPA SIGN-IN URL. test: http://localhost:3000/signin>",
+        "OauthTokenUrl": "https://apps-test.iu.edu/uaa-stg/oauth/token",
+        "OauthRedirectUrl": "http://localhost:3000/signin",
         "OauthClientId": "<YOUR UAA CLIENT ID>",
         "OauthClientSecret": "<YOUR UAA CLIENT SECRET>",
-        "JwtSecret": "<SOME SECRET STRING>",
-        "DbConnectionString": "<YOUR SQL SERVER DATABASE CONNECTION STRING>"
+        "JwtSecret": "8rjYaJehyxd21bp1JrEsRJ7zstN2eT4jhxWU3UiB",
+        "DbConnectionString": "Server=tcp:localhost,1433;User ID=sa;Password=Abcd1234!"
     },
     "Host": {
         "LocalHttpPort": 7071,
@@ -125,20 +132,36 @@ Browse to Circle CI. If you don't have a Circle CI account, create one now. It's
 
 Circle CI should now have the information it needs to build, test, package, and deploy your Function App + SPA.
 
-## Database Migrations
+## Database 
 
-SQL Server database migrations are managed by [SimpleMigrations](https://github.com/canton7/Simple.Migrations). A command-line tool is provided by the `database` project. To migrate to the latest database schema, execute the following.
+This repo uses SQL Server as a database layer. If you wish to run the functions you'll need to have a running SQL Server database to which the functions can connect. The easiest way to do this is by running SQL Server in a Docker Container. Make sure you have Docker installed and running, then execute:
+
+On Windows:
+```
+docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Abcd1234!" -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest
+```
+
+On Mac/Linux:
+```
+docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Abcd1234!' -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest
+```
+
+This will start the SQL Server. The next step is to apply database migrations. These will get the database schema up to date with the functions.
+
+### Migrations
+
+SQL Server database migrations are managed by [SimpleMigrations](https://github.com/canton7/Simple.Migrations). A command-line tool is provided by the `database` project. To migrate to the latest database schema, execute the following. _Note: You can use the connection string below for local testing._
 
 Windows:
 ```
 cd database
-dotnet run "<SQL CONNECTION STRING>" up
+dotnet run "Server=tcp:localhost,1433;User ID=sa;Password=Abcd1234!" up
 ```
 
 Mac/Linux:
 ```
 cd database
-dotnet run '<SQL CONNECTION STRING>' up
+dotnet run 'Server=tcp:localhost,1433;User ID=sa;Password=Abcd1234!' up
 ```
 
 All command line options:
@@ -154,3 +177,7 @@ Subcommand can be one of:
 
 You can issue the command `help` instead of `up` to view the available migration commands.
 ```
+
+### Interactive SQL Sessions
+
+[SQL Operations Studio](https://docs.microsoft.com/en-us/sql/azure-data-studio/download?view=sql-server-2017) is a cross-platform tool that allows you to query and add data to your database.
