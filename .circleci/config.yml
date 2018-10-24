@@ -72,6 +72,7 @@ jobs:
     docker:
       - image: microsoft/dotnet:2.1-sdk
     steps:
+      - setup_remote_docker
       - checkout 
       - run:
           docker run --name integration_test_mssql -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Abcd1234!' -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest
