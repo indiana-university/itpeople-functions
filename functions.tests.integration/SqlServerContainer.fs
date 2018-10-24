@@ -37,7 +37,7 @@ module SqlServerContainer=
         p.WaitForExit() |> ignore
 
     let ensureReady () = async {
-        let maxTries = 15
+        let maxTries = 30
         let delayMs = 1000
         let mutable count = 0
         let mutable isReady = false
