@@ -59,14 +59,23 @@ jobs:
           root: /tmp/workspace
           paths:
             - publish
-  test:
+  test-unit:
     docker:
       - image: microsoft/dotnet:2.1-sdk
     steps:
       - checkout 
       - run: 
           name: Test Functions
-          working_directory: functions.tests
+          working_directory: functions.tests.unit
+          command: dotnet test
+  test-integration:
+    docker:
+      - image: microsoft/dotnet:2.1-sdk
+    steps:
+      - checkout 
+      - run: 
+          name: Test Functions
+          working_directory: functions.tests.integration
           command: dotnet test
   # Build (zip) a functions deployment package
   package:
@@ -119,7 +128,10 @@ workflows:
           filters:
             branches:
               ignore: gh-pages          
-      - test:
+      - test-unit:
+          requires:
+            - build
+      - test-integration:
           requires:
             - build
 #      - package:
