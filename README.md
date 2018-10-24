@@ -22,7 +22,7 @@ Authentication is provided by ESI Middleware's [UAA](https://github.iu.edu/iu-ui
 
 ## SSL 
 
-In order to host the Functions app locally you must [create and trust a self-signed SSL certificate](https://www.humankode.com/asp-net-core/develop-locally-with-https-self-signed-certificates-and-asp-net-core). This repo includes a self-signed cert if you just want to use it. The password is `Abcd1234`.  
+In order to host the Functions app locally you must [create and trust a self-signed SSL certificate](https://www.humankode.com/asp-net-core/develop-locally-with-https-self-signed-certificates-and-asp-net-core). This repo includes a self-signed cert if you just want to use it. The password is `Abcd1234!`.  
 
 ## Running the code
 
