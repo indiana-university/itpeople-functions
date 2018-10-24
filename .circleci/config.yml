@@ -83,15 +83,21 @@ jobs:
             mv /tmp/docker/* /usr/bin
       - checkout 
       - run:
-          docker run --name integration_test_mssql -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Abcd1234!" -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest
+          name: Start SQL Server container
+          command: docker run --name integration_test_mssql -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Abcd1234!" -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest
+      - run:
+          name: Check Docker Logs
+          command: docker logs integration_test_mssql
       - run: 
           name: Test Functions
           working_directory: functions.tests.integration
           command: dotnet test
       - run:
-          docker stop integration_test_mssql
+          name: Stop container
+          command: docker stop integration_test_mssql
       - run:
-          docker rm integration_test_mssql
+          name: Remove container
+          command: docker rm integration_test_mssql
   # Build (zip) a functions deployment package
   package:
     docker:
