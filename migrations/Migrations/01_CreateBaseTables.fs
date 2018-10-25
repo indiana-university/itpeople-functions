@@ -60,11 +60,12 @@ type CreateBaseTables() =
 //     )
 // """
 
+    // DROP TABLE IF EXISTS unitMembers;
+    // DROP TABLE IF EXISTS supportedDepartments;
+    // DROP TABLE IF EXISTS users;
+    // DROP TABLE IF EXISTS departments;
+
   override __.Down() =
     base.Execute("""
-    --DROP TABLE UnitMembers
-    --DROP TABLE SupportedDepartments
-    --DROP TABLE Users
-    DROP TABLE Units
-    DROP TABLE Departments
+    DROP TABLE IF EXISTS units;
 """)
