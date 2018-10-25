@@ -71,23 +71,25 @@ jobs:
   test-integration:
     docker:
       - image: microsoft/azure-functions-dotnet-core2.0:latest
-      - image: circleci/postgres:9.6.2-alpine
         environment:
-          POSTGRES_USER: your_postgres_user
-          POSTGRES_DB: your_postgres_test
+          TEST_DATABASE_URL: postgresql://root@localhost/circletest
+      - image: circleci/postgres:9.6.5-alpine-ram
     steps:
       - checkout
-      - run:
-          name: install dockerize
-          command: wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
-          environment:
-            DOCKERIZE_VERSION: v0.3.0
-      - run:
-          name: Wait for db
-          command: dockerize -wait tcp://localhost:5432 -timeout 1m
+#      - run:
+#          name: install dockerize
+#          command: wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+#          environment:
+#            DOCKERIZE_VERSION: v0.3.0
+#      - run:
+#          name: Wait for db
+#          command: dockerize -wait tcp://localhost:5432 -timeout 1m
       - run:
           name: See if functions are available...
-          command: func
+          command: func --help
+      - run:
+          name: See if curl is available...
+          command: curl --help
   package:
     docker:
       - image: circleci/node:8
