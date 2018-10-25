@@ -4,7 +4,7 @@ open Chessie.ErrorHandling
 open Types
 open Util
 open Dapper
-open System.Data.SqlClient
+open Npgsql
 
 module Database =
     let private like (term:string)  = 
@@ -22,7 +22,7 @@ module Database =
     /// Fetch a user given a netid (e.g. 'jhoerr')
     let queryUserByNetId connStr netId = asyncTrial {
         let fn () = async {
-            use cn = new SqlConnection(connStr)
+            use cn = new NpgsqlConnection(connStr)
             let! seq = cn.GetListAsync<User>({NetId=netId}) |> Async.AwaitTask
             return ok seq
         }
@@ -34,7 +34,7 @@ module Database =
     /// Fetch a single 'T given an ID
     let queryTypeById<'T> connStr id = asyncTrial {
         let fn () = async {
-            use cn = new SqlConnection(connStr)
+            use cn = new NpgsqlConnection(connStr)
             let! result = cn.GetAsync<'T>(id) |> Async.AwaitTask
             match box result with
             | null -> return fail (Status.NotFound, sprintf "No %s found with id %d" (typeof<'T>.Name) id)
@@ -47,7 +47,7 @@ module Database =
     /// Fetch all 'T
     let queryAll<'T> connStr query msg id = asyncTrial {
         let fn() = async {
-            use cn = new SqlConnection(connStr)
+            use cn = new NpgsqlConnection(connStr)
             let! seq = cn.QueryAsync<'T>(query, {Id=id}) |> Async.AwaitTask
             return seq |> Seq.cast<'T> |> ok
         }
@@ -152,7 +152,7 @@ ORDER BY u.Name ASC"""
     /// Get all 'T whose name matches a given search term
     let querySearch<'T> connStr term conditions = asyncTrial {
         let fn() = async {
-            use cn = new SqlConnection(connStr)
+            use cn = new NpgsqlConnection(connStr)
             let! seq = cn.GetListAsync<'T>(conditions, {Term=(like term)})  |> Async.AwaitTask
             return ok seq
         }
@@ -175,7 +175,7 @@ ORDER BY u.Name ASC"""
     /// Get a list of all units
     let queryUnits connStr = asyncTrial {
         let fn () = async {
-            use cn = new SqlConnection(connStr)
+            use cn = new NpgsqlConnection(connStr)
             let! seq = cn.GetListAsync<Unit>() |> Async.AwaitTask
             return { Units = seq |> Seq.sortBy (fun u -> u.Name)} |> ok 
         }
@@ -202,7 +202,7 @@ ORDER BY u.Name ASC"""
     /// Get a list of all departments
     let queryDepartments connStr = asyncTrial {
         let fn () = async {
-            use cn = new SqlConnection(connStr)
+            use cn = new NpgsqlConnection(connStr)
             let! seq = cn.GetListAsync<Department>() |> Async.AwaitTask
             return { Departments = seq |> Seq.sortBy (fun u -> u.Name) } |> ok 
         }
