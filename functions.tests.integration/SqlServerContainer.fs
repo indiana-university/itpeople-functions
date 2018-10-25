@@ -71,9 +71,12 @@ module SqlServerContainer=
         runDockerCommand rmSqlServer true
 
     let migrate () = 
-        "---> Applying all migrations... " |> Console.Write
-        Migrations.Program.migrate connStr ["up"]
-
+        use db = new NpgsqlConnection(connStr) 
+        let migrator = db |> Migrations.Program.migrator
+        migrator.Load()
+        "---> Resetting database and applying all migrations... "  |> Console.WriteLine
+        migrator.MigrateTo(int64 0)
+        migrator.MigrateToLatest()
     let populate () = async {
         use cn = new NpgsqlConnection(connStr)
         cn.Open()

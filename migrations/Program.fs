@@ -7,15 +7,15 @@ module Program =
     open SimpleMigrations.Console
     open SimpleMigrations.DatabaseProvider
     open System.Reflection
-
-    /// Migrate an MSSql (SQL Server) database
+    let migrator db = 
+        let provider = PostgresqlDatabaseProvider(db)
+        let assembly = Assembly.GetExecutingAssembly()
+        let migrator = SimpleMigrator(assembly, provider)
+        migrator
     let migrate connection args =
         try
             use db = new NpgsqlConnection(connection)
-            let provider = PostgresqlDatabaseProvider(db)
-            let assembly = Assembly.GetExecutingAssembly()
-            let migrator = SimpleMigrator(assembly, provider)
-            let runner = ConsoleRunner(migrator)
+            let runner = db |> migrator |> ConsoleRunner
             args |> List.toArray |> runner.Run
         with
         | exn -> 
