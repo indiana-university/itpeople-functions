@@ -21,15 +21,16 @@ module Tests=
     [<Fact>]
     let ``Get unit from DB`` () = async {
         SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
-        //try 
-        //    let! started = start ()
-        migrate ()
-        use cn = new NpgsqlConnection(connStr)
-        let! id = cn.InsertAsync<Unit>(cito) |> Async.AwaitTask
-        let! actual = cn.GetAsync<Unit>(id) |> Async.AwaitTask
-        let expected = {cito with Id=id.GetValueOrDefault(0)}
-        Assert.Equal(expected, actual)
-        //finally
-        //    stop () |> ignore
+        let! serverAlreadyStarted = ensureStarted ()
+        try 
+            migrate ()
+            use cn = new NpgsqlConnection(connStr)
+            let! id = cn.InsertAsync<Unit>(cito) |> Async.AwaitTask
+            let! actual = cn.GetAsync<Unit>(id) |> Async.AwaitTask
+            let expected = {cito with Id=id.GetValueOrDefault(0)}
+            Assert.Equal(expected, actual)
+        finally
+            if not serverAlreadyStarted then
+                stop () |> ignore
     }
 

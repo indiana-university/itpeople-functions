@@ -1,23 +1,18 @@
 namespace Integration 
-open Npgsql
-open Npgsql
 
 module SqlServerContainer=
 
     open System
-    open System.Data.SqlClient
-    open Dapper
-    open MyFunctions.Common.Fakes
-    open MyFunctions.Common.Types
+    open Npgsql
 
+    let yep () = "[YEP]" |> Console.WriteLine
+    let nope () = "[NOPE]" |> Console.WriteLine
+    let result b = if b then "[OK]" else "[ERROR]"
     let connStr = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
     let startSqlServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
     let logsSqlServer = "logs integration_test_db"   
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
-
-    let result b = if b then "[OK]" else "[ERROR]"
-
     let tryConnect () = async {
         try
             use conn = new NpgsqlConnection(connStr)
@@ -25,7 +20,7 @@ module SqlServerContainer=
             return true
         with 
         | exn -> 
-            sprintf "Failed to connect to server: %s" exn.Message |> Console.WriteLine
+            // sprintf "Failed to connect to server: %s" exn.Message |> Console.WriteLine
             return false
     }
 
@@ -35,37 +30,48 @@ module SqlServerContainer=
         if wait then p.WaitForExit() |> ignore
 
     let ensureReady () = async {
-        let maxTries = 15
-        let delayMs = 1000
+        let maxTries = 10
+        let delayMs = 2000
         let mutable count = 0
         let mutable isReady = false
         while isReady = false && count < maxTries do
-            "Checking if server is ready..." |> Console.Write
+            do! Async.Sleep(delayMs)
             let! isReady' = tryConnect ()
             isReady <- isReady'
+            "---> Is PostgresQL server ready? " |> Console.Write
             if isReady = false
             then
-                "[NOPE]" |> Console.WriteLine
+                nope()
                 count <- count + 1
-                do! Async.Sleep(delayMs)
             else
-                "[YEP]" |> Console.WriteLine
+                yep()
         
         return count = maxTries
     }
 
-    let start () = async {
-        runDockerCommand startSqlServer false
-        let! started = ensureReady()
-        // runDockerCommand logsSqlServer true
-        return started
+    let ensureStarted () = async {
+        "---> Checking if PostgresQL Server is already running... " |> Console.Write
+        let! alreadyStarted = tryConnect()
+        if alreadyStarted
+        then 
+            yep()
+            return true
+        else 
+            nope()
+            "---> Starting PostgresQL Server... "  |> Console.WriteLine
+            runDockerCommand startSqlServer false
+            let! started = ensureReady()
+            return started
     }
 
     let stop () =
+        "---> Stopping PostgresQL container... "  |> Console.WriteLine
         runDockerCommand stopSqlServer true
+        "---> Removing PostgresQL container... "  |> Console.WriteLine
         runDockerCommand rmSqlServer true
 
     let migrate () = 
+        "---> Applying all migrations... " |> Console.Write
         Migrations.Program.migrate connStr ["up"]
 
     let populate () = async {
