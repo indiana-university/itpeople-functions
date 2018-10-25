@@ -2,17 +2,17 @@
     
 module Program =
 
+    open Npgsql
     open SimpleMigrations
-    open SimpleMigrations.DatabaseProvider
     open SimpleMigrations.Console
+    open SimpleMigrations.DatabaseProvider
     open System.Reflection
-    open System.Data.SqlClient
 
     /// Migrate an MSSql (SQL Server) database
     let migrate connection args =
         try
-            use db = new SqlConnection(connection)
-            let provider = MssqlDatabaseProvider(db)
+            use db = new NpgsqlConnection(connection)
+            let provider = PostgresqlDatabaseProvider(db)
             let assembly = Assembly.GetExecutingAssembly()
             let migrator = SimpleMigrator(assembly, provider)
             let runner = ConsoleRunner(migrator)
@@ -30,7 +30,7 @@ module Program =
         | _ ->
             printf """Usage : dotnet database.dll '<conn>' <args>
 
-    <conn>: the SQL Server database connection string
+    <conn>: the Postgres database connection string
     <args>: SimpleMigration args (try 'help')
     """
 

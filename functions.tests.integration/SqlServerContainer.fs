@@ -1,4 +1,6 @@
 namespace Integration 
+open Npgsql
+open Npgsql
 
 module SqlServerContainer=
 
@@ -8,38 +10,38 @@ module SqlServerContainer=
     open MyFunctions.Common.Fakes
     open MyFunctions.Common.Types
 
-    let connStr = "Server=127.0.0.1,1433;User Id=sa;Password=Abcd1234!;Timeout=5"
-    let startSqlServer = """run --name integration_test_mssql -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Abcd1234!" -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest"""
-    let logsSqlServer = "logs integration_test_mssql"   
-    let stopSqlServer = "stop integration_test_mssql"   
-    let rmSqlServer = "rm integration_test_mssql"   
+    let connStr = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
+    let startSqlServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
+    let logsSqlServer = "logs integration_test_db"   
+    let stopSqlServer = "stop integration_test_db"   
+    let rmSqlServer = "rm integration_test_db"   
 
     let result b = if b then "[OK]" else "[ERROR]"
 
-    let private ready () = async {
+    let tryConnect () = async {
         try
-            use conn = new SqlConnection(connStr)
+            use conn = new NpgsqlConnection(connStr)
             do! conn.OpenAsync() |> Async.AwaitTask
             return true
         with 
         | exn -> 
-            // sprintf "Failed to connect to server: %s" exn.Message |> Console.WriteLine
+            sprintf "Failed to connect to server: %s" exn.Message |> Console.WriteLine
             return false
     }
 
-    let runDockerCommand cmd = 
+    let runDockerCommand cmd wait = 
         Console.WriteLine(sprintf "Exec: %s" cmd)
         let p = System.Diagnostics.Process.Start("docker",cmd)
-        p.WaitForExit() |> ignore
+        if wait then p.WaitForExit() |> ignore
 
     let ensureReady () = async {
-        let maxTries = 30
+        let maxTries = 15
         let delayMs = 1000
         let mutable count = 0
         let mutable isReady = false
         while isReady = false && count < maxTries do
             "Checking if server is ready..." |> Console.Write
-            let! isReady' = ready()
+            let! isReady' = tryConnect ()
             isReady <- isReady'
             if isReady = false
             then
@@ -53,21 +55,26 @@ module SqlServerContainer=
     }
 
     let start () = async {
-        runDockerCommand startSqlServer
+        runDockerCommand startSqlServer false
         let! started = ensureReady()
-        runDockerCommand logsSqlServer
+        // runDockerCommand logsSqlServer true
         return started
     }
 
     let stop () =
-        runDockerCommand stopSqlServer
-        runDockerCommand rmSqlServer
+        runDockerCommand stopSqlServer true
+        runDockerCommand rmSqlServer true
 
     let migrate () = 
         Migrations.Program.migrate connStr ["up"]
 
     let populate () = async {
-        use cn = new SqlConnection(connStr)
-        let! inserted = cn.InsertAsync<Unit>(cito) |> Async.AwaitTask
-        return if inserted.HasValue then inserted.Value else 0
+        use cn = new NpgsqlConnection(connStr)
+        cn.Open()
+        let cmd = new NpgsqlCommand("INSERT INTO Units (Name, Description, Url) VALUES ('Foo', 'Bar', 'Baz')", cn)
+        let rows = cmd.ExecuteNonQuery()
+    
+        //let! inserted = cn.InsertAsync<Unit>(biology) |> Async.AwaitTask
+        return 1
+        // return if inserted.HasValue then inserted.Value else 0
     }

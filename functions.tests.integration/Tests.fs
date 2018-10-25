@@ -2,12 +2,14 @@
 
 module Tests=
 
+    open Dapper
     open Xunit
     open SqlServerContainer
     open Chessie.ErrorHandling
     open MyFunctions.Common.Types
     open MyFunctions.Common.Fakes
     open MyFunctions.Common.Database
+    open Npgsql
     
     // Generally:
     // 1. Go fetch the mssql-server image.
@@ -18,16 +20,16 @@ module Tests=
 
     [<Fact>]
     let ``Get unit from DB`` () = async {
-        // try 
-        //     let! started = start ()
-            let! started = ensureReady()
+        SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL);
+        try 
+            let! started = start ()
             migrate ()
-            let! id = populate ()
-            let expected = Ok({cito with Id=id},[])
-            let! actual = queryUnit connStr id |> Async.ofAsyncResult
-            let actualUnit = lift (fun a -> a.Unit) actual
-            Assert.Equal(expected, actualUnit)
-        // finally
-        //     stop () |> ignore
+            use cn = new NpgsqlConnection(connStr)
+            let! id = cn.InsertAsync<Unit>(cito) |> Async.AwaitTask
+            let! actual = cn.GetAsync<Unit>(id) |> Async.AwaitTask
+            let expected = {cito with Id=id.GetValueOrDefault(0)}
+            Assert.Equal(expected, actual)
+        finally
+            stop () |> ignore
     }
 

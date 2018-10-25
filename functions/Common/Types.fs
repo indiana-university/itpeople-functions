@@ -5,6 +5,7 @@ open System.Net
 open Chessie.ErrorHandling
 open Dapper
 open Newtonsoft.Json
+open Dapper
 
 module Types = 
 
@@ -114,11 +115,15 @@ module Types =
     }
 
     [<CLIMutable>]
-    [<Table("Units")>]
+    [<Table("units")>]
     type Unit = {
+        [<Column("id")>]
         Id: Id
+        [<Column("name")>]
         Name: Name
+        [<Column("description")>]
         Description: Name
+        [<Column("url")>]
         Url: string
     }
 
