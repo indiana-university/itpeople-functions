@@ -3,14 +3,10 @@ namespace Integration
 module SqlServerContainer=
 
     open System
-    open Docker.DotNet
-    open Docker.DotNet.Models
     open System.Data.SqlClient
-    open System.Collections.Generic
     open Dapper
-    open MyFunctions.Common
+    open MyFunctions.Common.Fakes
     open MyFunctions.Common.Types
-    open System.Runtime.InteropServices
 
     let connStr = "Server=127.0.0.1,1433;User Id=sa;Password=Abcd1234!;Timeout=5"
     let startSqlServer = """run --name integration_test_mssql -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Abcd1234!" -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest"""
@@ -68,10 +64,10 @@ module SqlServerContainer=
         runDockerCommand rmSqlServer
 
     let migrate () = 
-        Program.migrate connStr ["up"]
+        Migrations.Program.migrate connStr ["up"]
 
     let populate () = async {
         use cn = new SqlConnection(connStr)
-        let! inserted = cn.InsertAsync<Unit>(Fakes.cito) |> Async.AwaitTask
+        let! inserted = cn.InsertAsync<Unit>(cito) |> Async.AwaitTask
         return if inserted.HasValue then inserted.Value else 0
     }

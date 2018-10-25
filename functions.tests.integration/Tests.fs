@@ -1,15 +1,14 @@
 ﻿namespace Integration 
-open MyFunctions.Common.Types
-open MyFunctions.Common
 
 module Tests=
 
-    open System
     open Xunit
     open SqlServerContainer
     open Chessie.ErrorHandling
-    open MyFunctions.Common
-
+    open MyFunctions.Common.Types
+    open MyFunctions.Common.Fakes
+    open MyFunctions.Common.Database
+    
     // Generally:
     // 1. Go fetch the mssql-server image.
     // 2. Create and start a container.
@@ -24,8 +23,8 @@ module Tests=
             let! started = ensureReady()
             migrate ()
             let! id = populate ()
-            let expected = Ok({Fakes.cito with Id=id},[])
-            let! actual = Database.queryUnit connStr id |> Async.ofAsyncResult
+            let expected = Ok({cito with Id=id},[])
+            let! actual = queryUnit connStr id |> Async.ofAsyncResult
             let actualUnit = lift (fun a -> a.Unit) actual
             Assert.Equal(expected, actualUnit)
         // finally

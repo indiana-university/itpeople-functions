@@ -16,10 +16,10 @@
     {
       "label": "build",
       "windows": {
-        "command": "dotnet build; copy local.settings.json bin/Debug/netstandard2.0"
+        "command": "dotnet build; copy functions/local.settings.json functions/bin/Debug/netstandard2.0"
       },
       "osx": {
-        "command": "dotnet build && cp local.settings.json bin/Debug/netstandard2.0"
+        "command": "dotnet build && cp functions/local.settings.json functions/bin/Debug/netstandard2.0"
       },
       "type": "shell",
       "group": {
@@ -30,7 +30,7 @@
         "reveal": "always"
       },
       "options": {
-        "cwd": "${workspaceFolder}/functions"
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": "$msCompile"
     },
@@ -42,7 +42,7 @@
         "reveal": "always"
       }, 
       "options": {
-        "cwd": "${workspaceFolder}/functions"
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": "$msCompile"
     },
