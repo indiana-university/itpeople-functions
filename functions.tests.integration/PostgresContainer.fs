@@ -1,10 +1,9 @@
 namespace Integration 
 
-module SqlServerContainer=
+module PostgresContainer =
 
     open System
     open Npgsql
-
     let yep () = "[YEP]" |> Console.WriteLine
     let nope () = "[NOPE]" |> Console.WriteLine
     let result b = if b then "[OK]" else "[ERROR]"
@@ -13,9 +12,14 @@ module SqlServerContainer=
     let logsSqlServer = "logs integration_test_db"   
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
+
+    /// Get a new postgres connection.
+    let dbConnection () = new NpgsqlConnection(connStr) 
+    
+    /// Attempt to connect to the postgres database.
     let tryConnect () = async {
         try
-            use conn = new NpgsqlConnection(connStr)
+            use conn = dbConnection ()
             do! conn.OpenAsync() |> Async.AwaitTask
             return true
         with 
@@ -24,11 +28,13 @@ module SqlServerContainer=
             return false
     }
 
+    /// Execute an arbitrary docker command.
     let runDockerCommand cmd wait = 
         Console.WriteLine(sprintf "Exec: %s" cmd)
         let p = System.Diagnostics.Process.Start("docker",cmd)
         if wait then p.WaitForExit() |> ignore
 
+    /// Wait until the postgres container is receiving connections.
     let ensureReady () = async {
         let maxTries = 10
         let delayMs = 2000
@@ -49,6 +55,7 @@ module SqlServerContainer=
         return count = maxTries
     }
 
+    /// Ensure the postgres container is started
     let ensureStarted () = async {
         "---> Checking if PostgresQL Server is already running... " |> Console.Write
         let! alreadyStarted = tryConnect()
@@ -64,26 +71,18 @@ module SqlServerContainer=
             return started
     }
 
+    /// Stop and remove the running postgres container
     let stop () =
         "---> Stopping PostgresQL container... "  |> Console.WriteLine
         runDockerCommand stopSqlServer true
         "---> Removing PostgresQL container... "  |> Console.WriteLine
         runDockerCommand rmSqlServer true
 
+    /// Clear the database and migrate it to the latest schema
     let migrate () = 
-        use db = new NpgsqlConnection(connStr) 
+        use db = dbConnection ()
         let migrator = db |> Migrations.Program.migrator
         migrator.Load()
-        "---> Resetting database and applying all migrations... "  |> Console.WriteLine
+        // "---> Resetting database and applying all migrations... "  |> Console.WriteLine
         migrator.MigrateTo(int64 0)
         migrator.MigrateToLatest()
-    let populate () = async {
-        use cn = new NpgsqlConnection(connStr)
-        cn.Open()
-        let cmd = new NpgsqlCommand("INSERT INTO Units (Name, Description, Url) VALUES ('Foo', 'Bar', 'Baz')", cn)
-        let rows = cmd.ExecuteNonQuery()
-    
-        //let! inserted = cn.InsertAsync<Unit>(biology) |> Async.AwaitTask
-        return 1
-        // return if inserted.HasValue then inserted.Value else 0
-    }

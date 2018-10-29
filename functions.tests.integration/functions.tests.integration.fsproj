@@ -4,7 +4,8 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="SqlServerContainer.fs" />
+    <Compile Include="PostgresContainer.fs" />
+    <Compile Include="TestFixture.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <ItemGroup>
