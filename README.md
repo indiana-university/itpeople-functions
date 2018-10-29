@@ -24,7 +24,27 @@ Authentication is provided by ESI Middleware's [UAA](https://github.iu.edu/iu-ui
 
 In order to host the Functions app locally you must [create and trust a self-signed SSL certificate](https://www.humankode.com/asp-net-core/develop-locally-with-https-self-signed-certificates-and-asp-net-core). This repo includes a self-signed cert if you just want to use it. The password is `Abcd1234`.  
 
-## Running the code
+## Running the tests:
+
+### Unit Tests
+
+Clone this repo, then execute:
+
+```
+$ cd functions.tests.unit
+$ dotnet test
+```
+
+### Integration Tests
+
+Clone this repo, then execute:
+
+```
+$ cd functions.tests.integration
+$ dotnet test
+```
+
+## Running the Functions Locally
 
 1. Clone this repo.
 2. Add the localhost.pfx to your list of trusted certificates, or create your own.
