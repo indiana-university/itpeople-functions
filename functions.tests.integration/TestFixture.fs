@@ -21,17 +21,10 @@ module TestFixture =
         // A flag to determine whether the Postgres server container was 
         // started prior to running the tests. This will true for tests run 
         // in Circle CI, and (usually) false for tests running locally.
-        let mutable serverAlreadyStarted = false
         do
             SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
             // Ensure the postgres container is started.
-            serverAlreadyStarted <- ensureStarted () |> Async.RunSynchronously
-        interface IDisposable with
-            member __.Dispose () =
-                // If the postgres container was not running prior
-                // to running the tests, shut it down when the
-                // tests are finished.
-                if not serverAlreadyStarted then stop () |> ignore
+            ensureStarted () |> Async.RunSynchronously |> ignore
 
     // This collection provides a common interface for all 
     // integration tests so that the postgres server only gets 
