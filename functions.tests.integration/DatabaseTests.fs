@@ -1,6 +1,6 @@
 ﻿namespace Integration 
 
-module Tests=
+module DatabaseTests=
 
     open System
     open Xunit

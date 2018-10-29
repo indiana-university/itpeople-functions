@@ -6,7 +6,7 @@
   <ItemGroup>
     <Compile Include="PostgresContainer.fs" />
     <Compile Include="TestFixture.fs" />
-    <Compile Include="Tests.fs" />
+    <Compile Include="DatabaseTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />

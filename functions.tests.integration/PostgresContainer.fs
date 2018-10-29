@@ -83,6 +83,6 @@ module PostgresContainer =
         use db = dbConnection ()
         let migrator = db |> Migrations.Program.migrator
         migrator.Load()
-        // "---> Resetting database and applying all migrations... "  |> Console.WriteLine
+        "---> Resetting database and applying all migrations... "  |> Console.WriteLine
         migrator.MigrateTo(int64 0)
         migrator.MigrateToLatest()
