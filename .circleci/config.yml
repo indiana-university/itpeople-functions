@@ -59,16 +59,33 @@ jobs:
           root: /tmp/workspace
           paths:
             - publish
-  test:
+  test-unit:
     docker:
       - image: microsoft/dotnet:2.1-sdk
     steps:
       - checkout 
       - run: 
           name: Test Functions
-          working_directory: functions.tests
+          working_directory: functions.tests.unit
           command: dotnet test
-  # Build (zip) a functions deployment package
+  test-integration:
+    docker:
+      - image: microsoft/dotnet:2.1-sdk
+      - image: circleci/postgres:9.6.5-alpine-ram
+    steps:
+      - checkout
+      - run:
+          name: install dockerize
+          command: curl -L -o dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+          environment:
+            DOCKERIZE_VERSION: v0.3.0
+      - run:
+          name: Wait for db
+          command: dockerize -wait tcp://localhost:5432 -timeout 1m
+      - run: 
+          name: Test Functions
+          working_directory: functions.tests.integration
+          command: dotnet test
   package:
     docker:
       - image: circleci/node:8
@@ -119,7 +136,10 @@ workflows:
           filters:
             branches:
               ignore: gh-pages          
-      - test:
+      - test-unit:
+          requires:
+            - build
+      - test-integration:
           requires:
             - build
 #      - package:

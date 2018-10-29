@@ -16,10 +16,10 @@
     {
       "label": "build",
       "windows": {
-        "command": "dotnet build; copy local.settings.json bin/Debug/netstandard2.0"
+        "command": "dotnet build; copy functions/local.settings.json functions/bin/Debug/netstandard2.0"
       },
       "osx": {
-        "command": "dotnet build && cp local.settings.json bin/Debug/netstandard2.0"
+        "command": "dotnet build && cp functions/local.settings.json functions/bin/Debug/netstandard2.0"
       },
       "type": "shell",
       "group": {
@@ -30,7 +30,23 @@
         "reveal": "always"
       },
       "options": {
-        "cwd": "${workspaceFolder}/functions"
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "restore",
+      "command": "dotnet restore",
+      "type": "shell",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": "$msCompile"
     },
@@ -42,7 +58,7 @@
         "reveal": "always"
       }, 
       "options": {
-        "cwd": "${workspaceFolder}/functions"
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": "$msCompile"
     },
@@ -79,7 +95,7 @@
       "problemMatcher": []
     },
     {
-      "label": "test",
+      "label": "unit",
       "windows": {
         "command": "dotnet build; dotnet test"
       },
@@ -95,9 +111,30 @@
         "reveal": "always"
       },
       "options": {
-        "cwd": "${workspaceFolder}/functions.tests"
+        "cwd": "${workspaceFolder}/functions.tests.unit"
       },
       "problemMatcher": "$msCompile"
     },
+    {
+      "label": "integration",
+      "windows": {
+        "command": "dotnet build; dotnet test"
+      },
+      "osx": {
+        "command": "dotnet build; dotnet test"
+      },
+      "type": "shell",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/functions.tests.integration"
+      },
+      "problemMatcher": "$msCompile"
+    }
   ]
 }
