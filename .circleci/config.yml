@@ -54,7 +54,7 @@ jobs:
           command: dotnet build -c Release
       - run:
           name: Save compiled Functions to workspace
-          command: cp -a functions/bin/Release/netstandard2.0/. /tmp/workspace/publish/
+          command: cp -a functions/bin/Release/netcoreapp2.1/. /tmp/workspace/publish/
       - persist_to_workspace:
           root: /tmp/workspace
           paths:
