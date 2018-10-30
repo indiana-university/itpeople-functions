@@ -19,7 +19,9 @@ module Common =
                 .SetBasePath(context.FunctionAppDirectory)
                 .AddJsonFile("local.settings.json", optional=true, reloadOnChange= true)
                 .AddEnvironmentVariables()
+                .AddKeyPerFile("/secrets", true)
                 .Build();
+
         let appConfig = {
             OAuth2ClientId = configRoot.["OAuthClientId"]
             OAuth2ClientSecret = configRoot.["OAuthClientSecret"]
