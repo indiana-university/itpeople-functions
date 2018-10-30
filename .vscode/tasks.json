@@ -16,10 +16,10 @@
     {
       "label": "build",
       "windows": {
-        "command": "dotnet build; copy functions/local.settings.json functions/bin/Debug/netstandard2.0"
+        "command": "dotnet build; copy functions/local.settings.json functions/bin/Debug/netcoreapp2.1"
       },
       "osx": {
-        "command": "dotnet build && cp functions/local.settings.json functions/bin/Debug/netstandard2.0"
+        "command": "dotnet build && cp functions/local.settings.json functions/bin/Debug/netcoreapp2.1"
       },
       "type": "shell",
       "group": {
@@ -85,7 +85,7 @@
         "isDefault": true
       },
       "options": {
-        "cwd": "${workspaceFolder}/functions/bin/Debug/netstandard2.0"
+        "cwd": "${workspaceFolder}/functions/bin/Debug/netcoreapp2.1"
       },
       "command": "func host start --useHttps --cert ../../../localhost.pfx --password Abcd1234!",
       "isBackground": true,
