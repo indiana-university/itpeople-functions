@@ -5,10 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using Microsoft.Azure.WebJobs.Script.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace Microsoft.Azure.WebJobs.Script.Tests
+namespace Integration.Hosting
 {
     [DebuggerDisplay("{DebuggerDisplay,nq}")]
     public class TestLogger : ILogger

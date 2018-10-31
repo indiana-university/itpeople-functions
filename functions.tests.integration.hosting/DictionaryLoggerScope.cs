@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading;
 
-namespace Microsoft.Azure.WebJobs.Script.Diagnostics
+namespace Integration.Hosting
 {
     /// <summary>
     /// This class is identical to the internal class in WebJobs.Host. It is copied here so we can

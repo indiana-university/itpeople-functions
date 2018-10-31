@@ -4,10 +4,9 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Azure.WebJobs.Script.Tests;
 using Microsoft.Extensions.Logging;
 
-namespace Microsoft.Azure.WebJobs.Script.Tests
+namespace Integration.Hosting
 {
     public class TestLoggerProvider : ILoggerProvider
     {

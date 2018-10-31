@@ -3,7 +3,6 @@ namespace Integration
 module ContractTests =
     open Microsoft.AspNetCore.Hosting
     open Microsoft.Azure.WebJobs.Script
-    open Microsoft.Azure.WebJobs.Script.Tests
     open Microsoft.Extensions.Logging
     open Microsoft.Extensions.DependencyInjection
     open PactNet
@@ -13,6 +12,7 @@ module ContractTests =
     open Microsoft.Extensions.Options
     open System
     open System.IO
+    open Integration.Hosting
     
     type XUnitLogger(output: ITestOutputHelper) =
         let output = output

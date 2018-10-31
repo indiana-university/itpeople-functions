@@ -5,7 +5,7 @@ using System;
 using System.Reactive.Disposables;
 using Microsoft.Extensions.Options;
 
-namespace Microsoft.Azure.WebJobs.Script.Tests
+namespace Integration.Hosting
 {
     public class TestOptionsMonitor<T> : IOptionsMonitor<T> where T : class, new()
     {
