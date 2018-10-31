@@ -1,0 +1,61 @@
+version: "3.3"
+services:
+  # Functions for API and scheduled tasks
+  functions:
+    image: uitsssl/itpeople-functions:sandbox
+    ports:
+      - "7071:80"
+    networks:
+      - mesh
+    #deploy:
+    #  labels:
+    #    com.docker.ucp.mesh.http: "internal_port=80,external_route=http://itpeople-functions.apps-test.iu.edu"
+    environment:
+      AzureWebJobsStorage: ""
+      AzureWebJobsDashboard: ""
+      FUNCTIONS_WORKER_RUNTIME: "dotnet"
+      API_HOST: "localhost:7071"
+      SPA_HOST: "iuitprotest.azureedge.net"
+      OauthTokenUrl: "https://apps-test.iu.edu/uaa-stg/oauth/token"
+      OauthRedirectUrl: "https://localhost:7071/signin"
+    secrets:
+      - source: itpeople-functions-OauthClientId
+        target: OauthClientId
+      - source: itpeople-functions-OauthClientSecret
+        target: OauthClientSecret
+      #- source: itpeople-functions-DbConnectionString
+      #  target: DbConnectionString
+      - source: itpeople-functions-JwtSecret
+        target: JwtSecret
+      - source: itpeople-functions-SomeSecret
+        target: SomeSecret
+
+  # A PostgreSQL database for persistent storage
+  db:
+    image: postgres:9.4
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+networks:
+  backend:
+    driver: overlay
+    attachable: true
+    driver_opts:
+      encrypted: "true"
+  mesh:
+  #  external:
+  #    name: uxo-hrm
+secrets:
+  itpeople-functions-OauthClientId:
+    external: true
+  itpeople-functions-OauthClientSecret:
+    external: true
+  #itpeople-functions-DbConnectionString:
+  #  external: true
+  itpeople-functions-JwtSecret:
+    external: true
+  itpeople-functions-SomeSecret:
+    external: true
+volumes:
+  db-data:
