@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
-    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="PostgresContainer.fs" />
     <Compile Include="TestFixture.fs" />
     <Compile Include="DatabaseTests.fs" />
+    <Compile Include="ContractTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />
@@ -21,10 +21,13 @@
     <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
     <PackageReference Include="Chessie" Version="0.6.0" />
     <PackageReference Include="Npgsql" Version="4.0.3" />
+    <PackageReference Include="PactNet.OSX" Version="2.4.4" />
+    <PackageReference Include="PactNet.Windows" Version="2.4.4" />
     <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../functions/azfun.fsproj" />    
     <ProjectReference Include="../migrations/migrations.fsproj" />    
+    <ProjectReference Include="../functions.tests.integration.hosting/functions.tests.integration.hosting.csproj" />    
   </ItemGroup>
 </Project>

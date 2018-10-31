@@ -1,0 +1,51 @@
+{
+    "consumer": {
+      "name": "client"
+    },
+    "provider": {
+      "name": "api"
+    },
+    "interactions": [
+      {
+        "description": "root",
+        "request": {
+          "method": "GET",
+          "path": "/"
+        },
+        "response": {
+          "status": 200
+        }
+      },
+      {
+        "description": "ping",
+        "request": {
+          "method": "GET",
+          "path": "/api/ping"
+        },
+        "response": {
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "message": "pong!"
+          }
+        }
+      },
+      {
+        "description": "nonexistent",
+        "request": {
+          "method": "GET",
+          "path": "/api/nonexistent"
+        },
+        "response": {
+          "status": 404
+        }
+      }
+    ],
+    "metadata": {
+      "pactSpecification": {
+        "version": "2.0.0"
+      }
+    }
+  }

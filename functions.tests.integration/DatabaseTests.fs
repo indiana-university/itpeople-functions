@@ -12,24 +12,24 @@ module DatabaseTests=
     open TestFixture
     open PostgresContainer
     
-    type DatabaseTests() =
-        inherit IntegrationTestBase()
-        do  
-            use cn = dbConnection ()
-            cn.InsertAsync<Unit>(cito) |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+    // type DatabaseTests() =
+    //     inherit IntegrationTestBase()
+    //     do  
+    //         use cn = dbConnection ()
+    //         cn.InsertAsync<Unit>(cito) |> Async.AwaitTask |> Async.RunSynchronously |> ignore
 
-        [<Fact>]
-        member __.``Ensure unit has non-0 id`` () = async {
-            use cn = dbConnection ()
-            let! actual = cn.GetListAsync<Unit>() |> Async.AwaitTask
-            let head = Seq.head actual
-            Assert.NotEqual(0, head.Id)
-        }
+    //     [<Fact>]
+    //     member __.``Ensure unit has non-0 id`` () = async {
+    //         use cn = dbConnection ()
+    //         let! actual = cn.GetListAsync<Unit>() |> Async.AwaitTask
+    //         let head = Seq.head actual
+    //         Assert.NotEqual(0, head.Id)
+    //     }
 
-        [<Fact>]
-        member __.``Ensure unit has correct name`` () = async {
-            use cn = dbConnection ()
-            let! actual = cn.GetListAsync<Unit>() |> Async.AwaitTask
-            let head = Seq.head actual
-            Assert.Equal(cito.Name, head.Name)
-        }
+    //     [<Fact>]
+    //     member __.``Ensure unit has correct name`` () = async {
+    //         use cn = dbConnection ()
+    //         let! actual = cn.GetListAsync<Unit>() |> Async.AwaitTask
+    //         let head = Seq.head actual
+    //         Assert.Equal(cito.Name, head.Name)
+    //     }

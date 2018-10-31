@@ -118,10 +118,10 @@
     {
       "label": "integration",
       "windows": {
-        "command": "dotnet build; dotnet test"
+        "command": "dotnet test"
       },
       "osx": {
-        "command": "dotnet build; dotnet test"
+        "command": "dotnet test"
       },
       "type": "shell",
       "group": {
