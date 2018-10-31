@@ -12,6 +12,7 @@ module ContractTests =
     open Microsoft.Extensions.Options
     open System
     open System.IO
+    open System.Net
     open Integration.Hosting
     
     type XUnitLogger(output: ITestOutputHelper) =
@@ -39,6 +40,23 @@ module ContractTests =
         let output = output
         let logger = XUnitLogger(output) :> ILogger
         
+        let httpClient = new System.Net.Http.HttpClient()
+        let waitUntilStarted port = async {
+            let url = sprintf "http://localhost:%d" port
+            let maxAttempts = 50
+            let mutable ready = false
+            let mutable attempts = 0
+            while not ready && attempts < maxAttempts do
+                let! resp = httpClient.GetAsync(url) |> Async.AwaitTask
+                ready <- resp.IsSuccessStatusCode
+                if not ready
+                then 
+                    do! Async.Sleep(100)
+                    attempts <- attempts + 1
+            if attempts = maxAttempts 
+            then port |> sprintf "Server on port %d never became ready" |> exn |> raise                   
+        }        
+
         let startServer port scriptPath = async {
 
             let configureServices (services:IServiceCollection) =
@@ -64,7 +82,8 @@ module ContractTests =
                     .UseStartup<Microsoft.Azure.WebJobs.Script.WebHost.Startup>()
                     .Build()
             
-            server.Start()
+            do! server.StartAsync() |> Async.AwaitTask
+            do! waitUntilStarted port
             return Some(server)
         }
 
@@ -94,16 +113,16 @@ module ContractTests =
                 "---> Starting Functions Host..." |> output.WriteLine
                 let! functionsServer = startServer functionServerPort "../../../../functions/bin/Debug/netcoreapp2.1"
                 "---> Started Functions Host.\n" |> output.WriteLine
-                "---> Starting State Host..." |> output.WriteLine
-                let! stateServer = startServer stateServerPort "../../../../functions/bin/Debug/netcoreapp2.1"
-                "---> Started State Host.\n" |> output.WriteLine
+                // "---> Starting State Host..." |> output.WriteLine
+                // let! stateServer = startServer stateServerPort "../../../../functions/bin/Debug/netcoreapp2.1"
+                // "---> Started State Host.\n" |> output.WriteLine
                 "---> Verifying Contracts..." |> output.WriteLine
                 verify functionServerPort stateServerPort
             finally
                 "---> Stopping Functions Host..." |> output.WriteLine
                 shutDown functionServer
                 "---> Stopped Functions Host.\n" |> output.WriteLine
-                "---> Stopping State Host..." |> output.WriteLine
-                shutDown stateServer
-                "---> Stopped State Host." |> output.WriteLine
+                // "---> Stopping State Host..." |> output.WriteLine
+                // shutDown stateServer
+                // "---> Stopped State Host." |> output.WriteLine
         }
