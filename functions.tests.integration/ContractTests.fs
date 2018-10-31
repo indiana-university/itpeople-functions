@@ -102,6 +102,20 @@ module ContractTests =
             | None -> ()
             | Some(s) -> s.StopAsync() |> Async.AwaitTask |> Async.RunSynchronously
 
+        let ensureWorkersFolderExists() =
+            let directory = 
+                typedefof<Microsoft.Azure.WebJobs.Script.Rpc.WorkerConfig>.Assembly.CodeBase 
+                |> Uri 
+                |> (fun uri -> uri.LocalPath) 
+                |> Path.GetDirectoryName
+            let path = Path.Combine(directory, "workers")
+            if not (Directory.Exists(path))
+            then
+                path |> sprintf "Creating function workers folder at %s..." |> output.WriteLine
+                Directory.CreateDirectory(path) |> ignore
+            else
+                path |> sprintf "Function workers folder exists at %s..." |> output.WriteLine
+
         [<Fact>]
         member __.``Test Contracts`` () = async {
             let functionServerPort = 7071
@@ -110,6 +124,7 @@ module ContractTests =
             let mutable stateServer = None
 
             try            
+                ensureWorkersFolderExists()
                 "---> Starting Functions Host..." |> output.WriteLine
                 let! functionsServer = startServer functionServerPort "../../../../functions/bin/Debug/netcoreapp2.1"
                 "---> Started Functions Host.\n" |> output.WriteLine
