@@ -132,16 +132,18 @@ workflows:
   # Publish the style guide on successful build/test of master.
   build-deploy-migrate:
     jobs:
-      - build:
+#      - build:
+#          filters:
+#            branches:
+#              ignore: gh-pages          
+      - test-unit:
           filters:
             branches:
               ignore: gh-pages          
-      - test-unit:
-          requires:
-            - build
       - test-integration:
-          requires:
-            - build
+          filters:
+            branches:
+              ignore: gh-pages          
 #      - package:
 #          requires:
 #            - build
