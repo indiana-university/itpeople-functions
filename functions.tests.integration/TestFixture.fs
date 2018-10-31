@@ -2,7 +2,6 @@ namespace Integration
 
 module TestFixture =
 
-    open System
     open Xunit
     open Chessie.ErrorHandling
     open Dapper
@@ -16,8 +15,7 @@ module TestFixture =
     // 5. Stop and remove the container.
 
 
-    type IntegrationFixture() =
-        
+    type IntegrationFixture ()=
         // A flag to determine whether the Postgres server container was 
         // started prior to running the tests. This will true for tests run 
         // in Circle CI, and (usually) false for tests running locally.
@@ -36,5 +34,11 @@ module TestFixture =
     // A base class for all integration tests that clears the
     // database and migrates it to the latest version.
     [<Collection("Integration collection")>]
-    type IntegrationTestBase() =
+    type DatabaseIntegrationTestBase() =
         do migrate ()
+
+    // A base class for all integration tests that simply expect
+    // the database server to be ready.
+    [<Collection("Integration collection")>]
+    type HttpIntegrationTestBase() =
+        do ()
