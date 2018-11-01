@@ -2,7 +2,6 @@
 
 module DatabaseTests=
 
-    open System
     open Xunit
     open Xunit.Abstractions
     open Dapper
