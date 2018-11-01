@@ -21,9 +21,8 @@ module Http =
         tryf status (fun () -> str |> JsonConvert.DeserializeObject<'T>)
 
     /// Attempt to deserialize the request body as an object of the given type.
-    let deserializeBody<'T> (req:HttpRequest) = 
-        use stream = new StreamReader(req.Body)
-        let body = stream.ReadToEndAsync() |> Async.AwaitTask |> Async.RunSynchronously
+    let deserializeBody<'T> (req:HttpRequestMessage) = 
+        let body = req.Content.ReadAsStringAsync().Result
         match body with
         | null -> fail (Status.BadRequest, "Expected a request body but received nothing")
         | ""   -> fail (Status.BadRequest, "Expected a request body but received nothing")
