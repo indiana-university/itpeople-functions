@@ -53,7 +53,18 @@
           }
         },
         "response":{
-          "status": 200
+          "status": 200,
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "body": {
+            "unit": {
+              "id":1,
+              "name":"College IT Office (CITO)",
+              "description": "",
+              "url": ""
+            }
+          }
         }
       }
     ],

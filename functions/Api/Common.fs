@@ -46,10 +46,6 @@ module Common =
         (fn:(AppConfig*IDataRepository)->AsyncResult<'T,Error>) = 
         async {
             let (config,data) = getDependencies(context)
-            "Got confiugration! (as info)" |> log.LogInformation
-            "Got confiugration! (as err)" |> log.LogError
-            sprintf "jwt secret: %s" config.JwtSecret |> log.LogInformation
-            sprintf "db connection string: %s" config.DbConnectionString |> log.LogInformation
             let! result = (config, data) |> fn |> Async.ofAsyncResult
             return constructResponse log result
         } |> Async.StartAsTask
@@ -59,8 +55,6 @@ module Common =
         (log: ILogger) 
         (fn:unit->AsyncResult<'T,Error>) = 
         async {
-            "getResponse' (as info)" |> log.LogInformation
-            "getResponse' (as err)" |> log.LogError
             let! result = () |> fn |> Async.ofAsyncResult
             return constructResponse log result
         } |> Async.StartAsTask

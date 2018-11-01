@@ -24,8 +24,8 @@ module Functions =
     let connStr = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
     
     type ProviderState = {
-        Consumer: string
-        State: string
+        consumer: string
+        state: string
     }
 
     let resetDatabase () = 
@@ -48,12 +48,15 @@ module Functions =
     
          
     let setState (req: HttpRequestMessage) = asyncTrial {
-        let! state = deserializeBody<ProviderState> req
-        let! fn = matcher state.State
-
         do! resetDatabase()
-        let! result = fn()
-        return result
+        let! body = deserializeBody<ProviderState> req
+        match body.state with
+        | null -> 
+            return 0
+        | _ -> 
+            let! fn = matcher (body.state)
+            let! result = fn()
+            return result
     }
 
     /// (Anonymous) A function that simply returns, "Pong!" 

@@ -190,12 +190,12 @@ ORDER BY u.Name ASC"""
     /// Get a single unit by ID
     let queryUnit connStr id = asyncTrial {
         let! unit = queryTypeById<Unit> connStr id
-        let! members = queryPeopleInUnit connStr id
-        let! supportedDepartments = queryDepartmentsSupportedByUnit connStr id
+        // let! members = queryPeopleInUnit connStr id
+        // let! supportedDepartments = queryDepartmentsSupportedByUnit connStr id
         return {
             Unit=unit
-            Members=members
-            SupportedDepartments=supportedDepartments
+            //Members=members
+            //SupportedDepartments=supportedDepartments
         }
     }
 

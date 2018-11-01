@@ -83,10 +83,10 @@ module Fakes =
     let getFakeUnit () = asyncTrial {
         let! profile = async.Return {
             Unit=cito
-            Members=
-              [ {MemberWithRole.Id=ulrik.Id; Name=ulrik.Name; Role=Role.Admin}
-                {MemberWithRole.Id=brent.Id; Name=brent.Name; Role=Role.ItPro} ]
-            SupportedDepartments=[arsd; dema]
+            // Members=
+            //   [ {MemberWithRole.Id=ulrik.Id; Name=ulrik.Name; Role=Role.Admin}
+            //     {MemberWithRole.Id=brent.Id; Name=brent.Name; Role=Role.ItPro} ]
+            // SupportedDepartments=[arsd; dema]
         }
         return profile
     }
