@@ -3,13 +3,22 @@
   "tasks": [
     {
       "label": "clean",
-      "command": "dotnet clean",
+      "windows": {
+        "command":"Get-ChildItem .\\ -include bin,obj -Recurse | foreach ($_) { remove-item $_.fullname -Force -Recurse }"
+      },
+      "osx": {
+        "command": "find . -iname \"bin\" -o -iname \"obj\" | xargs rm -rf"
+      },
       "type": "shell",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "presentation": {
         "reveal": "always"
       },
       "options": {
-        "cwd": "${workspaceFolder}/functions"
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": "$msCompile"
     },
@@ -51,18 +60,6 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "clean release",
-      "command": "dotnet clean --configuration Release",
-      "type": "shell",
-      "presentation": {
-        "reveal": "always"
-      }, 
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "problemMatcher": "$msCompile"
-    },
-    {
       "label": "publish",
       "command": "dotnet publish --configuration Release",
       "type": "shell",
@@ -77,7 +74,6 @@
     },
     {
       "label": "start",
-      "identifier": "runFunctionsHost",
       "type": "shell",
       "dependsOn": "build",
       "group": {
@@ -96,12 +92,7 @@
     },
     {
       "label": "unit",
-      "windows": {
-        "command": "dotnet build; dotnet test"
-      },
-      "osx": {
-        "command": "dotnet build; dotnet test"
-      },
+      "command": "dotnet test",
       "type": "shell",
       "group": {
         "kind": "test",
@@ -117,12 +108,7 @@
     },
     {
       "label": "integration",
-      "windows": {
-        "command": "dotnet test"
-      },
-      "osx": {
-        "command": "dotnet test"
-      },
+      "command": "dotnet test",
       "type": "shell",
       "group": {
         "kind": "test",
