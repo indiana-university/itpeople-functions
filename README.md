@@ -20,7 +20,7 @@ npm i -g azure-functions-core-tools@core --unsafe-perm true
 
 On Mac:
 ```
-homebrew install azure-functions-core-tools
+brew install azure-functions-core-tools
 ```
 
 ## Authentication and Authorization
