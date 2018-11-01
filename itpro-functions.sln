@@ -11,6 +11,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "functions.tests", "function
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "functions.tests.integration", "functions.tests.integration\functions.tests.integration.fsproj", "{0008BFE3-8A56-49B3-A23E-15F68A732EAB}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "functions.tests.stateserver", "functions.tests.stateserver\functions.tests.stateserver.fsproj", "{E3546B96-659D-430E-AF38-FD07E177C1F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -72,5 +74,17 @@ Global
 		{0008BFE3-8A56-49B3-A23E-15F68A732EAB}.Release|x64.Build.0 = Release|Any CPU
 		{0008BFE3-8A56-49B3-A23E-15F68A732EAB}.Release|x86.ActiveCfg = Release|Any CPU
 		{0008BFE3-8A56-49B3-A23E-15F68A732EAB}.Release|x86.Build.0 = Release|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Debug|x64.Build.0 = Debug|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Debug|x86.Build.0 = Debug|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Release|x64.ActiveCfg = Release|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Release|x64.Build.0 = Release|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Release|x86.ActiveCfg = Release|Any CPU
+		{E3546B96-659D-430E-AF38-FD07E177C1F0}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
