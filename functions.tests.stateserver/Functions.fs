@@ -60,7 +60,7 @@ module Functions =
     [<FunctionName("InitializeState")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "post", Route = "state")>]
-        req: HttpRequestMessage, log: TraceWriter) =
+        req: HttpRequestMessage, log: ILogger) =
         let fn () = setState req
         Api.Common.getResponse' log fn
 
