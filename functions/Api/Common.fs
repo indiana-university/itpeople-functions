@@ -10,17 +10,19 @@ open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
 open MyFunctions.Common.Http
+open System
+open Microsoft.Extensions.Logging
+open Microsoft.Extensions.Logging
 
 module Common =
     /// Get app configuration and data dependencies resolvers.
     let private getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
         let configRoot = 
             ConfigurationBuilder()
-                .SetBasePath(context.FunctionAppDirectory)
+                //.SetBasePath(context.FunctionAppDirectory)
                 .AddJsonFile("local.settings.json", optional=true, reloadOnChange=true)
-                .AddKeyPerFile("/run/secrets", optional=true)
+                //.AddKeyPerFile("/run/secrets", optional=true)
                 .AddEnvironmentVariables()
-                .AddKeyPerFile("/secrets", true)
                 .Build();
 
         let appConfig = {
@@ -32,13 +34,14 @@ module Common =
             DbConnectionString = configRoot.["DbConnectionString"]
             SomeSecret = configRoot.["SomeSecret"]
         }
+
         let data = DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
         // let data = FakesRepository() :> IDataRepository
         (appConfig,data)
 
     /// Given an API function, resolve required dependencies and get a response.  
     let getResponse<'T> 
-        (log: TraceWriter) 
+        (log: ILogger) 
         (context: ExecutionContext) 
         (fn:(AppConfig*IDataRepository)->AsyncResult<'T,Error>) = 
         async {
@@ -49,7 +52,7 @@ module Common =
 
     /// Given an API function, get a response.  
     let getResponse'<'T> 
-        (log: TraceWriter) 
+        (log: ILogger) 
         (fn:unit->AsyncResult<'T,Error>) = 
         async {
             let! result = () |> fn |> Async.ofAsyncResult

@@ -12,6 +12,7 @@ open Microsoft.Azure.WebJobs.Host
 open Newtonsoft.Json
 open Newtonsoft.Json.Serialization
 open Microsoft.AspNetCore.WebUtilities
+open Microsoft.Extensions.Logging
 
 
 module Http =
@@ -21,9 +22,8 @@ module Http =
         tryf status (fun () -> str |> JsonConvert.DeserializeObject<'T>)
 
     /// Attempt to deserialize the request body as an object of the given type.
-    let deserializeBody<'T> (req:HttpRequest) = 
-        use stream = new StreamReader(req.Body)
-        let body = stream.ReadToEndAsync() |> Async.AwaitTask |> Async.RunSynchronously
+    let deserializeBody<'T> (req:HttpRequestMessage) = 
+        let body = req.Content.ReadAsStringAsync().Result
         match body with
         | null -> fail (Status.BadRequest, "Expected a request body but received nothing")
         | ""   -> fail (Status.BadRequest, "Expected a request body but received nothing")
@@ -90,11 +90,11 @@ module Http =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let constructResponse (log:TraceWriter) trialResult : HttpResponseMessage =
+    let constructResponse (log:ILogger) trialResult : HttpResponseMessage =
         match trialResult with
         | Ok(result, _) -> 
             result |> jsonResponse Status.OK
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
-            sprintf "%A %O" status errors |> log.Error
+            sprintf "%A %O" status errors |> log.LogError
             jsonResponse status errors

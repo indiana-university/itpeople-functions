@@ -164,8 +164,8 @@ module Types =
 
     type UnitProfile = {
         Unit: Unit
-        Members: seq<MemberWithRole>
-        SupportedDepartments: seq<Department>
+//        Members: seq<MemberWithRole>
+//        SupportedDepartments: seq<Department>
     }
 
     type DepartmentList = {
