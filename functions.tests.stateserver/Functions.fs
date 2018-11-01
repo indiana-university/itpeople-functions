@@ -3,11 +3,8 @@ namespace MyFunctions
 open MyFunctions.Common.Types
 open Microsoft.Azure.WebJobs
 open Microsoft.AspNetCore.Http
-open Microsoft.Azure.WebJobs.Host
 open System.Net.Http
 open Microsoft.Extensions.Logging
-open Microsoft.Azure.WebJobs.Host
-open Microsoft.Azure.WebJobs.Host
 open Chessie.ErrorHandling
 open Common.Http
 open System.Net
@@ -21,50 +18,56 @@ open Migrations.Program
 ///</summary
 module Functions =
 
-    let connStr = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
-    
+    /// The request body of the Pact client
     type ProviderState = {
         consumer: string
         state: string
     }
 
-    let resetDatabase () = 
+    /// Clear the database and migrated it to the latest version
+    let resetDatabase connStr = 
         try
             clearAndMigrate connStr
             ok ()
         with
         | exn -> fail (HttpStatusCode.InternalServerError, (sprintf "migration failed with %s" (exn.ToString())))
     
-    let populateDatabaseWithUnit1 () = asyncTrial {
+    /// Initialize the database with a unit
+    let initalizeDatabaseWithUnit1 connStr = asyncTrial {
         let dbConnection = new NpgsqlConnection(connStr)
         let! result = dbConnection.InsertAsync<Unit>(cito) |> Async.AwaitTask 
         return result.GetValueOrDefault()
     }
 
-    let matcher (arg:string) = 
-        match arg with 
-        | "unit 1 is present" -> ok populateDatabaseWithUnit1
-        | _ ->  fail (HttpStatusCode.BadRequest, (sprintf "no state defined for %s" arg))
+    /// Find the appropriate initialization function for the state
+    /// described by the Pact client.
+    let matcher (state:string) = 
+        match state with 
+        | "unit 1 is present" -> ok initalizeDatabaseWithUnit1
+        | _ ->  
+            let error = sprintf "I don't know what to do for state, '%s'" state
+            fail (HttpStatusCode.BadRequest, error)
     
-         
-    let setState (req: HttpRequestMessage) = asyncTrial {
-        do! resetDatabase()
+    /// Ensure that the database is reset and initialized as requested by
+    /// the Pact client     
+    let ensureState (req: HttpRequestMessage) connStr = asyncTrial {
+        do! resetDatabase connStr
         let! body = deserializeBody<ProviderState> req
         match body.state with
         | null -> 
             return 0
         | _ -> 
-            let! fn = matcher (body.state)
-            let! result = fn()
+            let! initializer = matcher (body.state)
+            let! result = initializer connStr
             return result
     }
 
-    /// (Anonymous) A function that simply returns, "Pong!" 
     [<FunctionName("InitializeState")>]
-    let ping
+    let initializeState
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "post", Route = "state")>]
         req: HttpRequestMessage, log: ILogger) =
-        let fn () = setState req
+        let connStr = System.Environment.GetEnvironmentVariable("DbConnectionString")
+        let fn () = ensureState req connStr
         Api.Common.getResponse' log fn
 
     
