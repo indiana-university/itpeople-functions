@@ -17,9 +17,12 @@ module Common =
         let configRoot = 
             ConfigurationBuilder()
                 .SetBasePath(context.FunctionAppDirectory)
-                .AddJsonFile("local.settings.json", optional=true, reloadOnChange= true)
+                .AddJsonFile("local.settings.json", optional=true, reloadOnChange=true)
+                .AddKeyPerFile("/run/secrets", optional=true)
                 .AddEnvironmentVariables()
+                .AddKeyPerFile("/secrets", true)
                 .Build();
+
         let appConfig = {
             OAuth2ClientId = configRoot.["OAuthClientId"]
             OAuth2ClientSecret = configRoot.["OAuthClientSecret"]
@@ -27,6 +30,7 @@ module Common =
             OAuth2RedirectUrl = configRoot.["OAuthRedirectUrl"]
             JwtSecret = configRoot.["JwtSecret"]
             DbConnectionString = configRoot.["DbConnectionString"]
+            SomeSecret = configRoot.["SomeSecret"]
         }
         let data = DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
         // let data = FakesRepository() :> IDataRepository

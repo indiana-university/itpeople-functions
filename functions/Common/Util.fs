@@ -15,9 +15,11 @@ module Util =
 
     /// An active pattern that tries to map a string to an int.
     let (|Int|_|) str =
-       match System.Int32.TryParse(str) with
-       | (true,int) -> Some(int)
-       | _ -> None
+        try
+            let parsed = System.Int32.Parse str
+            Some(parsed)
+        with
+        | exn -> None
 
     /// Checks whether the string is null or empty
     let isEmpty str = String.IsNullOrWhiteSpace str

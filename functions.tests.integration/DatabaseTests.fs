@@ -2,8 +2,8 @@
 
 module DatabaseTests=
 
-    open System
     open Xunit
+    open Xunit.Abstractions
     open Dapper
     open Chessie.ErrorHandling
     open MyFunctions.Common.Types
@@ -12,8 +12,8 @@ module DatabaseTests=
     open TestFixture
     open PostgresContainer
     
-    type DatabaseTests() =
-        inherit IntegrationTestBase()
+    type DatabaseTests(output: ITestOutputHelper)=
+        inherit DatabaseIntegrationTestBase()
         do  
             use cn = dbConnection ()
             cn.InsertAsync<Unit>(cito) |> Async.AwaitTask |> Async.RunSynchronously |> ignore
