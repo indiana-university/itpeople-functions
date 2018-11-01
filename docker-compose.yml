@@ -23,8 +23,8 @@ services:
         target: OauthClientId
       - source: itpeople-functions-OauthClientSecret
         target: OauthClientSecret
-      #- source: itpeople-functions-DbConnectionString
-      #  target: DbConnectionString
+      - source: itpeople-functions-DbConnectionString
+        target: DbConnectionString
       - source: itpeople-functions-JwtSecret
         target: JwtSecret
       - source: itpeople-functions-SomeSecret
@@ -51,11 +51,9 @@ secrets:
     external: true
   itpeople-functions-OauthClientSecret:
     external: true
-  #itpeople-functions-DbConnectionString:
-  #  external: true
-  itpeople-functions-JwtSecret:
+  itpeople-functions-DbConnectionString:
     external: true
-  itpeople-functions-SomeSecret:
+  itpeople-functions-JwtSecret:
     external: true
 volumes:
   db-data:
