@@ -77,12 +77,3 @@ module PostgresContainer =
         runDockerCommand stopSqlServer true
         "---> Removing PostgresQL container... "  |> Console.WriteLine
         runDockerCommand rmSqlServer true
-
-    /// Clear the database and migrate it to the latest schema
-    let migrate () = 
-        use db = dbConnection ()
-        let migrator = db |> Migrations.Program.migrator
-        migrator.Load()
-        "---> Resetting database and applying all migrations... "  |> Console.WriteLine
-        migrator.MigrateTo(int64 0)
-        migrator.MigrateToLatest()

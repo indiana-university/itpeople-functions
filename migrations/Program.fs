@@ -12,6 +12,7 @@ module Program =
         let assembly = Assembly.GetExecutingAssembly()
         let migrator = SimpleMigrator(assembly, provider)
         migrator
+
     let migrate connection args =
         try
             use db = new NpgsqlConnection(connection)
@@ -20,6 +21,14 @@ module Program =
         with
         | exn -> 
             printf "Error: %s" exn.Message
+
+    /// Clear the database and migrate it to the latest schema
+    let clearAndMigrate connection = 
+        use db = new NpgsqlConnection(connection)
+        let migrator = db |> migrator
+        migrator.Load()
+        migrator.MigrateTo(int64 0)
+        migrator.MigrateToLatest()
 
     [<EntryPoint>]
     let main argv =

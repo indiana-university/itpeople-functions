@@ -2,6 +2,11 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
+  <PropertyGroup>
+      <!-- This squelches a warning about Microsoft.Build.Utilities.Core package versions. 
+           If things are compiling funny, try removing it? -->
+      <NoWarn>NU1608</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="PostgresContainer.fs" />
     <Compile Include="TestFixture.fs" />
@@ -13,7 +18,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />
     <PackageReference Include="xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1" />
-    <PackageReference Include="Docker.DotNet" Version="3.125.2" />
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
     <PackageReference Include="Chessie" Version="0.6.0" />
@@ -26,6 +30,5 @@
   <ItemGroup>
     <ProjectReference Include="../functions/azfun.fsproj" />    
     <ProjectReference Include="../migrations/migrations.fsproj" />    
-    <ProjectReference Include="../functions.tests.integration.hosting/functions.tests.integration.hosting.csproj" />    
   </ItemGroup>
 </Project>
