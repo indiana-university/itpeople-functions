@@ -71,4 +71,11 @@ module Functions =
         Api.Common.getResponse' log fn
 
     
-    
+    /// (Anonymous) A function that simply returns, "Pong!" 
+    [<FunctionName("PingGet")>]
+    let ping
+        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
+        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) =
+        let fn () = Api.Ping.get req
+        // let fn () = Api.Ping.get req
+        Api.Common.getResponse' log fn
