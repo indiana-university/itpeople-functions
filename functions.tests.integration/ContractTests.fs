@@ -21,7 +21,7 @@ module ContractTests =
         let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
         let verifier = PactVerifierConfig(Outputters=outputters, Verbose=true) |> PactVerifier
         verifier
-            .ProviderState(stateUrl)
+            // .ProviderState(stateUrl)
             .ServiceProvider("API", functionUrl)
             .HonoursPactWith("Client")
             .PactUri("../../../pact.json")
