@@ -19,9 +19,8 @@ module Common =
     let private getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
         let configRoot = 
             ConfigurationBuilder()
-                //.SetBasePath(context.FunctionAppDirectory)
                 .AddJsonFile("local.settings.json", optional=true, reloadOnChange=true)
-                //.AddKeyPerFile("/run/secrets", optional=true)
+                .AddKeyPerFile("/run/secrets", optional=true)
                 .AddEnvironmentVariables()
                 .Build();
 
