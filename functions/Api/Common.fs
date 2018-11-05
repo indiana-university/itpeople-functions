@@ -32,7 +32,6 @@ module Common =
             OAuth2RedirectUrl = configRoot.["OAuthRedirectUrl"]
             JwtSecret = configRoot.["JwtSecret"]
             DbConnectionString = configRoot.["DbConnectionString"]
-            SomeSecret = configRoot.["SomeSecret"]
         }
 
         let data = DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
