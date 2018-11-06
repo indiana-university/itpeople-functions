@@ -4,7 +4,6 @@ open MyFunctions.Common.Types
 open Microsoft.Azure.WebJobs
 open Microsoft.AspNetCore.Http
 open System.Net.Http
-open Microsoft.Extensions.Logging
 open Chessie.ErrorHandling
 open Common.Http
 open System.Net
@@ -12,11 +11,17 @@ open Npgsql
 open Dapper
 open MyFunctions.Common.Fakes
 open Migrations.Program
+open Serilog
 
 ///<summary>
 /// This module defines the bindings and triggers for all functions in the project
 ///</summary
 module Functions =
+
+    let log = 
+        Serilog.LoggerConfiguration()
+            .WriteTo.Console()
+            .CreateLogger()
 
     /// The request body of the Pact client
     type ProviderState = {
@@ -65,17 +70,17 @@ module Functions =
     [<FunctionName("InitializeState")>]
     let initializeState
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "post", Route = "state")>]
-        req: HttpRequestMessage, log: ILogger) =
+        req: HttpRequestMessage) =
         let connStr = System.Environment.GetEnvironmentVariable("DbConnectionString")
         let fn () = ensureState req connStr
-        Api.Common.getResponse' log fn
+        Api.Common.getResponse' req log fn
 
     
     /// (Anonymous) A function that simply returns, "Pong!" 
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) =
+        req: HttpRequestMessage, context: ExecutionContext) =
         let fn () = Api.Ping.get req
         // let fn () = Api.Ping.get req
-        Api.Common.getResponse' log fn
+        Api.Common.getResponse' req log fn

@@ -12,8 +12,7 @@ open Microsoft.Azure.WebJobs.Host
 open Newtonsoft.Json
 open Newtonsoft.Json.Serialization
 open Microsoft.AspNetCore.WebUtilities
-open Microsoft.Extensions.Logging
-
+open Serilog.Core
 
 module Http =
 
@@ -90,11 +89,14 @@ module Http =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let constructResponse (log:ILogger) trialResult : HttpResponseMessage =
+    let constructResponse (req:HttpRequestMessage) (log:Logger) trialResult : HttpResponseMessage =
+        let url = sprintf ("%A %s") req.Method (req.RequestUri.ToString())
+            
         match trialResult with
         | Ok(result, _) -> 
+            sprintf "%s %O" url Status.OK |> log.Information
             result |> jsonResponse Status.OK
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
-            sprintf "%A %O" status errors |> log.LogError
+            sprintf "%s %A %O" url status errors |> log.Error
             jsonResponse status errors
