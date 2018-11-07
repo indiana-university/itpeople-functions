@@ -2,10 +2,10 @@
 
 # Build the docker image and tag it for docker hub
 docker build -t functions .
-docker tag functions %DockerHub.Repo%:%vcsroot.branch%
+docker tag functions $DOCKER_HUB_REPO:$BRANCH
 
 # Login to Docker Hub
-docker login --username %DockerHub.Username% --password %DockerHub.Password%
+docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
 
 # Push the image to Docker Hub
-docker push
+docker push $DOCKER_HUB_REPO:$BRANCH
