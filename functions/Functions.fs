@@ -1,6 +1,6 @@
-namespace MyFunctions
+namespace Functions
 
-open MyFunctions.Common.Types
+open Functions.Common.Types
 open Microsoft.Azure.WebJobs
 open Microsoft.AspNetCore.Http
 open Microsoft.Azure.WebJobs.Host

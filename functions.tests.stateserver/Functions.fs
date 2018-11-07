@@ -5,9 +5,9 @@ namespace StateServer
 ///</summary
 module Functions =
 
-    open MyFunctions.Common.Types
-    open MyFunctions.Common.Http
-    open MyFunctions.Api.Common
+    open Functions.Common.Types
+    open Functions.Common.Http
+    open Functions.Api.Common
     open Microsoft.Azure.WebJobs
     open Microsoft.AspNetCore.Http
     open System.Net.Http
@@ -15,7 +15,7 @@ module Functions =
     open System.Net
     open Npgsql
     open Dapper
-    open MyFunctions.Common.Fakes
+    open Functions.Common.Fakes
     open Migrations.Program
     open Serilog
 
@@ -82,6 +82,6 @@ module Functions =
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
         req: HttpRequestMessage) =
-        let fn () = MyFunctions.Api.Ping.get req
+        let fn () = Functions.Api.Ping.get req
         // let fn () = Api.Ping.get req
         getResponse' req log fn

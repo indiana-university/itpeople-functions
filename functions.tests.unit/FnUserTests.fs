@@ -1,15 +1,15 @@
 namespace Tests
 
 open Chessie.ErrorHandling
-open MyFunctions.Common.Types
-open MyFunctions.Common.Jwt
-open MyFunctions.Api.User
+open Functions.Common.Types
+open Functions.Common.Jwt
+open Functions.Api.User
 open Xunit
 
 module FnUserTests =
 
     let getUserById id = 
-        MyFunctions.Common.Fakes.getFakeProfile()
+        Functions.Common.Fakes.getFakeProfile()
 
     let await fn = 
         fn 

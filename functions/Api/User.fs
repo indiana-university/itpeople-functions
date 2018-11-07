@@ -1,10 +1,10 @@
-namespace MyFunctions.Api
+namespace Functions.Api
 
-open MyFunctions.Common.Types
-open MyFunctions.Common.Http
+open Functions.Common.Types
+open Functions.Common.Http
 open Chessie.ErrorHandling
 open System.Net.Http
-open MyFunctions.Common.Jwt
+open Functions.Common.Jwt
 
 
 /// This module provides functions to fetch and update user profiles.

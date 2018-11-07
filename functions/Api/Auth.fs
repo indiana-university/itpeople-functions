@@ -1,10 +1,10 @@
-namespace MyFunctions.Api
+namespace Functions.Api
 
 open Chessie.ErrorHandling
-open MyFunctions.Common.Types
-open MyFunctions.Common.Util
-open MyFunctions.Common.Http
-open MyFunctions.Common.Jwt
+open Functions.Common.Types
+open Functions.Common.Util
+open Functions.Common.Http
+open Functions.Common.Jwt
 open Microsoft.Azure.WebJobs.Host
 open System.Net
 open System.Net.Http
