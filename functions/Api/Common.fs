@@ -11,7 +11,7 @@ open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
 open MyFunctions.Common.Http
 open System
-open Microsoft.Extensions.Logging
+open Serilog.Core
 open Microsoft.Extensions.Logging
 
 module Common =
@@ -19,9 +19,8 @@ module Common =
     let private getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
         let configRoot = 
             ConfigurationBuilder()
-                //.SetBasePath(context.FunctionAppDirectory)
                 .AddJsonFile("local.settings.json", optional=true, reloadOnChange=true)
-                //.AddKeyPerFile("/run/secrets", optional=true)
+                .AddKeyPerFile("/run/secrets", optional=true)
                 .AddEnvironmentVariables()
                 .Build();
 
@@ -32,7 +31,6 @@ module Common =
             OAuth2RedirectUrl = configRoot.["OAuthRedirectUrl"]
             JwtSecret = configRoot.["JwtSecret"]
             DbConnectionString = configRoot.["DbConnectionString"]
-            SomeSecret = configRoot.["SomeSecret"]
         }
 
         let data = DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
@@ -41,22 +39,24 @@ module Common =
 
     /// Given an API function, resolve required dependencies and get a response.  
     let getResponse<'T> 
-        (log: ILogger) 
+        (req: HttpRequestMessage)
+        (log: Logger) 
         (context: ExecutionContext) 
         (fn:(AppConfig*IDataRepository)->AsyncResult<'T,Error>) = 
         async {
             let (config,data) = getDependencies(context)
             let! result = (config, data) |> fn |> Async.ofAsyncResult
-            return constructResponse log result
+            return constructResponse req log result
         } |> Async.StartAsTask
 
     /// Given an API function, get a response.  
     let getResponse'<'T> 
-        (log: ILogger) 
+        (req: HttpRequestMessage)
+        (log: Logger) 
         (fn:unit->AsyncResult<'T,Error>) = 
-        async {
+        async { 
             let! result = () |> fn |> Async.ofAsyncResult
-            return constructResponse log result
+            return constructResponse req log result
         } |> Async.StartAsTask
 
     /// <summary>

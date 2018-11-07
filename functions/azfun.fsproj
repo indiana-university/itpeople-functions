@@ -18,9 +18,9 @@
     <None Include="host.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="proxies.json">
+    <!-- <None Include="proxies.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </None> -->
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.1.0" />
@@ -30,5 +30,8 @@
     <PackageReference Include="Chessie" Version="0.6.0" />
     <PackageReference Include="JWT" Version="4.0.0" />
     <PackageReference Include="Npgsql" Version="4.0.3" />
+    <PackageReference Include="Serilog.AspNetCore" Version="2.1.1" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
+    <PackageReference Include="Serilog.Sinks.ApplicationInsights" Version="2.6.0" />
   </ItemGroup>
 </Project>

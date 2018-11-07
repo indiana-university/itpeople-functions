@@ -35,8 +35,8 @@ module ContractTests =
         member __.``Test Contracts`` () = async {
             let functionScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
             let stateScriptPath = "../../../../functions.tests.stateserver/bin/Debug/netcoreapp2.1"
-            let functionServerPort = 7071
-            let stateServerPort = 7072
+            let functionServerPort = 9091
+            let stateServerPort = 9092
             let mutable functionServer = None
             let mutable stateServer = None
 
