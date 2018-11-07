@@ -1,9 +1,9 @@
-namespace MyFunctions.Api
+namespace Functions.Api
 
 open Chessie.ErrorHandling
-open MyFunctions.Common.Types
-open MyFunctions.Common.Jwt
-open MyFunctions.Common.Http
+open Functions.Common.Types
+open Functions.Common.Jwt
+open Functions.Common.Http
 open System.Net.Http
 
 module Search =

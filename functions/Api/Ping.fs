@@ -1,10 +1,10 @@
-namespace MyFunctions.Api
+namespace Functions.Api
 
 open Chessie.ErrorHandling
-open MyFunctions.Common.Http
+open Functions.Common.Http
 open Microsoft.Azure.WebJobs.Host
 open System.Net.Http
-open MyFunctions.Common.Types
+open Functions.Common.Types
 
 ///<summary>
 /// This module provides a function to return "Pong!" to the calling client. 

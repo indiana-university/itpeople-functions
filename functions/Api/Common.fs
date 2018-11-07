@@ -1,15 +1,15 @@
-namespace MyFunctions.Api
+namespace Functions.Api
 
 open Chessie.ErrorHandling
-open MyFunctions.Common.Types
-open MyFunctions.Common.Jwt
+open Functions.Common.Types
+open Functions.Common.Jwt
 open System.Net.Http
-open MyFunctions.Common.Database
-open MyFunctions.Common.Fakes
+open Functions.Common.Database
+open Functions.Common.Fakes
 open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
-open MyFunctions.Common.Http
+open Functions.Common.Http
 open System
 open Serilog.Core
 open Microsoft.Extensions.Logging

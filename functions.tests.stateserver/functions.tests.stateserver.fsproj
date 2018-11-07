@@ -11,19 +11,17 @@
     <Compile Include="Functions.fs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="FSharp.Core" Version="4.5.2" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.19" />
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
     <PackageReference Include="Chessie" Version="0.6.0" />
     <PackageReference Include="Npgsql" Version="4.0.3" />
-    <PackageReference Include="PactNet.OSX" Version="2.4.4" />
-    <PackageReference Include="PactNet.Windows" Version="2.4.4" />
-    <PackageReference Include="PactNet.Linux.x64" Version="2.4.4" />
     <PackageReference Include="Serilog.AspNetCore" Version="2.1.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../functions/azfun.fsproj" />    
+    <ProjectReference Include="../functions/functions.fsproj" />    
     <ProjectReference Include="../migrations/migrations.fsproj" />    
   </ItemGroup>
 </Project>
