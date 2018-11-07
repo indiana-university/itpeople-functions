@@ -18,6 +18,7 @@ module Functions =
     open MyFunctions.Common.Fakes
     open Migrations.Program
     open Serilog
+
     let log = 
         Serilog.LoggerConfiguration()
             .WriteTo.Console()
