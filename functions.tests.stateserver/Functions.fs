@@ -1,23 +1,23 @@
-namespace MyFunctions
-
-open MyFunctions.Common.Types
-open Microsoft.Azure.WebJobs
-open Microsoft.AspNetCore.Http
-open System.Net.Http
-open Chessie.ErrorHandling
-open Common.Http
-open System.Net
-open Npgsql
-open Dapper
-open MyFunctions.Common.Fakes
-open Migrations.Program
-open Serilog
+namespace StateServer
 
 ///<summary>
 /// This module defines the bindings and triggers for all functions in the project
 ///</summary
 module Functions =
 
+    open MyFunctions.Common.Types
+    open MyFunctions.Common.Http
+    open MyFunctions.Api.Common
+    open Microsoft.Azure.WebJobs
+    open Microsoft.AspNetCore.Http
+    open System.Net.Http
+    open Chessie.ErrorHandling
+    open System.Net
+    open Npgsql
+    open Dapper
+    open MyFunctions.Common.Fakes
+    open Migrations.Program
+    open Serilog
     let log = 
         Serilog.LoggerConfiguration()
             .WriteTo.Console()
@@ -73,14 +73,14 @@ module Functions =
         req: HttpRequestMessage) =
         let connStr = System.Environment.GetEnvironmentVariable("DbConnectionString")
         let fn () = ensureState req connStr
-        Api.Common.getResponse' req log fn
+        getResponse' req log fn
 
     
     /// (Anonymous) A function that simply returns, "Pong!" 
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
-        req: HttpRequestMessage, context: ExecutionContext) =
-        let fn () = Api.Ping.get req
+        req: HttpRequestMessage) =
+        let fn () = MyFunctions.Api.Ping.get req
         // let fn () = Api.Ping.get req
-        Api.Common.getResponse' req log fn
+        getResponse' req log fn
