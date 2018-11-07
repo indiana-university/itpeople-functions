@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source the tag name
-source docker-tag-name.sh
+source .teamcity/docker-tag-name.sh
 
 # Source the Docker client bundle for the environment associated with this build.
 source $HOME/.dcd/$DOCKER_UCP_BUNDLE.sh

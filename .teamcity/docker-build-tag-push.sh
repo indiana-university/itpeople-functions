@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Source the tag name
-source docker-tag-name.sh
+# Export the tag name
+export DOCKER_TAG=${TEAMCITY_BRANCH/\/refs\/heads\//}
 
 # Build the docker image and tag it for docker hub
 docker build -t functions .
