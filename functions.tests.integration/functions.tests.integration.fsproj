@@ -29,7 +29,7 @@
     <PackageReference Include="Microsoft.Azure.WebJobs.Script.WebHost" Version="2.0.0-rc1-12095" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../functions/azfun.fsproj" />    
+    <ProjectReference Include="../functions/functions.fsproj" />    
     <ProjectReference Include="../migrations/migrations.fsproj" />
     <ProjectReference Include="../functions.tests.stateserver/functions.tests.stateserver.fsproj" />        
   </ItemGroup>
