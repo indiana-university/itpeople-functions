@@ -46,7 +46,7 @@ module TestHost =
     /// Periodically poke the test host URL until it returns a 200 response,
     /// indicating that the host is ready to receive requests.
     let waitUntilStarted port = async {
-        let url = sprintf "http://localhost:%d/api/ping" port
+        let url = sprintf "http://localhost:%d/ping" port
         let maxAttempts = 50
         let mutable ready = false
         let mutable attempts = 0
