@@ -8,5 +8,4 @@ RUN cd /src/dotnet-function-app && \
 FROM microsoft/azure-functions-dotnet-core2.0
 COPY --from=installer-env ["/home/site/wwwroot", "/home/site/wwwroot"]
 
-ENV API_HOST localhost
 ENV FUNCTIONS_WORKER_RUNTIME dotnet
