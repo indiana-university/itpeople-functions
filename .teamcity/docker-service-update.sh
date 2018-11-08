@@ -10,11 +10,8 @@ source $HOME/.dcd/$DOCKER_UCP_BUNDLE.sh
 echo Updating itpeople-functions service from $DOCKER_HUB_REPO:$DOCKER_TAG
 docker service update --image $DOCKER_HUB_REPO:$DOCKER_TAG \
     --health-cmd 'curl --fail http://localhost:80/api/ping || exit 1' \
-    --health-interval 1s \
-    --health-retries 60 \
+    --health-interval 2s \
+    --health-retries 10 \
     --health-start-period 10s \
     --health-timeout 5s \
     itpeople-functions
-
-# Dump the service logs (in case of failure)
-docker service logs --details --since 5m itpeople-functions
