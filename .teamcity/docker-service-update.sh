@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Export the tag name
-export DOCKER_TAG=${TEAMCITY_BRANCH/\/refs\/heads\//}
+export DOCKER_TAG=${TEAMCITY_BRANCH/refs\/heads\//}
 
 # Source the Docker client bundle for the environment associated with this build.
 source $HOME/.dcd/$DOCKER_UCP_BUNDLE.sh
