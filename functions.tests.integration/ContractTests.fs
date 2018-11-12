@@ -17,7 +17,7 @@ module ContractTests =
 
     let verifyPact functionPort statePort output = 
         let functionUrl = sprintf "http://localhost:%d" functionPort
-        let stateUrl = sprintf "http://localhost:%d/api/state" statePort
+        let stateUrl = sprintf "http://localhost:%d/state" statePort
         let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
         let verifier = PactVerifierConfig(Outputters=outputters, Verbose=true) |> PactVerifier
         verifier
