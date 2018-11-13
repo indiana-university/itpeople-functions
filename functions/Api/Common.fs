@@ -48,9 +48,14 @@ module Common =
         (context: ExecutionContext) 
         (fn:(AppConfig*IDataRepository)->AsyncResult<'T,Error>) = 
         async {
-            let (config,data) = getDependencies(context)
-            let! result = (config, data) |> fn |> Async.ofAsyncResult
-            return constructResponse req log result
+            try
+                let (config,data) = getDependencies(context)
+                let! result = (config, data) |> fn |> Async.ofAsyncResult
+                return constructResponse req log result
+            with
+            | exn -> 
+                let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
+                return constructResponse req log (fail(Status.InternalServerError, msg))
         } |> Async.StartAsTask
 
     /// Given an API function, get a response.  
@@ -59,8 +64,13 @@ module Common =
         (log: Logger) 
         (fn:unit->AsyncResult<'T,Error>) = 
         async { 
-            let! result = () |> fn |> Async.ofAsyncResult
-            return constructResponse req log result
+            try
+                let! result = () |> fn |> Async.ofAsyncResult
+                return constructResponse req log result
+            with
+            | exn -> 
+                let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
+                return constructResponse req log (fail(Status.InternalServerError, msg))
         } |> Async.StartAsTask
 
     /// <summary>

@@ -31,14 +31,9 @@ module Functions =
     let auth
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "auth")>]
         req: HttpRequestMessage, context: ExecutionContext) =
-        try
-            let fn (config, data:IDataRepository) = Api.Auth.get req config data.GetUserByNetId
-            Api.Common.getResponse req log context fn |> Async.AwaitTask |> Async.RunSynchronously
-        with
-        | exn -> 
-            log.Error(exn, "[Auth] Something puked....")
-            new HttpResponseMessage(Status.InternalServerError, Content=new StringContent(exn.ToString()))
-
+        let fn (config, data:IDataRepository) = Api.Auth.get req config data.GetUserByNetId
+        Api.Common.getResponse req log context fn
+        
     /// (Authenticated) Get a user profile for a given user 'id'
     [<FunctionName("UserGetId")>]
     let profileGet

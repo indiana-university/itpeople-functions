@@ -91,12 +91,16 @@ module Http =
     /// JSON error message with an appropriate status code.
     let constructResponse (req:HttpRequestMessage) (log:Logger) trialResult : HttpResponseMessage =
         let url = sprintf ("%A %s") req.Method (req.RequestUri.ToString())
-            
-        match trialResult with
-        | Ok(result, _) -> 
-            sprintf "%s %O" url Status.OK |> log.Information
-            result |> jsonResponse Status.OK
-        | Bad(msgs) -> 
-            let (status, errors) = failure (msgs)
-            sprintf "%s %A %O" url status errors |> log.Error
-            jsonResponse status errors
+        try
+            match trialResult with
+            | Ok(result, _) -> 
+                sprintf "%s %O" url Status.OK |> log.Information
+                result |> jsonResponse Status.OK
+            | Bad(msgs) -> 
+                let (status, errors) = failure (msgs)
+                sprintf "%s %A %O" url status errors |> log.Error
+                jsonResponse status errors
+        with
+        | exn -> 
+            let msg = exn.ToString() |> sprintf "Unhandled exception when constructing response: %s"
+            new HttpResponseMessage(Status.InternalServerError, Content=new StringContent(msg))
