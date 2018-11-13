@@ -5,17 +5,17 @@ open Chessie.ErrorHandling
 
 module Fakes =
 
-    let ulrik = {
+    let ronswanson = {
         Id=1
         Hash=""
-        NetId="ulrik"
-        Name="Knudsen, Ulrik Palle"
-        Position="Chief Technology Officer"
+        NetId="rswanso"
+        Name="Swanson, Ron"
+        Position="Parks and Rec Director "
         Location="SMR Room 024"
         Campus="IUBLA"
         CampusPhone="812-856-0207"
-        CampusEmail="ulrik@iu.edu"
-        Expertise="Life, the universe, everything"
+        CampusEmail="rswanso@iu.edu"
+        Expertise="Woodworking, honor"
         Notes="foo"
         Role=Role.Admin
         Tools = Tools.IUware
@@ -51,13 +51,13 @@ module Fakes =
     let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
 
     let getFakeUser () = asyncTrial {
-        let! user = async.Return ulrik
+        let! user = async.Return ronswanson
         return user
     }
 
     let getFakeProfile () : AsyncResult<UserProfile,Error> = asyncTrial {
         let! profile = async.Return {
-            User=ulrik;
+            User=ronswanson;
             Department=arsd;
             UnitMemberships = 
               [ {MemberWithRole.Id=cito.Id; Name=cito.Name; Role=Role.Admin}
@@ -68,7 +68,7 @@ module Fakes =
 
     let getFakeSimpleSearchByTerm () : AsyncResult<SimpleSearch,Error> = asyncTrial {
         let result = {
-                Users=[ulrik; brent]
+                Users=[ronswanson; brent]
                 Departments=[arsd; dema]
                 Units=[cito; clientServices]
             }
@@ -103,7 +103,7 @@ module Fakes =
             Units=[clientServices]
             Members= 
               [ {Member.Id=brent.Id; Name=brent.Name; Description=""}
-                {Member.Id=ulrik.Id; Name=ulrik.Name; Description=""} ]
+                {Member.Id=ronswanson.Id; Name=ronswanson.Name; Description=""} ]
         }
         return profile
     }
