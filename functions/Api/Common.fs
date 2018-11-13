@@ -31,10 +31,14 @@ module Common =
             OAuth2RedirectUrl = configRoot.["OAuthRedirectUrl"]
             JwtSecret = configRoot.["JwtSecret"]
             DbConnectionString = configRoot.["DbConnectionString"]
+            UseFakes = bool.Parse configRoot.["UseFakeData"]
         }
 
-        let data = DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
-        // let data = FakesRepository() :> IDataRepository
+        let data = 
+            if appConfig.UseFakes
+            then FakesRepository() :> IDataRepository
+            else DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
+
         (appConfig,data)
 
     /// Given an API function, resolve required dependencies and get a response.  

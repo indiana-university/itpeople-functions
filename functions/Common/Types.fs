@@ -26,6 +26,7 @@ module Types =
         OAuth2RedirectUrl: string
         JwtSecret: string
         DbConnectionString: string
+        UseFakes: bool
     }
 
     type Role =
