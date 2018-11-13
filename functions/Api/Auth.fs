@@ -50,8 +50,8 @@ module Auth =
         let! uaaRequest = createTokenRequest config.OAuth2ClientId config.OAuth2ClientSecret config.OAuth2RedirectUrl oauthCode
         let! uaaJwt = getUaaJwt uaaRequest
         let! uaaClaims = decodeUaaJwt uaaJwt.access_token
-        let! user = queryUserByName uaaClaims.UserName
-        let! appJwt = encodeJwt config.JwtSecret uaaClaims.Expiration user.Id user.NetId
+        // let! user = queryUserByName uaaClaims.UserName
+        let! appJwt = encodeJwt config.JwtSecret uaaClaims.Expiration uaaClaims.UserId uaaClaims.UserName
         let result = { access_token = appJwt }          
         return result
     }
