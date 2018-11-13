@@ -32,4 +32,5 @@ module TestFakes =
         OAuth2RedirectUrl="redirect url"
         JwtSecret=jwtSingingSecret
         DbConnectionString="db connectionString"
+        UseFakes=false
     }
