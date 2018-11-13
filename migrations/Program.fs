@@ -18,9 +18,11 @@ module Program =
             use db = new NpgsqlConnection(connection)
             let runner = db |> migrator |> ConsoleRunner
             args |> List.toArray |> runner.Run
+            0
         with
         | exn -> 
             printf "Error: %s" exn.Message
+            1
 
     /// Clear the database and migrate it to the latest schema
     let clearAndMigrate connection = 
@@ -30,17 +32,18 @@ module Program =
         migrator.MigrateTo(int64 0)
         migrator.MigrateToLatest()
 
+    let usage () =             
+        printf """Usage : dotnet database.dll '<conn>' <args>
+
+  <conn>: the Postgres database connection string
+  <args>: SimpleMigration args (try 'help')"""
+
+
     [<EntryPoint>]
     let main argv =
-
         match argv |> List.ofSeq with
         | connection :: args->
             migrate connection args
         | _ ->
-            printf """Usage : dotnet database.dll '<conn>' <args>
-
-    <conn>: the Postgres database connection string
-    <args>: SimpleMigration args (try 'help')
-    """
-
-        0
+            usage()
+            1
