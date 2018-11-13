@@ -34,27 +34,6 @@ module Functions =
         let fn (config, data:IDataRepository) = Api.Auth.get req config data.GetUserByNetId
         Api.Common.getResponse req log context fn
 
-    /// (Anonymous) Exchanges a UAA OAuth code for an application-scoped JWT
-    [<FunctionName("AuthGetOk")>]
-    let authok
-        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "authok")>]
-        req: HttpRequestMessage, context: ExecutionContext) =
-        log.Information("authok")
-        new HttpResponseMessage(Status.OK, Content=new StringContent("OK!"))
-
-    [<FunctionName("AuthGetFail")>]
-    let authfail
-        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "authfail")>]
-        req: HttpRequestMessage, context: ExecutionContext) =
-        log.Error("authfail")
-        new HttpResponseMessage(Status.InternalServerError, Content=new StringContent("Fail!"))
-
-    [<FunctionName("AuthGetFailNoLog")>]
-    let authfailnolog
-        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "authfailnolog")>]
-        req: HttpRequestMessage, context: ExecutionContext) =
-        new HttpResponseMessage(Status.InternalServerError, Content=new StringContent("Fail No Log!"))
-
     /// (Authenticated) Get a user profile for a given user 'id'
     [<FunctionName("UserGetId")>]
     let profileGet
