@@ -74,8 +74,10 @@ module Http =
         addCORSHeader response reqHost corsHosts
         response
 
-    let origin (req:HttpRequestMessage) = 
-        req.Headers.GetValues("origin") |> Seq.head
+    let origin (req:HttpRequestMessage) =
+        if req.Headers.Contains("origin")
+        then req.Headers.GetValues("origin") |> Seq.head
+        else ""
 
     /// Organize the errors into a status code and a collection of error messages. 
     /// If multiple errors are found, the aggregate status will be that of the 
