@@ -32,6 +32,7 @@ module Common =
             JwtSecret = configRoot.["JwtSecret"]
             DbConnectionString = configRoot.["DbConnectionString"]
             UseFakes = bool.Parse configRoot.["UseFakeData"]
+            CorsHosts = configRoot.["CorsHosts"]
         }
 
         let data = 
@@ -51,26 +52,28 @@ module Common =
             try
                 let (config,data) = getDependencies(context)
                 let! result = (config, data) |> fn |> Async.ofAsyncResult
-                return constructResponse req log result
+                return constructResponse req log config.CorsHosts result
             with
             | exn -> 
                 let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
-                return constructResponse req log (fail(Status.InternalServerError, msg))
+                return constructResponse req log "" (fail(Status.InternalServerError, msg))
         } |> Async.StartAsTask
 
     /// Given an API function, get a response.  
     let getResponse'<'T> 
         (req: HttpRequestMessage)
         (log: Logger) 
+        (context: ExecutionContext) 
         (fn:unit->AsyncResult<'T,Error>) = 
         async { 
             try
+                let (config,data) = getDependencies(context)
                 let! result = () |> fn |> Async.ofAsyncResult
-                return constructResponse req log result
+                return constructResponse req log config.CorsHosts result
             with
             | exn -> 
                 let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
-                return constructResponse req log (fail(Status.InternalServerError, msg))
+                return constructResponse req log "" (fail(Status.InternalServerError, msg))
         } |> Async.StartAsTask
 
     /// <summary>

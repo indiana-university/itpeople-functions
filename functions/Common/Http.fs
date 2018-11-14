@@ -53,15 +53,32 @@ module Http =
     let jsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
     jsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
 
+    let resolveCORSHeader (res:HttpResponseMessage) (referrer:string) (corsHosts:string) =
+        match corsHosts with
+        | null -> ()
+        | "" -> ()
+        | "*" -> res.Headers.Add("Access-Control-Allow-Origin", "*")
+        | _ ->
+            if corsHosts.Split(',') |> Seq.exists (fun c -> c = referrer)
+            then res.Headers.Add("Access-Control-Allow-Origin", value=referrer)
+            else ()
+
     /// Construct an HTTP response with JSON content
-    let jsonResponse status model = 
+    let jsonResponse reqHost corsHosts status model = 
         let content = 
             JsonConvert.SerializeObject(model, jsonSettings)
             |> (fun s -> new StringContent(s))
         let response = new HttpResponseMessage(status)
         response.Content <- content
         response.Content.Headers.ContentType <- "application/json" |> MediaTypeHeaderValue;
+        resolveCORSHeader response reqHost corsHosts
         response
+
+    let referrer (uri:System.Uri) = 
+        match uri.Port with
+        | 80 -> uri.GetLeftPart(System.UriPartial.Authority)
+        | 443 -> uri.GetLeftPart(System.UriPartial.Authority)
+        | _ -> sprintf "%s://%s:%d" uri.Scheme uri.Host uri.Port
 
     /// Organize the errors into a status code and a collection of error messages. 
     /// If multiple errors are found, the aggregate status will be that of the 
@@ -89,18 +106,19 @@ module Http =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let constructResponse (req:HttpRequestMessage) (log:Logger) trialResult : HttpResponseMessage =
+    let constructResponse (req:HttpRequestMessage) (log:Logger) (corsHosts:string) trialResult : HttpResponseMessage =
+        let referrer = referrer req.RequestUri
         let url = sprintf ("%A %s") req.Method (req.RequestUri.ToString())
         try
             match trialResult with
             | Ok(result, _) -> 
                 sprintf "%s %O" url Status.OK |> log.Information
-                result |> jsonResponse Status.OK
+                result |> jsonResponse referrer corsHosts Status.OK
             | Bad(msgs) -> 
                 let (status, errors) = failure (msgs)
                 sprintf "%s %A %O" url status errors |> log.Error
-                jsonResponse status errors
+                jsonResponse referrer corsHosts status errors
         with
         | exn -> 
             let msg = exn.ToString() |> sprintf "Unhandled exception when constructing response: %s"
-            new HttpResponseMessage(Status.InternalServerError, Content=new StringContent(msg))
+            jsonResponse referrer corsHosts Status.InternalServerError msg

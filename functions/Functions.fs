@@ -22,9 +22,9 @@ module Functions =
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
-        req: HttpRequestMessage) =
+        req: HttpRequestMessage, context: ExecutionContext) =
         let fn () = Api.Ping.get req
-        Api.Common.getResponse' req log fn
+        Api.Common.getResponse' req log context fn
 
     /// (Anonymous) Exchanges a UAA OAuth code for an application-scoped JWT
     [<FunctionName("AuthGet")>]

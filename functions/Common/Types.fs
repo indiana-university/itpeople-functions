@@ -27,6 +27,7 @@ module Types =
         JwtSecret: string
         DbConnectionString: string
         UseFakes: bool
+        CorsHosts: string
     }
 
     type Role =

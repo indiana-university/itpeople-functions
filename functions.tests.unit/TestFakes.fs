@@ -33,4 +33,5 @@ module TestFakes =
         JwtSecret=jwtSingingSecret
         DbConnectionString="db connectionString"
         UseFakes=false
+        CorsHosts="*"
     }
