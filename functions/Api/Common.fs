@@ -76,6 +76,17 @@ module Common =
                 return constructResponse req log "" (fail(Status.InternalServerError, msg))
         } |> Async.StartAsTask
 
+    /// Given an API function, get a response.  
+    let optionsResponse
+        (req: HttpRequestMessage)
+        (log: Logger) 
+        (context: ExecutionContext)  = 
+            let (config,data) = getDependencies(context)
+            let referrer = referrer req.RequestUri
+            let response = new HttpResponseMessage(Status.OK)
+            addCORSHeader response referrer config.CorsHosts
+            response
+
     /// <summary>
     /// Get all items.
     /// </summary>

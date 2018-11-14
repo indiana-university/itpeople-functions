@@ -53,7 +53,7 @@ module Http =
     let jsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
     jsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
 
-    let resolveCORSHeader (res:HttpResponseMessage) (referrer:string) (corsHosts:string) =
+    let addCORSHeader (res:HttpResponseMessage) (referrer:string) (corsHosts:string) =
         match corsHosts with
         | null -> ()
         | "" -> ()
@@ -71,7 +71,7 @@ module Http =
         let response = new HttpResponseMessage(status)
         response.Content <- content
         response.Content.Headers.ContentType <- "application/json" |> MediaTypeHeaderValue;
-        resolveCORSHeader response reqHost corsHosts
+        addCORSHeader response reqHost corsHosts
         response
 
     let referrer (uri:System.Uri) = 

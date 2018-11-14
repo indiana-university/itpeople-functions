@@ -19,6 +19,12 @@ module Functions =
             .CreateLogger()
 
     /// (Anonymous) A function that simply returns, "Pong!" 
+    [<FunctionName("Options")>]
+    let options
+        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "options", Route = "{*url}")>]
+        req: HttpRequestMessage, context: ExecutionContext) =
+        Api.Common.optionsResponse req log context
+
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
