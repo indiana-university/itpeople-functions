@@ -41,6 +41,8 @@ module ContractTests =
             let mutable stateServer = None
 
             try            
+                Environment.SetEnvironmentVariable("CorsHosts","*")
+                Environment.SetEnvironmentVariable("UseFakeData","false")
                 Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
                 Environment.SetEnvironmentVariable("DbConnectionString","User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;")
 

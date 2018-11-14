@@ -19,7 +19,7 @@ module Common =
     let private getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
         let configRoot = 
             ConfigurationBuilder()
-                .AddJsonFile("local.settings.json", optional=true, reloadOnChange=true)
+                .AddJsonFile("local.settings.json", optional=true)
                 .AddKeyPerFile("/run/secrets", optional=true)
                 .AddEnvironmentVariables()
                 .Build();
@@ -31,10 +31,15 @@ module Common =
             OAuth2RedirectUrl = configRoot.["OAuthRedirectUrl"]
             JwtSecret = configRoot.["JwtSecret"]
             DbConnectionString = configRoot.["DbConnectionString"]
+            UseFakes = bool.Parse configRoot.["UseFakeData"]
+            CorsHosts = configRoot.["CorsHosts"]
         }
 
-        let data = DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
-        // let data = FakesRepository() :> IDataRepository
+        let data = 
+            if appConfig.UseFakes
+            then FakesRepository() :> IDataRepository
+            else DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
+
         (appConfig,data)
 
     /// Given an API function, resolve required dependencies and get a response.  
@@ -44,20 +49,43 @@ module Common =
         (context: ExecutionContext) 
         (fn:(AppConfig*IDataRepository)->AsyncResult<'T,Error>) = 
         async {
-            let (config,data) = getDependencies(context)
-            let! result = (config, data) |> fn |> Async.ofAsyncResult
-            return constructResponse req log result
+            try
+                let (config,data) = getDependencies(context)
+                let! result = (config, data) |> fn |> Async.ofAsyncResult
+                return constructResponse req log config.CorsHosts result
+            with
+            | exn -> 
+                let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
+                return constructResponse req log "" (fail(Status.InternalServerError, msg))
         } |> Async.StartAsTask
 
     /// Given an API function, get a response.  
     let getResponse'<'T> 
         (req: HttpRequestMessage)
         (log: Logger) 
+        (context: ExecutionContext) 
         (fn:unit->AsyncResult<'T,Error>) = 
         async { 
-            let! result = () |> fn |> Async.ofAsyncResult
-            return constructResponse req log result
+            try
+                let (config,data) = getDependencies(context)
+                let! result = () |> fn |> Async.ofAsyncResult
+                return constructResponse req log config.CorsHosts result
+            with
+            | exn -> 
+                let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
+                return constructResponse req log "" (fail(Status.InternalServerError, msg))
         } |> Async.StartAsTask
+
+    /// Given an API function, get a response.  
+    let optionsResponse
+        (req: HttpRequestMessage)
+        (log: Logger) 
+        (context: ExecutionContext)  = 
+            let (config,data) = getDependencies(context)
+            let origin = origin req
+            let response = new HttpResponseMessage(Status.OK)
+            addCORSHeader response origin config.CorsHosts
+            response
 
     /// <summary>
     /// Get all items.

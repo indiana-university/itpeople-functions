@@ -46,7 +46,7 @@ module Auth =
     /// containing the original JWT, the user ID, and user Role.  
     let get (req: HttpRequestMessage) config (queryUserByName:string -> AsyncResult<User,Error>) = asyncTrial {
         let getUaaJwt request = bindAsyncResult (fun () -> postAsync<ResponseModel> config.OAuth2TokenUrl request)
-        let! oauthCode = getQueryParam "code" req
+        let! oauthCode = getQueryParam "oauth_code" req
         let! uaaRequest = createTokenRequest config.OAuth2ClientId config.OAuth2ClientSecret config.OAuth2RedirectUrl oauthCode
         let! uaaJwt = getUaaJwt uaaRequest
         let! uaaClaims = decodeUaaJwt uaaJwt.access_token

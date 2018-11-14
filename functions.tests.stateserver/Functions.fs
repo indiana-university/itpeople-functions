@@ -71,17 +71,17 @@ module Functions =
     [<FunctionName("InitializeState")>]
     let initializeState
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "post", Route = "state")>]
-        req: HttpRequestMessage) =
+        req: HttpRequestMessage, context: ExecutionContext) =
         let connStr = System.Environment.GetEnvironmentVariable("DbConnectionString")
         let fn () = ensureState req connStr
-        getResponse' req log fn
+        getResponse' req log context fn
 
     
     /// (Anonymous) A function that simply returns, "Pong!" 
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
-        req: HttpRequestMessage) =
+        req: HttpRequestMessage, context: ExecutionContext) =
         let fn () = Functions.Api.Ping.get req
         // let fn () = Api.Ping.get req
-        getResponse' req log fn
+        getResponse' req log context fn

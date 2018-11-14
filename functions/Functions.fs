@@ -19,12 +19,18 @@ module Functions =
             .CreateLogger()
 
     /// (Anonymous) A function that simply returns, "Pong!" 
+    [<FunctionName("Options")>]
+    let options
+        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "options", Route = "{*url}")>]
+        req: HttpRequestMessage, context: ExecutionContext) =
+        Api.Common.optionsResponse req log context
+
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
-        req: HttpRequestMessage) =
+        req: HttpRequestMessage, context: ExecutionContext) =
         let fn () = Api.Ping.get req
-        Api.Common.getResponse' req log fn
+        Api.Common.getResponse' req log context fn
 
     /// (Anonymous) Exchanges a UAA OAuth code for an application-scoped JWT
     [<FunctionName("AuthGet")>]
