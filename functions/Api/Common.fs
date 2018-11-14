@@ -82,12 +82,11 @@ module Common =
         (log: Logger) 
         (context: ExecutionContext)  = 
             let (config,data) = getDependencies(context)
-            let referrer = referrer req.RequestUri
+            let origin = origin req
             let response = new HttpResponseMessage(Status.OK)
-            addCORSHeader response referrer config.CorsHosts
-            log.Information(sprintf "  Referrer: %s" referrer)
+            addCORSHeader response origin config.CorsHosts
+            log.Information(sprintf "  Referrer: %s" origin)
             log.Information(sprintf "  Allowed CORS Hosts: %s" config.CorsHosts)
-            log.Information(sprintf "  Response Headers: %s" (response.Headers.ToString()))
             response
 
     /// <summary>
