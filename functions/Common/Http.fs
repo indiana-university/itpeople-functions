@@ -60,7 +60,10 @@ module Http =
         | "*" -> res.Headers.Add("Access-Control-Allow-Origin", "*")
         | _ ->
             if corsHosts.Split(',') |> Seq.exists (fun c -> c = origin)
-            then res.Headers.Add("Access-Control-Allow-Origin", value=origin)
+            then 
+                res.Headers.Add("Access-Control-Allow-Origin", value=origin)
+                res.Headers.Add("Access-Control-Allow-Headers", "origin, content-type, accept")
+                res.Headers.Add("Access-Control-Allow-Credentials", "true")
             else ()
 
     /// Construct an HTTP response with JSON content
