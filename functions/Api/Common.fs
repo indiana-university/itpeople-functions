@@ -85,8 +85,6 @@ module Common =
             let origin = origin req
             let response = new HttpResponseMessage(Status.OK)
             addCORSHeader response origin config.CorsHosts
-            log.Information(sprintf "  Referrer: %s" origin)
-            log.Information(sprintf "  Allowed CORS Hosts: %s" config.CorsHosts)
             response
 
     /// <summary>
