@@ -85,6 +85,9 @@ module Common =
             let referrer = referrer req.RequestUri
             let response = new HttpResponseMessage(Status.OK)
             addCORSHeader response referrer config.CorsHosts
+            log.Information(sprintf "  Referrer: %s" referrer)
+            log.Information(sprintf "  Allowed CORS Hosts: %s" config.CorsHosts)
+            log.Information(sprintf "  Response Headers: %s" (response.Headers.ToString()))
             response
 
     /// <summary>
