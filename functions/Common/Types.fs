@@ -31,10 +31,10 @@ module Types =
     }
 
     type Role =
-        | SelfSupport=1
-        | ItPro=2
-        | CoAdmin=3
-        | Admin=4
+        | Related=1
+        | Member=2
+        | Sublead=3
+        | Leader=4
 
 
     type Id = int
@@ -89,7 +89,6 @@ module Types =
     [<Table("people")>]
     type Person = {
         Id: Id
-        [<JsonIgnore>]
         Hash: string
         NetId: NetId
         Name: Name
@@ -100,9 +99,8 @@ module Types =
         Campus: string
         Expertise: string
         Notes: string
-        Role: Role
-        Responsibilities: Responsibilities list
-        Tools: Tools list
+        Responsibilities: Responsibilities
+        Tools: Tools
         // 
         HrDepartmentId: Id
     }
@@ -151,12 +149,33 @@ module Types =
     [<CLIMutable>]
     type Member = Entity
     [<CLIMutable>]
-    type MemberWithRole = EntityRole
+    type UnitMembership = {
+        Id: Id
+        Name: Name
+        Description: string
+        PhotoUrl: string option
+        Percentage: int
+        Title: string
+        Role: Role
+        Tools: seq<Tools> option
+    }
     
-        User: User
     type PersonDto = {
+        Id: Id
+        NetId: NetId
+        Name: Name
+        Position: string
+        Location: string
+        CampusPhone: string
+        CampusEmail: string
+        Campus: string
+        Expertise: string
+        Notes: string
+        PhotoUrl: string option
+        Responsibilities: seq<Responsibilities>
+        Tools: seq<Tools>
         Department: Department
-        UnitMemberships: seq<MemberWithRole>
+        UnitMemberships: seq<UnitMembership>
     }
 
     type UnitList = {
@@ -168,7 +187,7 @@ module Types =
         Name: Name
         Description: string
         Url: string option
-        Members: seq<MemberWithRole> option
+        Members: seq<UnitMembership> option
         SupportedDepartments: seq<Department> option
         Children: seq<Unit> option
         Parent: Unit option
@@ -186,9 +205,9 @@ module Types =
     }
 
     type SimpleSearch = {
-        Users: seq<User>
-        Departments: seq<Department>
-        Units: seq<Unit>
+        Users: seq<Entity>
+        Departments: seq<Entity>
+        Units: seq<Entity>
     }
 
     type FetchById<'T> = Id -> AsyncResult<'T,Error>
