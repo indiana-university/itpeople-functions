@@ -86,8 +86,8 @@ module Types =
     
 
     [<CLIMutable>]
-    [<Table("Users")>]
-    type User = {
+    [<Table("people")>]
+    type Person = {
         Id: Id
         [<JsonIgnore>]
         Hash: string
@@ -153,8 +153,8 @@ module Types =
     [<CLIMutable>]
     type MemberWithRole = EntityRole
     
-    type UserProfile = {
         User: User
+    type PersonDto = {
         Department: Department
         UnitMemberships: seq<MemberWithRole>
     }
@@ -196,9 +196,9 @@ module Types =
 
     type IDataRepository =
         /// Get a user record for a given net ID (e.g. 'jhoerr')
-        abstract member GetUserByNetId: NetId -> AsyncResult<User,Error>
+        abstract member GetUserByNetId: NetId -> AsyncResult<Person,Error>
         /// Get a user profile for a given user ID
-        abstract member GetProfile: Id -> AsyncResult<UserProfile,Error>
+        abstract member GetProfile: Id -> AsyncResult<PersonDto,Error>
         /// Get all users, units, and departments matching a given search term
         abstract member GetSimpleSearchByTerm: string -> AsyncResult<SimpleSearch,Error>
         /// Get a list of all units
