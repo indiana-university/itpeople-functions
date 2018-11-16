@@ -18,8 +18,8 @@ module Fakes =
         Expertise="Woodworking, honor"
         Notes="foo"
         Role=Role.Admin
-        Tools = Tools.IUware
-        Responsibilities = Responsibilities.BizSysAnalysis
+        Tools = [ Tools.IUware ]
+        Responsibilities = [ Responsibilities.BizSysAnalysis ] 
         HrDepartmentId=1
     }
 
@@ -35,9 +35,9 @@ module Fakes =
         CampusEmail="bmoberly@iu.edu"
         Expertise="Snivlin', grovlin', code expansion, copying/pasting from Stack Overflow"
         Notes="foo"
-        Tools = Tools.IUware
         Role=Role.ItPro
-        Responsibilities = Responsibilities.BizSysAnalysis
+        Tools = [ Tools.IUware ]
+        Responsibilities = [ Responsibilities.BizSysAnalysis ] 
         HrDepartmentId=1
     }
 

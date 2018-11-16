@@ -101,8 +101,8 @@ module Types =
         Expertise: string
         Notes: string
         Role: Role
-        Responsibilities: Responsibilities
-        Tools: Tools
+        Responsibilities: Responsibilities list
+        Tools: Tools list
         // 
         HrDepartmentId: Id
     }
