@@ -36,9 +36,10 @@ module Common =
         }
 
         let data = 
-            if appConfig.UseFakes
-            then FakesRepository() :> IDataRepository
-            else DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
+            FakesRepository() :> IDataRepository
+            // if appConfig.UseFakes
+            // then FakesRepository() :> IDataRepository
+            // else DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
 
         (appConfig,data)
 
