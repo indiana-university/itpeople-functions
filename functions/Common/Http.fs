@@ -57,9 +57,8 @@ module Http =
         match corsHosts with
         | null -> ()
         | "" -> ()
-        | "*" -> res.Headers.Add("Access-Control-Allow-Origin", "*")
         | _ ->
-            if corsHosts.Split(',') |> Seq.exists (fun c -> c = origin)
+            if corsHosts = "*" || corsHosts.Split(',') |> Seq.exists (fun c -> c = origin)
             then 
                 res.Headers.Add("Access-Control-Allow-Origin", value=origin)
                 res.Headers.Add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization")
