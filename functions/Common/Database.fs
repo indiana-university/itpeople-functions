@@ -177,7 +177,7 @@ ORDER BY u.Name ASC"""
         let fn () = async {
             use cn = new NpgsqlConnection(connStr)
             let! seq = cn.GetListAsync<Unit>() |> Async.AwaitTask
-            return { Units = seq |> Seq.sortBy (fun u -> u.Name)} |> ok 
+            return seq |> Seq.sortBy (fun u -> u.Name) |> ok 
         }
         let! result = tryfAsync Status.InternalServerError "Failed to fetch user by netId" fn
         return result
@@ -204,7 +204,7 @@ ORDER BY u.Name ASC"""
         let fn () = async {
             use cn = new NpgsqlConnection(connStr)
             let! seq = cn.GetListAsync<Department>() |> Async.AwaitTask
-            return { Departments = seq |> Seq.sortBy (fun u -> u.Name) } |> ok 
+            return seq |> Seq.sortBy (fun u -> u.Name) |> ok 
         }
         let! result = tryfAsync Status.InternalServerError "Failed to fetch user by netId" fn
         return result

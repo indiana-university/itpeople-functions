@@ -197,11 +197,11 @@ module Types =
         /// Get all users, units, and departments matching a given search term
         abstract member GetSimpleSearchByTerm: string -> AsyncResult<SimpleSearch,Error>
         /// Get a list of all units
-        abstract member GetUnits: unit -> AsyncResult<UnitList,Error>
+        abstract member GetUnits: unit -> AsyncResult<Unit seq,Error>
         /// Get a single unit by ID
         abstract member GetUnit: Id -> AsyncResult<UnitProfile,Error>
         /// Get a list of all departments
-        abstract member GetDepartments: unit -> AsyncResult<DepartmentList,Error>
+        abstract member GetDepartments: unit -> AsyncResult<Department seq,Error>
         /// Get a single department by ID
         abstract member GetDepartment: Id -> AsyncResult<DepartmentProfile,Error>
 

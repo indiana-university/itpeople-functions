@@ -76,7 +76,7 @@ module Fakes =
     }
 
     let getFakeUnits () = asyncTrial {
-        let! units = async.Return { Units= [cito; clientServices] }
+        let! units = async.Return ([cito; clientServices] |> List.toSeq)
         return units
     }
 
@@ -92,7 +92,7 @@ module Fakes =
     }
 
     let getFakeDepartments () = asyncTrial {
-        let! departments = async.Return {Departments = [arsd; dema]}
+        let! departments = async.Return ([arsd; dema] |> List.toSeq)
         return departments
     }
 
