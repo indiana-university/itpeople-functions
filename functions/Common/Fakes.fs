@@ -82,11 +82,22 @@ module Fakes =
 
     let getFakeUnit () = asyncTrial {
         let! profile = async.Return {
-            Unit=cito
-            // Members=
-            //   [ {MemberWithRole.Id=ulrik.Id; Name=ulrik.Name; Role=Role.Admin}
-            //     {MemberWithRole.Id=brent.Id; Name=brent.Name; Role=Role.ItPro} ]
-            // SupportedDepartments=[arsd; dema]
+            Id=cito.Id
+            Name=cito.Name
+            Description=cito.Description
+            Url=Some(cito.Url)
+            Members= Some ([  
+                {MemberWithRole.Id=ronswanson.Id; Name=ronswanson.Name; Role=Role.Admin}
+                {MemberWithRole.Id=brent.Id; Name=brent.Name; Role=Role.ItPro} 
+                ] |> List.toSeq )
+            SupportedDepartments= Some ([
+                arsd; dema
+                ] |> List.toSeq)
+            Children= Some([
+                {Unit.Id=2; Name="Fourth Floor"; Description="This is a child unit description"; Url="http://example.com"}
+                {Unit.Id=3; Name="Other Child Unit"; Description="This is a child unit description"; Url="http://example.com"}
+            ] |> List.toSeq)
+            Parent= Some({Unit.Id=4; Name="City Council"; Description="The management, supervision, coordination, and implementation of an array of leisure service opportunities, including such organized activities as athletics, sports, arts, crafts, drama, physical fitness, music, and aquatics, utilizing recreation centers, athletic fields, swimming pools, open space, schools, and special facilities."; Url="http://example.com"})
         }
         return profile
     }

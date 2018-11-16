@@ -193,9 +193,14 @@ ORDER BY u.Name ASC"""
         // let! members = queryPeopleInUnit connStr id
         // let! supportedDepartments = queryDepartmentsSupportedByUnit connStr id
         return {
-            Unit=unit
-            //Members=members
-            //SupportedDepartments=supportedDepartments
+            Id=unit.Id
+            Name=unit.Name
+            Description=unit.Description
+            Url=Some(unit.Url)
+            Members=None
+            SupportedDepartments=None
+            Children=None
+            Parent=None
         }
     }
 

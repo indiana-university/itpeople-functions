@@ -163,10 +163,15 @@ module Types =
         Units: seq<Unit>
     }
 
-    type UnitProfile = {
-        Unit: Unit
-//        Members: seq<MemberWithRole>
-//        SupportedDepartments: seq<Department>
+    type UnitDto = {
+        Id: Id
+        Name: Name
+        Description: string
+        Url: string option
+        Members: seq<MemberWithRole> option
+        SupportedDepartments: seq<Department> option
+        Children: seq<Unit> option
+        Parent: Unit option
     }
 
     type DepartmentList = {
@@ -199,7 +204,7 @@ module Types =
         /// Get a list of all units
         abstract member GetUnits: unit -> AsyncResult<Unit seq,Error>
         /// Get a single unit by ID
-        abstract member GetUnit: Id -> AsyncResult<UnitProfile,Error>
+        abstract member GetUnit: Id -> AsyncResult<UnitDto,Error>
         /// Get a list of all departments
         abstract member GetDepartments: unit -> AsyncResult<Department seq,Error>
         /// Get a single department by ID
