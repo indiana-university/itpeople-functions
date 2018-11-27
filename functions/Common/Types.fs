@@ -31,10 +31,10 @@ module Types =
     }
 
     type Role =
-        | SelfSupport=1
-        | ItPro=2
-        | CoAdmin=3
-        | Admin=4
+        | Related=1
+        | Member=2
+        | Sublead=3
+        | Leader=4
 
 
     type Id = int
@@ -86,10 +86,9 @@ module Types =
     
 
     [<CLIMutable>]
-    [<Table("Users")>]
-    type User = {
+    [<Table("people")>]
+    type Person = {
         Id: Id
-        [<JsonIgnore>]
         Hash: string
         NetId: NetId
         Name: Name
@@ -100,7 +99,6 @@ module Types =
         Campus: string
         Expertise: string
         Notes: string
-        Role: Role
         Responsibilities: Responsibilities
         Tools: Tools
         // 
@@ -151,39 +149,59 @@ module Types =
     [<CLIMutable>]
     type Member = Entity
     [<CLIMutable>]
-    type MemberWithRole = EntityRole
+    type UnitMembership = {
+        Id: Id
+        Name: Name
+        Description: string
+        PhotoUrl: string option
+        Percentage: int
+        Title: string
+        Role: Role
+        Tools: seq<Tools>
+    }
     
-    type UserProfile = {
-        User: User
+    type PersonDto = {
+        Id: Id
+        NetId: NetId
+        Name: Name
+        Position: string
+        Location: string
+        CampusPhone: string
+        CampusEmail: string
+        Campus: string
+        Expertise: seq<string>
+        Notes: string
+        PhotoUrl: string option
+        Responsibilities: seq<Responsibilities>
+        Tools: seq<Tools>
         Department: Department
-        UnitMemberships: seq<MemberWithRole>
+        UnitMemberships: seq<UnitMembership>
     }
 
-    type UnitList = {
-        Units: seq<Unit>
+    type UnitDto = {
+        Id: Id
+        Name: Name
+        Description: string
+        Url: string option
+        Members: seq<UnitMembership> option
+        SupportedDepartments: seq<Department> option
+        Children: seq<Unit> option
+        Parent: Unit option
     }
 
-    type UnitProfile = {
-        Unit: Unit
-//        Members: seq<MemberWithRole>
-//        SupportedDepartments: seq<Department>
-    }
-
-    type DepartmentList = {
-        Departments: seq<Department>
-    }
-
-    type DepartmentProfile = {
-        Department: Department
+    type DepartmentDto = {
+        Id: Id
+        Name: Name
+        Description: string
         SupportingUnits: seq<Unit>
         Units: seq<Unit>
         Members: seq<Member>
     }
 
     type SimpleSearch = {
-        Users: seq<User>
-        Departments: seq<Department>
-        Units: seq<Unit>
+        Users: seq<Entity>
+        Departments: seq<Entity>
+        Units: seq<Entity>
     }
 
     type FetchById<'T> = Id -> AsyncResult<'T,Error>
@@ -191,19 +209,19 @@ module Types =
 
     type IDataRepository =
         /// Get a user record for a given net ID (e.g. 'jhoerr')
-        abstract member GetUserByNetId: NetId -> AsyncResult<User,Error>
+        abstract member GetUserByNetId: NetId -> AsyncResult<Person,Error>
         /// Get a user profile for a given user ID
-        abstract member GetProfile: Id -> AsyncResult<UserProfile,Error>
+        abstract member GetProfile: Id -> AsyncResult<PersonDto,Error>
         /// Get all users, units, and departments matching a given search term
         abstract member GetSimpleSearchByTerm: string -> AsyncResult<SimpleSearch,Error>
         /// Get a list of all units
-        abstract member GetUnits: unit -> AsyncResult<UnitList,Error>
+        abstract member GetUnits: unit -> AsyncResult<Unit seq,Error>
         /// Get a single unit by ID
-        abstract member GetUnit: Id -> AsyncResult<UnitProfile,Error>
+        abstract member GetUnit: Id -> AsyncResult<UnitDto,Error>
         /// Get a list of all departments
-        abstract member GetDepartments: unit -> AsyncResult<DepartmentList,Error>
+        abstract member GetDepartments: unit -> AsyncResult<Department seq,Error>
         /// Get a single department by ID
-        abstract member GetDepartment: Id -> AsyncResult<DepartmentProfile,Error>
+        abstract member GetDepartment: Id -> AsyncResult<DepartmentDto,Error>
 
     type JwtClaims = {
         UserId: Id

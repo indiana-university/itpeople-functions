@@ -24,7 +24,7 @@ module ContractTests =
             .ProviderState(stateUrl)
             .ServiceProvider("API", functionUrl)
             .HonoursPactWith("Client")
-            .PactUri("../../../pact.json")
+            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/feature/work/contracts/itpeople-app-itpeople-functions.json")
             .Verify()
 
     type Pact(output: ITestOutputHelper)=
@@ -42,7 +42,7 @@ module ContractTests =
 
             try            
                 Environment.SetEnvironmentVariable("CorsHosts","*")
-                Environment.SetEnvironmentVariable("UseFakeData","false")
+                Environment.SetEnvironmentVariable("UseFakeData","true")
                 Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
                 Environment.SetEnvironmentVariable("DbConnectionString","User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;")
 

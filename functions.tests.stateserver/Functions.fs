@@ -72,10 +72,13 @@ module Functions =
     let initializeState
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "post", Route = "state")>]
         req: HttpRequestMessage, context: ExecutionContext) =
-        let connStr = System.Environment.GetEnvironmentVariable("DbConnectionString")
-        let fn () = ensureState req connStr
-        getResponse' req log context fn
-
+        let config = getConfiguration context
+        if (config.UseFakes)
+        then
+            async.Return (req.CreateResponse(Status.OK)) |> Async.StartAsTask
+        else
+            let fn () = ensureState req config.DbConnectionString
+            getResponse' req log context fn
     
     /// (Anonymous) A function that simply returns, "Pong!" 
     [<FunctionName("PingGet")>]

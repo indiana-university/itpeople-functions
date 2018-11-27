@@ -43,7 +43,7 @@ module Functions =
     /// (Authenticated) Get a user profile for a given user 'id'
     [<FunctionName("UserGetId")>]
     let profileGet
-        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "users/{id}")>]
+        ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "people/{id}")>]
         req: HttpRequestMessage, context: ExecutionContext, id: Id) =
         let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetProfile
         Api.Common.getResponse req log context fn
