@@ -15,8 +15,8 @@ open Serilog.Core
 open Microsoft.Extensions.Logging
 
 module Common =
-    /// Get app configuration and data dependencies resolvers.
-    let private getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
+
+    let getConfiguration(context: ExecutionContext) : AppConfig =
         let configRoot = 
             ConfigurationBuilder()
                 .AddJsonFile("local.settings.json", optional=true)
@@ -24,7 +24,7 @@ module Common =
                 .AddEnvironmentVariables()
                 .Build();
 
-        let appConfig = {
+        {
             OAuth2ClientId = configRoot.["OAuthClientId"]
             OAuth2ClientSecret = configRoot.["OAuthClientSecret"]
             OAuth2TokenUrl = configRoot.["OAuthTokenUrl"]
@@ -35,13 +35,16 @@ module Common =
             CorsHosts = configRoot.["CorsHosts"]
         }
 
+    /// Get app configuration and data dependencies resolvers.
+    let private getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
+
+        let config = getConfiguration context
         let data = 
             FakesRepository() :> IDataRepository
-            // if appConfig.UseFakes
+            // if config.UseFakes
             // then FakesRepository() :> IDataRepository
-            // else DatabaseRepository(appConfig.DbConnectionString) :> IDataRepository
-
-        (appConfig,data)
+            // else DatabaseRepository(config.DbConnectionString) :> IDataRepository
+        (config,data)
 
     /// Given an API function, resolve required dependencies and get a response.  
     let getResponse<'T> 
