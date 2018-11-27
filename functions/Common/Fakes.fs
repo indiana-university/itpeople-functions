@@ -71,6 +71,7 @@ module Fakes =
             Responsibilities=ronswanson.Responsibilities |> Seq.head
             Tools=ronswanson.Tools |> Seq.head
             HrDepartmentId=1
+            PhotoUrl=Some("http://example.com")
         }
         return user
     }

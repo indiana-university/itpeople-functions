@@ -101,6 +101,7 @@ module Types =
         Notes: string
         Responsibilities: Responsibilities
         Tools: Tools
+        PhotoUrl: string option
         // 
         HrDepartmentId: Id
     }
