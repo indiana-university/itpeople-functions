@@ -157,7 +157,7 @@ module Types =
         Percentage: int
         Title: string
         Role: Role
-        Tools: seq<Tools> option
+        Tools: seq<Tools>
     }
     
     type PersonDto = {
@@ -169,17 +169,13 @@ module Types =
         CampusPhone: string
         CampusEmail: string
         Campus: string
-        Expertise: string
+        Expertise: seq<string>
         Notes: string
         PhotoUrl: string option
         Responsibilities: seq<Responsibilities>
         Tools: seq<Tools>
         Department: Department
         UnitMemberships: seq<UnitMembership>
-    }
-
-    type UnitList = {
-        Units: seq<Unit>
     }
 
     type UnitDto = {
@@ -193,12 +189,10 @@ module Types =
         Parent: Unit option
     }
 
-    type DepartmentList = {
-        Departments: seq<Department>
-    }
-
-    type DepartmentProfile = {
-        Department: Department
+    type DepartmentDto = {
+        Id: Id
+        Name: Name
+        Description: string
         SupportingUnits: seq<Unit>
         Units: seq<Unit>
         Members: seq<Member>
@@ -227,7 +221,7 @@ module Types =
         /// Get a list of all departments
         abstract member GetDepartments: unit -> AsyncResult<Department seq,Error>
         /// Get a single department by ID
-        abstract member GetDepartment: Id -> AsyncResult<DepartmentProfile,Error>
+        abstract member GetDepartment: Id -> AsyncResult<DepartmentDto,Error>
 
     type JwtClaims = {
         UserId: Id

@@ -21,13 +21,15 @@ module Fakes =
         Campus="IUBLA"
         CampusPhone="812-856-0207"
         CampusEmail="rswanso@iu.edu"
-        Expertise="Woodworking, honor"
+        Expertise=["Woodworking"; "honor"]
         Notes="foo"
         PhotoUrl=Some("http://flavorwire.files.wordpress.com/2011/11/ron-swanson.jpg")
         Tools = [ Tools.IUware ]
         Responsibilities = [ Responsibilities.BizSysAnalysis ] 
         Department=arsd
-        UnitMemberships=[]|>List.toSeq
+        UnitMemberships=[
+            {Id=cito.Id; Name=cito.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=None; Percentage=100}
+          ]
     }
 
     let brent:PersonDto = {
@@ -39,13 +41,15 @@ module Fakes =
         Campus="IUBLA"
         CampusPhone="812-856-2138"
         CampusEmail="bmoberly@iu.edu"
-        Expertise="Snivlin', grovlin', code expansion, copying/pasting from Stack Overflow"
+        Expertise=["Snivlin'"; "grovlin'"; "copying/pasting from Stack Overflow"]
         Notes="foo"
         PhotoUrl=None
         Tools = [ Tools.IUware ]
         Responsibilities = [ Responsibilities.BizSysAnalysis ] 
         Department=arsd
-        UnitMemberships=[]|>List.toSeq
+        UnitMemberships=[
+            {Id=cito.Id; Name=cito.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=[]; PhotoUrl=None; Percentage=100}
+          ] |> List.toSeq
     }
 
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
@@ -62,7 +66,7 @@ module Fakes =
             Campus=ronswanson.Campus
             CampusEmail=ronswanson.CampusEmail
             CampusPhone=ronswanson.CampusPhone
-            Expertise=ronswanson.Expertise
+            Expertise=ronswanson.Expertise |> String.concat "|"
             Notes=ronswanson.Notes
             Responsibilities=ronswanson.Responsibilities |> Seq.head
             Tools=ronswanson.Tools |> Seq.head
@@ -106,16 +110,17 @@ module Fakes =
             Description=cito.Description
             Url=Some(cito.Url)
             Members= Some ([  
-                {UnitMembership.Id=ronswanson.Id; Name=ronswanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=None; PhotoUrl=ronswanson.PhotoUrl; Percentage=100}
-                {UnitMembership.Id=brent.Id; Name=brent.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=None; PhotoUrl=None; Percentage=100} 
-                ] |> List.toSeq )
+                {UnitMembership.Id=ronswanson.Id; Name=ronswanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=ronswanson.PhotoUrl; Percentage=100}
+                {UnitMembership.Id=brent.Id; Name=brent.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=[]; PhotoUrl=None; Percentage=100} 
+              ] |> List.toSeq )
             SupportedDepartments= Some ([
-                arsd; dema
-                ] |> List.toSeq)
+                arsd
+                dema
+              ] |> List.toSeq)
             Children= Some([
                 {Unit.Id=2; Name="Fourth Floor"; Description="This is a child unit description"; Url="http://example.com"}
                 {Unit.Id=3; Name="Other Child Unit"; Description="This is a child unit description"; Url="http://example.com"}
-            ] |> List.toSeq)
+              ] |> List.toSeq)
             Parent= Some({Unit.Id=4; Name="City Council"; Description="The management, supervision, coordination, and implementation of an array of leisure service opportunities, including such organized activities as athletics, sports, arts, crafts, drama, physical fitness, music, and aquatics, utilizing recreation centers, athletic fields, swimming pools, open space, schools, and special facilities."; Url="http://example.com"})
         }
         return profile
@@ -128,7 +133,9 @@ module Fakes =
 
     let getFakeDepartment () = asyncTrial {
         let! profile = async.Return {
-            Department=arsd
+            Id=arsd.Id
+            Name=arsd.Name
+            Description=arsd.Description
             SupportingUnits=[cito]
             Units=[clientServices]
             Members= 
