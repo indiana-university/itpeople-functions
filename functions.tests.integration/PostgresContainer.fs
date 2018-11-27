@@ -21,11 +21,10 @@ module PostgresContainer =
         try
             use conn = dbConnection ()
             do! conn.OpenAsync() |> Async.AwaitTask
-            return true
+            return None
         with 
         | exn -> 
-            // sprintf "Failed to connect to server: %s" exn.Message |> Console.WriteLine
-            return false
+            return sprintf "Failed to connect to server: %s" exn.Message |> Some
     }
 
     /// Execute an arbitrary docker command.
@@ -42,33 +41,31 @@ module PostgresContainer =
         let mutable isReady = false
         while isReady = false && count < maxTries do
             do! Async.Sleep(delayMs)
-            let! isReady' = tryConnect ()
-            isReady <- isReady'
+            let! error = tryConnect ()
             "---> Is PostgresQL server ready? " |> Console.Write
-            if isReady = false
-            then
+            match error with 
+            | None ->
+                yep()
+                isReady <- true
+            | Some(e) ->
                 nope()
                 count <- count + 1
-            else
-                yep()
-        
-        return count = maxTries
+                if (count = maxTries) then 
+                    e |> sprintf "Database never became ready: %s" |> Exception |> raise
     }
 
     /// Ensure the postgres container is started
     let ensureStarted () = async {
         "---> Checking if PostgresQL Server is already running... " |> Console.Write
-        let! alreadyStarted = tryConnect()
-        if alreadyStarted
-        then 
+        let! error = tryConnect()
+        match error with
+        | None ->
             yep()
-            return true
-        else 
+        | Some(_) ->
             nope()
             "---> Starting PostgresQL Server... "  |> Console.WriteLine
             runDockerCommand startSqlServer false
-            let! started = ensureReady()
-            return started
+            do! ensureReady()
     }
 
     /// Stop and remove the running postgres container

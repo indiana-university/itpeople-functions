@@ -22,7 +22,7 @@ module TestFixture =
         do
             SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
             // Ensure the postgres container is started.
-            ensureStarted () |> Async.RunSynchronously |> ignore
+            ensureStarted () |> Async.RunSynchronously
 
     // This collection provides a common interface for all 
     // integration tests so that the postgres server only gets 
