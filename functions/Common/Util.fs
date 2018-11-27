@@ -26,6 +26,11 @@ module Util =
     /// Checks whether the string is null or empty
     let isEmpty str = String.IsNullOrWhiteSpace str
 
+    let optional str = 
+        if isEmpty str 
+        then None
+        else Some(str)
+
     /// Get an empty sequence of type 'a
     let emptySeq<'a> () : AsyncResult<'a seq,Error> = asyncTrial {
         return Seq.empty<'a>

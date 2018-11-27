@@ -153,7 +153,7 @@ ORDER BY u.Name ASC"""
             CampusPhone=user.CampusPhone
             Expertise=expertise
             Notes=user.Notes
-            PhotoUrl=user.PhotoUrl
+            PhotoUrl=(optional user.PhotoUrl)
             Responsibilities=responsibilities
             Tools=tools
             Department=dept

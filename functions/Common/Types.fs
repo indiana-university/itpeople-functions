@@ -40,19 +40,20 @@ module Types =
     type Id = int
     type Name = string
     type NetId = string
+
     [<CLIMutable>]
     type Entity = {
         Id: Id
         Name: Name
         Description: Name
     }
+
     [<CLIMutable>]
     type EntityRole = {
         Id: Id
         Name: Name
         Role: Role
     }
-
 
     [<Flags>]
     type Tools =
@@ -88,68 +89,62 @@ module Types =
     [<CLIMutable>]
     [<Table("people")>]
     type Person = {
-        Id: Id
-        Hash: string
-        NetId: NetId
-        Name: Name
-        Position: string
-        Location: string
-        CampusPhone: string
-        CampusEmail: string
-        Campus: string
-        Expertise: string
-        Notes: string
-        Responsibilities: Responsibilities
-        Tools: Tools
-        PhotoUrl: string option
-        // 
-        HrDepartmentId: Id
+        [<Column("id")>] Id: Id
+        [<Column("hash")>] Hash: string
+        [<Column("netId")>] NetId: NetId
+        [<Column("name")>] Name: Name
+        [<Column("position")>] Position: string
+        [<Column("location")>] Location: string
+        [<Column("campusPhone")>] CampusPhone: string
+        [<Column("campusEmail")>] CampusEmail: string
+        [<Column("campus")>] Campus: string
+        [<Column("expertise")>] Expertise: string
+        [<Column("notes")>] Notes: string
+        [<Column("responsibilities")>] Responsibilities: Responsibilities
+        [<Column("tools")>] Tools: Tools
+        [<Column("photoUrl")>] PhotoUrl: string
+        [<Column("hrDepartmentId")>] HrDepartmentId: Id
     }
 
     [<CLIMutable>]
-    [<Table("Departments")>]
+    [<Table("departments")>]
     type Department = {
-        Id: Id
-        Name: Name
-        Description: Name
-        DisplayUnits: Boolean
+        [<Column("id")>] Id: Id
+        [<Column("name")>] Name: Name
+        [<Column("description")>] Description: Name
+        [<Column("displayUnits")>] DisplayUnits: Boolean
     }
 
     [<CLIMutable>]
     [<Table("units")>]
     type Unit = {
-        [<Column("id")>]
-        Id: Id
-        [<Column("name")>]
-        Name: Name
-        [<Column("description")>]
-        Description: Name
-        [<Column("url")>]
-        Url: string
+        [<Column("id")>] Id: Id
+        [<Column("parentId")>] ParentId: Id
+        [<Column("name")>] Name: Name
+        [<Column("description")>] Description: Name
+        [<Column("url")>] Url: string
     }
 
     [<CLIMutable>]
-    [<Table("SupportedDepartments")>]
+    [<Table("supportedDepartments")>]
     type SupportedDepartment = {
-        [<Key>]
-        DepartmentId: Id
-        [<Key>]
-        UnitId: Id
+        [<Column("departmentId")>] DepartmentId: Id
+        [<Column("unitId")>] UnitId: Id
     }
 
     [<CLIMutable>]
-    [<Table("UnitMembers")>]
+    [<Table("unitMembers")>]
     type UnitMember = {
-        [<Key>]
-        UserId: Id
-        [<Key>]
-        UnitId: Id
+        [<Column("unitId")>] UnitId: Id
+        [<Column("personId")>] PersonId: Id
+        [<Column("title")>] Title: string
+        [<Column("role")>] Role: Role
+        [<Column("percentage")>] Percentage: int
+        [<Column("tools")>] Tools: Tools
     }
 
     // DOMAIN MODELS
-    [<CLIMutable>]
     type Member = Entity
-    [<CLIMutable>]
     type UnitMembership = {
         Id: Id
         Name: Name
