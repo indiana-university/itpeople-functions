@@ -1,7 +1,5 @@
 namespace Functions.Common
 
-open System
-open Chessie.ErrorHandling
 
 ///<summary>
 /// This module contains common types and functions to facilitate request 
@@ -9,6 +7,10 @@ open Chessie.ErrorHandling
 ///</summary>
 module Util =
     open Types 
+    open Json
+    open Newtonsoft.Json
+    open System
+    open Chessie.ErrorHandling
 
     /// An active pattern to identify empty sequences
     let (|EmptySeq|_|) a = if Seq.isEmpty a then Some () else None
@@ -89,3 +91,9 @@ module Util =
         let! result = doAsync status msg fn |> bindAsync
         return result
     }
+
+    let mapFlagsToSeq<'T when 'T :> System.Enum> (value: System.Enum) = 
+        JsonConvert.SerializeObject(value, JsonSettings)
+        |> fun s -> s.Split(",")
+        |> Seq.map (fun s -> s.Trim())
+        |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s) :?> 'T)

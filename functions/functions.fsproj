@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Common/Types.fs" />
+    <Compile Include="Common/Json.fs" />
     <Compile Include="Common/Util.fs" />
     <Compile Include="Common/Jwt.fs" />
     <Compile Include="Common/Http.fs" />
