@@ -20,28 +20,7 @@ module Database =
         NetId: NetId
     }
 
-    type OptionHandler<'T>() =
-        inherit SqlMapper.TypeHandler<option<'T>>()
-
-        override __.SetValue(param, value) = 
-            let valueOrNull = 
-                match value with
-                | Some x -> box x
-                | None -> null
-
-            param.Value <- valueOrNull    
-
-        override __.Parse value =
-            if isNull value || value = box System.DBNull.Value 
-            then None
-            else Some (value :?> 'T)
-
-    let registerTypeHandlers() =
-        SqlMapper.AddTypeHandler (OptionHandler<int64>())
-        SqlMapper.AddTypeHandler (OptionHandler<int>())
-
     let sqlConnection connectionString =
-        registerTypeHandlers()
         new NpgsqlConnection(connectionString)
 
     /// Fetch a user given a netid (e.g. 'jhoerr')
