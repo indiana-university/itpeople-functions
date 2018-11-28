@@ -1,147 +1,207 @@
 namespace Functions.Common
 
 open Types
+open Util
 open Chessie.ErrorHandling
+open System
 
 module Fakes =
 
-    let cito:Unit = {Id=1; Name="College IT Office (CITO)"; Description=""; Url=""; ParentId=None}
-    let biology:Unit = {Id=2; Name="Biology IT"; Description=""; Url=""; ParentId=None}
-    let clientServices:Unit = {Id=3; Name="Client Services"; Description=""; Url=""; ParentId=None}
+    // Units
+    let city:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url=""}
+    let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url=""}
+    let fourthFloor:Unit = {Id=3; Name="Fourth Floor"; Description="It's spooky up there!"; Url=""}
 
-    let arsd:Department = {Id=1; Name="BL-ARSD"; Description="Arts and Sciences Deans Office"; DisplayUnits=false}
-    let dema:Department = {Id=1; Name="BL-DEMA"; Description=""; DisplayUnits=false}
-
-    let ronswanson:PersonDto = {
+    // Departments
+    let parksDept:Department = {Id=1; Name="PA-PARKS"; Description="Parks and Recreation Department"; DisplayUnits=false}
+    
+    // People
+    let swanson:Person = {
         Id=1
+        Hash="hash"
         NetId="rswanso"
         Name="Swanson, Ron"
         Position="Parks and Rec Director "
-        Location="SMR Room 024"
-        Campus="IUBLA"
-        CampusPhone="812-856-0207"
-        CampusEmail="rswanso@iu.edu"
-        Expertise=["Woodworking"; "honor"]
-        Notes="foo"
+        Location=""
+        Campus=""
+        CampusPhone=""
+        CampusEmail="rswanso@pawnee.in.us"
+        Expertise="Woodworking; Honor"
+        Notes=""
         PhotoUrl="http://flavorwire.files.wordpress.com/2011/11/ron-swanson.jpg"
-        Tools = [ Tools.IUware ]
-        Responsibilities = [ Responsibilities.BizSysAnalysis ] 
-        Department=arsd
+        Tools = Tools.ItProMail ||| Tools.ItProWeb
+        Responsibilities = Responsibilities.ItLeadership
+        HrDepartmentId=parksDept.Id
+    }
+
+    let knope:Person = {
+        Id=1
+        Hash="hash"
+        NetId="lknope"
+        Name="Knope, Lesie"
+        Position="Parks and Rec Deputy Director "
+        Location=""
+        Campus=""
+        CampusPhone=""
+        CampusEmail="lknope@pawnee.in.us"
+        Expertise="Canvasing; Waffles"
+        Notes=""
+        PhotoUrl="https://en.wikipedia.org/wiki/Leslie_Knope#/media/File:Leslie_Knope_(played_by_Amy_Poehler).png"
+        Tools = Tools.ItProMail ||| Tools.ItProWeb
+        Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
+        HrDepartmentId=parksDept.Id
+    }
+
+    let sebastian:Person = {
+        Id=1
+        Hash="hash"
+        NetId="lsebastian@pawnee.in.us"
+        Name="Sebastian, L'il"
+        Position="Mascot and Guiding Light"
+        Location=""
+        Campus=""
+        CampusPhone=""
+        CampusEmail="lknope@pawnee.in.us"
+        Expertise="Hay; Being Small"
+        Notes=""
+        PhotoUrl="https://sasquatchbrewery.com/wp-content/uploads/2018/06/lil.jpg"
+        Tools = Tools.ItProMail ||| Tools.ItProWeb
+        Responsibilities = Responsibilities.UserExperience
+        HrDepartmentId=parksDept.Id
+    }
+
+    // People DTOs
+    let swansonDto:PersonDto = {
+        Id=swanson.Id
+        NetId=swanson.NetId
+        Name=swanson.Name
+        Position=swanson.Position
+        Location=swanson.Location
+        Campus=swanson.Campus
+        CampusPhone=swanson.CampusPhone
+        CampusEmail=swanson.CampusEmail
+        Expertise=swanson.Expertise.Split(";")
+        Notes=swanson.Notes
+        PhotoUrl=swanson.PhotoUrl
+        Tools = swanson.Tools |> mapFlagsToSeq
+        Responsibilities = swanson.Responsibilities |> mapFlagsToSeq
+        Department=parksDept
         UnitMemberships=[
-            {Id=cito.Id; Name=cito.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=""; Percentage=100}
+            {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100}
           ]
     }
 
-    let brent:PersonDto = {
-        Id=2
-        NetId="bmoberly"
-        Name="Moberly, Brent Maximus"
-        Position="Very Senior Software Developer Lead Architect Analyst"
-        Location="CIB"
-        Campus="IUBLA"
-        CampusPhone="812-856-2138"
-        CampusEmail="bmoberly@iu.edu"
-        Expertise=["Snivlin'"; "grovlin'"; "copying/pasting from Stack Overflow"]
-        Notes="foo"
-        PhotoUrl=""
-        Tools = [ Tools.IUware ]
-        Responsibilities = [ Responsibilities.BizSysAnalysis ] 
-        Department=arsd
+    let knopeDto:PersonDto = {
+        Id=knope.Id
+        NetId=knope.NetId
+        Name=knope.Name
+        Position=knope.Position
+        Location=knope.Location
+        Campus=knope.Campus
+        CampusPhone=knope.CampusPhone
+        CampusEmail=knope.CampusEmail
+        Expertise=knope.Expertise.Split(";")
+        Notes=knope.Notes
+        PhotoUrl=knope.PhotoUrl
+        Tools = knope.Tools |> mapFlagsToSeq
+        Responsibilities = knope.Responsibilities |> mapFlagsToSeq
+        Department=parksDept
         UnitMemberships=[
-            {Id=cito.Id; Name=cito.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=[]; PhotoUrl=""; Percentage=100}
-          ] |> List.toSeq
+            {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100}
+          ]
+    }
+
+    let sebastianDto:PersonDto = {
+        Id=sebastian.Id
+        NetId=sebastian.NetId
+        Name=sebastian.Name
+        Position=sebastian.Position
+        Location=sebastian.Location
+        Campus=sebastian.Campus
+        CampusPhone=sebastian.CampusPhone
+        CampusEmail=sebastian.CampusEmail
+        Expertise=sebastian.Expertise.Split(";")
+        Notes=sebastian.Notes
+        PhotoUrl=sebastian.PhotoUrl
+        Tools = sebastian.Tools |> mapFlagsToSeq
+        Responsibilities = sebastian.Responsibilities |> mapFlagsToSeq
+        Department=parksDept
+        UnitMemberships=[
+            {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100}
+          ]
     }
 
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
     let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
 
     let getFakeUser () = asyncTrial {
-        let! user = async.Return {
-            Id=ronswanson.Id
-            NetId=ronswanson.NetId
-            Name=ronswanson.Name
-            Hash="abcd1234"
-            Position=ronswanson.Position
-            Location=ronswanson.Location
-            Campus=ronswanson.Campus
-            CampusEmail=ronswanson.CampusEmail
-            CampusPhone=ronswanson.CampusPhone
-            Expertise=ronswanson.Expertise |> String.concat "|"
-            Notes=ronswanson.Notes
-            Responsibilities=ronswanson.Responsibilities |> Seq.head
-            Tools=ronswanson.Tools |> Seq.head
-            HrDepartmentId=1
-            PhotoUrl="http://example.com"
-        }
+        let! user = async.Return swanson
         return user
     }
 
     let getFakeProfile () : AsyncResult<PersonDto,Error> = asyncTrial {
-        let! profile = async.Return ronswanson
+        let! profile = async.Return swansonDto
         return profile
     }
 
     let getFakeSimpleSearchByTerm () : AsyncResult<SimpleSearch,Error> = asyncTrial {
         let result = {
                 Users=[
-                    {Id=ronswanson.Id; Name=ronswanson.Name; Description=""}
-                    {Id=brent.Id; Name=brent.Name; Description=""}
+                    {Id=swanson.Id; Name=swanson.Name; Description=""}
+                    {Id=knope.Id; Name=knope.Name; Description=""}
+                    {Id=sebastian.Id; Name=sebastian.Name; Description=""}
                 ]
                 Departments=[
-                    {Id=arsd.Id; Name=arsd.Name; Description=""}
-                    {Id=dema.Id; Name=dema.Name; Description=""}
+                    {Id=parksDept.Id; Name=parksDept.Name; Description=""}
                 ]
                 Units=[
-                    {Id=cito.Id; Name=cito.Name; Description=""}
-                    {Id=clientServices.Id; Name=clientServices.Name; Description=""}
+                    {Id=city.Id; Name=city.Name; Description=""}
+                    {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""}
+                    {Id=fourthFloor.Id; Name=fourthFloor.Name; Description=""}
                 ]
             }
         return result
     }
 
     let getFakeUnits () = asyncTrial {
-        let! units = async.Return ([cito; clientServices] |> List.toSeq)
+        let! units = async.Return ([parksAndRec; city] |> List.toSeq)
         return units
     }
 
     let getFakeUnit () = asyncTrial {
         let! profile = async.Return {
-            Id=cito.Id
-            Name=cito.Name
-            Description=cito.Description
-            Url=cito.Url
+            Id=parksAndRec.Id
+            Name=parksAndRec.Name
+            Description=parksAndRec.Description
+            Url=parksAndRec.Url
             Members= [  
-                {UnitMembership.Id=ronswanson.Id; Name=ronswanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=ronswanson.PhotoUrl; Percentage=100}
-                {UnitMembership.Id=brent.Id; Name=brent.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=[]; PhotoUrl=""; Percentage=100} 
+                {Id=swanson.Id; Name=swanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100}
+                {Id=knope.Id; Name=knope.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100}
+                {Id=sebastian.Id; Name=sebastian.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100}
               ]
-            SupportedDepartments= [
-                arsd
-                dema
-              ]
-            Children= [
-                {Unit.Id=2; Name="Fourth Floor"; Description="This is a child unit description"; Url="http://example.com"; ParentId=Some(cito.Id)}
-                {Unit.Id=3; Name="Other Child Unit"; Description="This is a child unit description"; Url="http://example.com"; ParentId=Some(cito.Id)}
-              ]
-            Parent= Some({Unit.Id=4; Name="City Council"; Description="The management, supervision, coordination, and implementation of an array of leisure service opportunities, including such organized activities as athletics, sports, arts, crafts, drama, physical fitness, music, and aquatics, utilizing recreation centers, athletic fields, swimming pools, open space, schools, and special facilities."; Url="http://example.com"; ParentId=None})
+            SupportedDepartments= [ parksDept ]
+            Children= [ fourthFloor ]
+            Parent= Some(city)
         }
         return profile
     }
 
     let getFakeDepartments () = asyncTrial {
-        let! departments = async.Return ([arsd; dema] |> List.toSeq)
+        let! departments = async.Return ([ parksDept ] |> List.toSeq)
         return departments
     }
 
     let getFakeDepartment () = asyncTrial {
         let! profile = async.Return {
-            Id=arsd.Id
-            Name=arsd.Name
-            Description=arsd.Description
-            SupportingUnits=[cito]
-            Units=[clientServices]
+            Id=parksDept.Id
+            Name=parksDept.Name
+            Description=parksDept.Description
+            SupportingUnits=[parksAndRec]
+            Units=[parksAndRec]
             Members= 
-              [ {Member.Id=brent.Id; Name=brent.Name; Description=""}
-                {Member.Id=ronswanson.Id; Name=ronswanson.Name; Description=""} ]
+              [ {Member.Id=swanson.Id; Name=swanson.Name; Description=""}
+                {Member.Id=knope.Id; Name=knope.Name; Description=""}
+                {Member.Id=sebastian.Id; Name=sebastian.Name; Description=""} ]
         }
         return profile
     }
