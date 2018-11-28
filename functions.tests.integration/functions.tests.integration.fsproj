@@ -31,6 +31,5 @@
   <ItemGroup>
     <ProjectReference Include="../functions/functions.fsproj" />    
     <ProjectReference Include="../migrations/migrations.fsproj" />
-    <ProjectReference Include="../functions.tests.stateserver/functions.tests.stateserver.fsproj" />        
   </ItemGroup>
 </Project>
