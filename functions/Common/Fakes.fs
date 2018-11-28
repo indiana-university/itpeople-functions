@@ -8,16 +8,16 @@ open System
 module Fakes =
 
     // Units
-    let city:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url=""}
-    let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url=""}
-    let fourthFloor:Unit = {Id=3; Name="Fourth Floor"; Description="It's spooky up there!"; Url=""}
+    let city:Unit = {Id=0; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url=""}
+    let parksAndRec:Unit = {Id=0; Name="Parks and Rec"; Description="Parks and Recreation"; Url=""}
+    let fourthFloor:Unit = {Id=0; Name="Fourth Floor"; Description="It's spooky up there!"; Url=""}
 
     // Departments
-    let parksDept:Department = {Id=1; Name="PA-PARKS"; Description="Parks and Recreation Department"; DisplayUnits=false}
+    let parksDept:Department = {Id=0; Name="PA-PARKS"; Description="Parks and Recreation Department"; DisplayUnits=false}
     
     // People
     let swanson:Person = {
-        Id=1
+        Id=0
         Hash="hash"
         NetId="rswanso"
         Name="Swanson, Ron"
@@ -35,7 +35,7 @@ module Fakes =
     }
 
     let knope:Person = {
-        Id=1
+        Id=0
         Hash="hash"
         NetId="lknope"
         Name="Knope, Lesie"
@@ -53,9 +53,9 @@ module Fakes =
     }
 
     let sebastian:Person = {
-        Id=1
+        Id=0
         Hash="hash"
-        NetId="lsebastian@pawnee.in.us"
+        NetId="lsebastian"
         Name="Sebastian, L'il"
         Position="Mascot and Guiding Light"
         Location=""
