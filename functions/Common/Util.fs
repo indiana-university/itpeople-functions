@@ -97,8 +97,8 @@ module Util =
         return result
     }
 
-    let mapFlagsToSeq<'T when 'T :> System.Enum> (value: System.Enum) = 
-        JsonConvert.SerializeObject(value, JsonSettings)
-        |> fun s -> s.Split(",")
+    let mapFlagsToSeq<'T when 'T :> System.Enum> (value: 'T) = 
+        JsonConvert.SerializeObject(value, JsonSettings).Trim('"')
+        |> fun s -> s.Split([|','|])
         |> Seq.map (fun s -> s.Trim())
         |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s) :?> 'T)
