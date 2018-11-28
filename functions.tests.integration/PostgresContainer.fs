@@ -4,6 +4,8 @@ module PostgresContainer =
 
     open System
     open Npgsql
+    open Functions.Common.Database
+
     let yep () = "[YEP]" |> Console.WriteLine
     let nope () = "[NOPE]" |> Console.WriteLine
     let result b = if b then "[OK]" else "[ERROR]"
@@ -14,7 +16,7 @@ module PostgresContainer =
     let rmSqlServer = "rm integration_test_db"   
 
     /// Get a new postgres connection.
-    let dbConnection () = new NpgsqlConnection(connStr) 
+    let dbConnection () = sqlConnection connStr
     
     /// Attempt to connect to the postgres database.
     let tryConnect () = async {

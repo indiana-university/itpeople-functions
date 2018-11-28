@@ -119,7 +119,7 @@ module Types =
     [<Table("units")>]
     type Unit = {
         [<Column("id")>] Id: Id
-        [<Column("parentId")>] ParentId: Id
+        [<Column("parentId")>] ParentId: int option
         [<Column("name")>] Name: Name
         [<Column("description")>] Description: Name
         [<Column("url")>] Url: string

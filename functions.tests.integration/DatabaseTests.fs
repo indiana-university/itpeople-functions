@@ -27,9 +27,9 @@ module DatabaseTests=
         }
 
         [<Fact>]
-        member __.``Ensure unit has correct name`` () = async {
+        member __.``Ensure unit has correct properties`` () = async {
             use cn = dbConnection ()
             let! actual = cn.GetListAsync<Unit>() |> Async.AwaitTask
             let head = Seq.head actual
-            Assert.Equal(cito.Name, head.Name)
+            Assert.Equal(cito, head)
         }

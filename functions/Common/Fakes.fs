@@ -5,9 +5,9 @@ open Chessie.ErrorHandling
 
 module Fakes =
 
-    let cito:Unit = {Id=1; Name="College IT Office (CITO)"; Description=""; Url=""; ParentId=1}
-    let biology:Unit = {Id=2; Name="Biology IT"; Description=""; Url=""; ParentId=0}
-    let clientServices:Unit = {Id=3; Name="Client Services"; Description=""; Url=""; ParentId=0}
+    let cito:Unit = {Id=1; Name="College IT Office (CITO)"; Description=""; Url=""; ParentId=None}
+    let biology:Unit = {Id=2; Name="Biology IT"; Description=""; Url=""; ParentId=None}
+    let clientServices:Unit = {Id=3; Name="Client Services"; Description=""; Url=""; ParentId=None}
 
     let arsd:Department = {Id=1; Name="BL-ARSD"; Description="Arts and Sciences Deans Office"; DisplayUnits=false}
     let dema:Department = {Id=1; Name="BL-DEMA"; Description=""; DisplayUnits=false}
@@ -119,10 +119,10 @@ module Fakes =
                 dema
               ] |> List.toSeq)
             Children= Some([
-                {Unit.Id=2; Name="Fourth Floor"; Description="This is a child unit description"; Url="http://example.com"; ParentId=cito.Id}
-                {Unit.Id=3; Name="Other Child Unit"; Description="This is a child unit description"; Url="http://example.com"; ParentId=cito.Id}
               ] |> List.toSeq)
-            Parent= Some({Unit.Id=4; Name="City Council"; Description="The management, supervision, coordination, and implementation of an array of leisure service opportunities, including such organized activities as athletics, sports, arts, crafts, drama, physical fitness, music, and aquatics, utilizing recreation centers, athletic fields, swimming pools, open space, schools, and special facilities."; Url="http://example.com"; ParentId=0})
+                {Unit.Id=2; Name="Fourth Floor"; Description="This is a child unit description"; Url="http://example.com"; ParentId=Some(cito.Id)}
+                {Unit.Id=3; Name="Other Child Unit"; Description="This is a child unit description"; Url="http://example.com"; ParentId=Some(cito.Id)}
+            Parent= Some({Unit.Id=4; Name="City Council"; Description="The management, supervision, coordination, and implementation of an array of leisure service opportunities, including such organized activities as athletics, sports, arts, crafts, drama, physical fitness, music, and aquatics, utilizing recreation centers, athletic fields, swimming pools, open space, schools, and special facilities."; Url="http://example.com"; ParentId=None})
         }
         return profile
     }

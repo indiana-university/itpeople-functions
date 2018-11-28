@@ -20,10 +20,34 @@ module Database =
         NetId: NetId
     }
 
+    type OptionHandler<'T>() =
+        inherit SqlMapper.TypeHandler<option<'T>>()
+
+        override __.SetValue(param, value) = 
+            let valueOrNull = 
+                match value with
+                | Some x -> box x
+                | None -> null
+
+            param.Value <- valueOrNull    
+
+        override __.Parse value =
+            if isNull value || value = box System.DBNull.Value 
+            then None
+            else Some (value :?> 'T)
+
+    let registerTypeHandlers() =
+        SqlMapper.AddTypeHandler (OptionHandler<int64>())
+        SqlMapper.AddTypeHandler (OptionHandler<int>())
+
+    let sqlConnection connectionString =
+        registerTypeHandlers()
+        new NpgsqlConnection(connectionString)
+
     /// Fetch a user given a netid (e.g. 'jhoerr')
     let queryPersonByNetId connStr netId = asyncTrial {
         let fn () = async {
-            use cn = new NpgsqlConnection(connStr)
+            use cn = sqlConnection connStr
             let! seq = cn.GetListAsync<Person>({NetId=netId}) |> Async.AwaitTask
             return ok seq
         }
@@ -35,7 +59,7 @@ module Database =
     /// Fetch a single 'T given an ID
     let queryTypeById<'T> connStr id = asyncTrial {
         let fn () = async {
-            use cn = new NpgsqlConnection(connStr)
+            use cn = sqlConnection connStr
             let! result = cn.GetAsync<'T>(id) |> Async.AwaitTask
             match box result with
             | null -> return fail (Status.NotFound, sprintf "No %s found with id %d" (typeof<'T>.Name) id)
@@ -48,7 +72,7 @@ module Database =
     /// Fetch all 'T
     let queryAll<'T> connStr query msg id = asyncTrial {
         let fn() = async {
-            use cn = new NpgsqlConnection(connStr)
+            use cn = sqlConnection connStr
             let! seq = cn.QueryAsync<'T>(query, {Id=id}) |> Async.AwaitTask
             return seq |> Seq.cast<'T> |> ok
         }
@@ -153,7 +177,7 @@ ORDER BY u.Name ASC"""
             CampusPhone=user.CampusPhone
             Expertise=expertise
             Notes=user.Notes
-            PhotoUrl=(optional user.PhotoUrl)
+            PhotoUrl=user.PhotoUrl
             Responsibilities=responsibilities
             Tools=tools
             Department=dept
@@ -169,7 +193,7 @@ ORDER BY u.Name ASC"""
     /// Get all 'T whose name matches a given search term
     let querySearch<'T> connStr term conditions = asyncTrial {
         let fn() = async {
-            use cn = new NpgsqlConnection(connStr)
+            use cn = sqlConnection connStr
             let! seq = cn.GetListAsync<'T>(conditions, {Term=(like term)})  |> Async.AwaitTask
             return ok seq
         }
@@ -192,7 +216,7 @@ ORDER BY u.Name ASC"""
     /// Get a list of all units
     let queryUnits connStr = asyncTrial {
         let fn () = async {
-            use cn = new NpgsqlConnection(connStr)
+            use cn = sqlConnection connStr
             let! seq = cn.GetListAsync<Unit>() |> Async.AwaitTask
             return seq |> Seq.sortBy (fun u -> u.Name) |> ok 
         }
@@ -212,10 +236,10 @@ ORDER BY u.Name ASC"""
             Id=unit.Id
             Name=unit.Name
             Description=unit.Description
-            Url=Some(unit.Url)
-            Members=None
-            SupportedDepartments=None
-            Children=None
+            Url=unit.Url
+            Members=Seq.empty
+            SupportedDepartments=Seq.empty
+            Children=Seq.empty
             Parent=None
         }
     }
@@ -223,7 +247,7 @@ ORDER BY u.Name ASC"""
     /// Get a list of all departments
     let queryDepartments connStr = asyncTrial {
         let fn () = async {
-            use cn = new NpgsqlConnection(connStr)
+            use cn = sqlConnection connStr
             let! seq = cn.GetListAsync<Department>() |> Async.AwaitTask
             return seq |> Seq.sortBy (fun u -> u.Name) |> ok 
         }
