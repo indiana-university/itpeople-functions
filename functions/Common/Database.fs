@@ -83,11 +83,12 @@ module Database =
     /// Get all departments supported by a given unit ID
     let queryDepartmentsSupportedByUnit connStr unitId = asyncTrial {
         let query = """
-SELECT d.Id, d.Name, d.Description FROM Departments d
-JOIN SupportedDepartments sd on d.Id = sd.DepartmentId 
-WHERE sd.UnitId = @Id
-GROUP BY d.Id, d.Name, d.Description
-ORDER BY d.Name ASC"""
+SELECT d.id, d.name, d.description 
+FROM departments d
+JOIN supported_departments sd on d.id = sd.department_id 
+WHERE sd.unit_id = @Id
+GROUP BY d.id, d.name, d.description
+ORDER BY d.name ASC"""
         let msg =  "Failed to queryDepartmentsSupportedByUnit"
         let! result = queryAll<Department> connStr query msg unitId
         return result |> Seq.sortBy (fun u -> u.Name)
@@ -96,12 +97,13 @@ ORDER BY d.Name ASC"""
     /// Get all organizational units that exist within a given department ID
     let queryOrgUnitsInDepartment connStr deptId = asyncTrial {
         let query = """
-SELECT un.Id, un.Name, un.Description FROM Units un
-JOIN UnitMembers m on un.Id = m.UnitId
-JOIN Users u on u.Id = m.UserId
-WHERE u.HrDepartmentId = @Id 
-GROUP BY un.Id, un.Name, un.Description
-ORDER BY un.Name ASC"""
+SELECT u.id, u.name, u.description 
+FROM units u
+JOIN unit_members m on u.id = m.unit_Id
+JOIN people p on p.Id = m.person_id
+WHERE p.department_id = @Id 
+GROUP BY u.id, u.name, u.description
+ORDER BY u.name ASC"""
         let msg = "Failed to queryOrgUnitsInDepartment"
         let! result = queryAll<Unit> connStr query msg deptId
         return result |> Seq.sortBy (fun u -> u.Name)
@@ -111,11 +113,12 @@ ORDER BY un.Name ASC"""
 
     let queryUnitsSupportingDepartment connStr deptId = asyncTrial {
         let query = """
-SELECT un.Id, un.Name, un.Description FROM Units un
-JOIN SupportedDepartments sd on un.Id = sd.UnitId
-WHERE sd.DepartmentId = @Id 
-GROUP BY un.Id, un.Name, un.Description
-ORDER BY un.Name ASC"""
+SELECT u.id, u.name, u.description 
+FROM units u
+JOIN supported_departments sd on u.id = sd.unit_id
+WHERE sd.department_id = @Id 
+GROUP BY u.id, u.name, u.description
+ORDER BY u.name ASC"""
         let msg = "Failed to queryUnitsSupportingDepartment"
         let! result = queryAll<Unit> connStr query msg deptId
         return result |> Seq.sortBy (fun u -> u.Name)
@@ -125,9 +128,10 @@ ORDER BY un.Name ASC"""
 
     let queryPeopleInDepartment connStr deptId = asyncTrial {
         let query = """
-SELECT u.Id, u.Name FROM Users u
-WHERE u.HrDepartmentId = @Id
-ORDER BY u.Name ASC"""
+SELECT p.id, p.name, p.netid as description 
+FROM people p
+WHERE p.department_id = @Id
+ORDER BY p.name ASC"""
         let msg = "Failed to queryPeopleInDepartment"
         let! result = queryAll<Member> connStr query msg deptId
         return result |> Seq.sortBy (fun u -> u.Name)
@@ -136,24 +140,26 @@ ORDER BY u.Name ASC"""
     /// Get all people with a relationship to a given unit ID
     let queryPeopleInUnit connStr unitId = asyncTrial {
         let query = """
-SELECT u.Id, u.Name, u.Role FROM Users u
-JOIN UnitMembers m ON u.Id = m.UserId 
-WHERE m.UnitId = @Id
-ORDER BY u.Name ASC"""
+SELECT p.id, p.name, p.netid AS description 
+FROM people p
+JOIN unit_members m ON p.id = m.person_id 
+WHERE m.unit_id = @Id
+ORDER BY p.name ASC"""
         let msg = "Failed to queryPeopleInUnit"
-        let! result = queryAll<UnitMembership> connStr query msg unitId
+        let! result = queryAll<Member> connStr query msg unitId
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
     /// Get all units with a relationship to a given person ID
     let queryUnitMemberships connStr userId = asyncTrial {
         let query = """
-SELECT u.Id, u.Name, u.Url FROM Units u
-JOIN UnitMembers m ON u.Id = m.UnitId
-WHERE m.UserId = @Id
-ORDER BY u.Name ASC"""
+SELECT u.id as unit_id, m.person_id, u.name, m.title, m.role, m.percentage, m.tools 
+FROM units u
+JOIN unit_members m ON u.id = m.unit_id
+WHERE m.person_id = @Id
+ORDER BY u.name ASC"""
         let msg = "Failed to queryUnitMemberships"
-        let! result = queryAll<UnitMembership> connStr query msg userId
+        let! result = queryAll<UnitMember> connStr query msg userId
         return result |> Seq.sortBy (fun u -> u.Name)
     }
 
@@ -162,10 +168,12 @@ ORDER BY u.Name ASC"""
     let queryUserProfile connStr id = asyncTrial {
         let! user = queryTypeById<Person> connStr id
         let! unitMemberships = queryUnitMemberships connStr id
+        let memberships = []
         let! dept = queryTypeById<Department> connStr user.HrDepartmentId
         let expertise = if isNull user.Expertise then [""] else (user.Expertise.Split("|") |> Array.toList) 
         let responsibilities = user.Responsibilities |> mapFlagsToSeq
         let tools = user.Tools |> mapFlagsToSeq
+
         let profile = {
             PersonDto.Id=user.Id
             NetId=user.NetId
@@ -181,7 +189,7 @@ ORDER BY u.Name ASC"""
             Responsibilities=responsibilities
             Tools=tools
             Department=dept
-            UnitMemberships=unitMemberships
+            UnitMemberships=memberships
         }       
         return profile
     }
@@ -203,9 +211,9 @@ ORDER BY u.Name ASC"""
 
     /// Get all people, departments, and units whose name matches a given search term
     let querySimpleSearch connStr term = asyncTrial {
-        let! users = querySearch<Person> connStr term "WHERE Name LIKE @Term OR NetId LIKE @Term"
-        let! units = querySearch<Unit> connStr term "WHERE Name LIKE @Term OR Description LIKE @Term"
-        let! depts = querySearch<Department> connStr term "WHERE Name LIKE @Term OR Description LIKE @Term"
+        let! users = querySearch<Person> connStr term "WHERE name LIKE @Term OR netid LIKE @Term"
+        let! units = querySearch<Unit> connStr term "WHERE name LIKE @Term OR description LIKE @Term"
+        let! depts = querySearch<Department> connStr term "name name LIKE @Term OR description LIKE @Term"
         return {
             Users=users |> Seq.sortBy (fun u -> u.Name) |> Seq.map(fun u -> {Id=u.Id; Name=u.Name; Description=""})
             Units=units |> Seq.sortBy (fun u -> u.Name) |> Seq.map(fun u -> {Id=u.Id; Name=u.Name; Description=""})
