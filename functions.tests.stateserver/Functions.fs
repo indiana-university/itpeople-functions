@@ -41,7 +41,7 @@ module Functions =
     /// Initialize the database with a unit
     let initalizeDatabaseWithUnit1 connStr = asyncTrial {
         let dbConnection = new NpgsqlConnection(connStr)
-        let! result = dbConnection.InsertAsync<Unit>(cito) |> Async.AwaitTask 
+        let! result = dbConnection.InsertAsync<Unit>(parksAndRec) |> Async.AwaitTask 
         return result.GetValueOrDefault()
     }
 
