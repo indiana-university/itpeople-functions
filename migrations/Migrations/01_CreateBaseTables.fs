@@ -10,14 +10,14 @@ type CreateBaseTables() =
       id SERIAL PRIMARY KEY,
       parentId INTEGER NULL REFERENCES units(id),
       name TEXT NOT NULL UNIQUE,
-      description TEXT NULL,
+      description TEXT NOT NULL,
       url TEXT NULL 
     );
       
     CREATE TABLE departments ( 
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
-      description TEXT NULL,
+      description TEXT NOT NULL,
       displayUnits BOOLEAN NOT NULL DEFAULT FALSE 
     );
 
@@ -27,13 +27,13 @@ type CreateBaseTables() =
       netId TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
       position TEXT NOT NULL,
-      location TEXT NULL,
+      location TEXT NOT NULL,
       campus TEXT NOT NULL,
-      campusPhone TEXT NULL,
+      campusPhone TEXT NOT NULL,
       campusEmail TEXT NOT NULL,
       expertise TEXT NULL,
-      notes TEXT NULL,
-      photoUrl TEXT NULL,
+      notes TEXT NOT NULL,
+      photoUrl TEXT NOT NULL,
       responsibilities INTEGER NOT NULL DEFAULT 0,
       tools INTEGER NOT NULL DEFAULT 7,
       hrDepartmentId INTEGER NULL REFERENCES departments(id) 

@@ -95,14 +95,14 @@ module Types =
         [<Column("name")>] Name: Name
         [<Column("position")>] Position: string
         [<Column("location")>] Location: string
+        [<Column("campus")>] Campus: string
         [<Column("campusPhone")>] CampusPhone: string
         [<Column("campusEmail")>] CampusEmail: string
-        [<Column("campus")>] Campus: string
         [<Column("expertise")>] Expertise: string
         [<Column("notes")>] Notes: string
+        [<Column("photoUrl")>] PhotoUrl: string
         [<Column("responsibilities")>] Responsibilities: Responsibilities
         [<Column("tools")>] Tools: Tools
-        [<Column("photoUrl")>] PhotoUrl: string
         [<Column("hrDepartmentId")>] HrDepartmentId: Id
     }
 
@@ -128,8 +128,8 @@ module Types =
     [<CLIMutable>]
     [<Table("supportedDepartments")>]
     type SupportedDepartment = {
-        [<Column("departmentId")>] DepartmentId: Id
         [<Column("unitId")>] UnitId: Id
+        [<Column("departmentId")>] DepartmentId: Id
     }
 
     [<CLIMutable>]
@@ -149,7 +149,7 @@ module Types =
         Id: Id
         Name: Name
         Description: string
-        PhotoUrl: string option
+        PhotoUrl: string
         Percentage: int
         Title: string
         Role: Role
@@ -167,7 +167,7 @@ module Types =
         Campus: string
         Expertise: seq<string>
         Notes: string
-        PhotoUrl: string option
+        PhotoUrl: string
         Responsibilities: seq<Responsibilities>
         Tools: seq<Tools>
         Department: Department
@@ -178,10 +178,10 @@ module Types =
         Id: Id
         Name: Name
         Description: string
-        Url: string option
-        Members: seq<UnitMembership> option
-        SupportedDepartments: seq<Department> option
-        Children: seq<Unit> option
+        Url: string
+        Members: seq<UnitMembership>
+        SupportedDepartments: seq<Department>
+        Children: seq<Unit>
         Parent: Unit option
     }
 

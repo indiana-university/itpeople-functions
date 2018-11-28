@@ -23,12 +23,12 @@ module Fakes =
         CampusEmail="rswanso@iu.edu"
         Expertise=["Woodworking"; "honor"]
         Notes="foo"
-        PhotoUrl=Some("http://flavorwire.files.wordpress.com/2011/11/ron-swanson.jpg")
+        PhotoUrl="http://flavorwire.files.wordpress.com/2011/11/ron-swanson.jpg"
         Tools = [ Tools.IUware ]
         Responsibilities = [ Responsibilities.BizSysAnalysis ] 
         Department=arsd
         UnitMemberships=[
-            {Id=cito.Id; Name=cito.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=None; Percentage=100}
+            {Id=cito.Id; Name=cito.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=""; Percentage=100}
           ]
     }
 
@@ -43,12 +43,12 @@ module Fakes =
         CampusEmail="bmoberly@iu.edu"
         Expertise=["Snivlin'"; "grovlin'"; "copying/pasting from Stack Overflow"]
         Notes="foo"
-        PhotoUrl=None
+        PhotoUrl=""
         Tools = [ Tools.IUware ]
         Responsibilities = [ Responsibilities.BizSysAnalysis ] 
         Department=arsd
         UnitMemberships=[
-            {Id=cito.Id; Name=cito.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=[]; PhotoUrl=None; Percentage=100}
+            {Id=cito.Id; Name=cito.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=[]; PhotoUrl=""; Percentage=100}
           ] |> List.toSeq
     }
 
@@ -109,19 +109,19 @@ module Fakes =
             Id=cito.Id
             Name=cito.Name
             Description=cito.Description
-            Url=Some(cito.Url)
-            Members= Some ([  
+            Url=cito.Url
+            Members= [  
                 {UnitMembership.Id=ronswanson.Id; Name=ronswanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=ronswanson.PhotoUrl; Percentage=100}
-                {UnitMembership.Id=brent.Id; Name=brent.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=[]; PhotoUrl=None; Percentage=100} 
-              ] |> List.toSeq )
-            SupportedDepartments= Some ([
+                {UnitMembership.Id=brent.Id; Name=brent.Name; Description=""; Role=Role.Member; Title="Developer"; Tools=[]; PhotoUrl=""; Percentage=100} 
+              ]
+            SupportedDepartments= [
                 arsd
                 dema
-              ] |> List.toSeq)
-            Children= Some([
-              ] |> List.toSeq)
+              ]
+            Children= [
                 {Unit.Id=2; Name="Fourth Floor"; Description="This is a child unit description"; Url="http://example.com"; ParentId=Some(cito.Id)}
                 {Unit.Id=3; Name="Other Child Unit"; Description="This is a child unit description"; Url="http://example.com"; ParentId=Some(cito.Id)}
+              ]
             Parent= Some({Unit.Id=4; Name="City Council"; Description="The management, supervision, coordination, and implementation of an array of leisure service opportunities, including such organized activities as athletics, sports, arts, crafts, drama, physical fitness, music, and aquatics, utilizing recreation centers, athletic fields, swimming pools, open space, schools, and special facilities."; Url="http://example.com"; ParentId=None})
         }
         return profile
