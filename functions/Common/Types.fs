@@ -57,6 +57,7 @@ module Types =
 
     [<Flags>]
     type Tools =
+        | None          = 0b000000000
         | ItProWeb      = 0b000000001
         | ItProMail     = 0b000000010
         | IUware        = 0b000000100
@@ -69,6 +70,7 @@ module Types =
 
     [<Flags>]
     type Responsibilities =
+        | None                  = 0b00000000000000000
         | ItLeadership          = 0b00000000000000001
         | BizSysAnalysis        = 0b00000000000000010
         | DataAdminAnalysis     = 0b00000000000000100
@@ -91,19 +93,19 @@ module Types =
     type Person = {
         [<Key>][<Column("id")>] Id: Id
         [<Column("hash")>] Hash: string
-        [<Column("netId")>] NetId: NetId
+        [<Column("netid")>] NetId: NetId
         [<Column("name")>] Name: Name
         [<Column("position")>] Position: string
         [<Column("location")>] Location: string
         [<Column("campus")>] Campus: string
-        [<Column("campusPhone")>] CampusPhone: string
-        [<Column("campusEmail")>] CampusEmail: string
+        [<Column("campus_phone")>] CampusPhone: string
+        [<Column("campus_email")>] CampusEmail: string
         [<Column("expertise")>] Expertise: string
         [<Column("notes")>] Notes: string
-        [<Column("photoUrl")>] PhotoUrl: string
+        [<Column("photo_url")>] PhotoUrl: string
         [<Column("responsibilities")>] Responsibilities: Responsibilities
         [<Column("tools")>] Tools: Tools
-        [<Column("hrDepartmentId")>] HrDepartmentId: Id
+        [<Column("department_id")>] HrDepartmentId: Id
     }
 
     [<CLIMutable>]
@@ -112,7 +114,7 @@ module Types =
         [<Key>][<Column("id")>] Id: Id
         [<Column("name")>] Name: Name
         [<Column("description")>] Description: Name
-        [<Column("displayUnits")>] DisplayUnits: Boolean
+        [<Column("display_units")>] DisplayUnits: bool
     }
 
     [<CLIMutable>]
@@ -125,28 +127,29 @@ module Types =
     }
 
     [<CLIMutable>]
-    [<Table("unitRelations")>]
+    [<Table("unit_relations")>]
     type UnitRelation = {
-        [<Key>][<Column("childUnitId")>] UnitId: Id
-        [<Key>][<Column("parentUnitId")>] DepartmentId: Id
+        [<Key>][<Required>][<Column("child_id")>] ChildUnitId: Id
+        [<Key>][<Required>][<Column("parent_id")>] ParentUnitId: Id
     }
 
     [<CLIMutable>]
-    [<Table("supportedDepartments")>]
+    [<Table("supported_departments")>]
     type SupportedDepartment = {
-        [<Key>][<Column("unitId")>] UnitId: Id
-        [<Key>][<Column("departmentId")>] DepartmentId: Id
+        [<Key>][<Required>][<Column("unit_id")>] UnitId: Id
+        [<Key>][<Required>][<Column("department_id")>] DepartmentId: Id
     }
 
     [<CLIMutable>]
-    [<Table("unitMembers")>]
+    [<Table("unit_members")>]
     type UnitMember = {
-        [<Key>][<Column("unitId")>] UnitId: Id
-        [<Key>][<Column("personId")>] PersonId: Id
+        [<Key>][<Required>][<Column("unit_id")>] UnitId: Id
+        [<Key>][<Required>][<Column("person_id")>] PersonId: Id
         [<Column("title")>] Title: string
         [<Column("role")>] Role: Role
         [<Column("percentage")>] Percentage: int
         [<Column("tools")>] Tools: Tools
+        [<ReadOnly(true)>][<Column("name")>] Name: string
     }
 
     // DOMAIN MODELS

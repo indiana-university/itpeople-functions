@@ -7,67 +7,70 @@ type CreateBaseTables() =
   override __.Up() =
     base.Execute("""
     CREATE TABLE units ( 
-      id SERIAL PRIMARY KEY,
+      id SERIAL NOT NULL,
       name TEXT NOT NULL UNIQUE,
       description TEXT NOT NULL,
-      url TEXT NULL 
+      url TEXT NULL,
+      PRIMARY KEY (id)
     );
 
     CREATE TABLE departments ( 
-      id SERIAL PRIMARY KEY,
+      id SERIAL NOT NULL,
       name TEXT NOT NULL UNIQUE,
       description TEXT NOT NULL,
-      displayUnits BOOLEAN NOT NULL DEFAULT FALSE 
+      display_units BOOLEAN NOT NULL DEFAULT FALSE,
+      PRIMARY KEY (id)
     );
 
     CREATE TABLE people (
-      id SERIAL PRIMARY KEY,
+      id SERIAL NOT NULL,
       hash TEXT NOT NULL,
-      netId TEXT NOT NULL UNIQUE,
+      netid TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
       position TEXT NOT NULL,
       location TEXT NOT NULL,
       campus TEXT NOT NULL,
-      campusPhone TEXT NOT NULL,
-      campusEmail TEXT NOT NULL,
+      campus_phone TEXT NOT NULL,
+      campus_email TEXT NOT NULL,
       expertise TEXT NULL,
       notes TEXT NOT NULL,
-      photoUrl TEXT NOT NULL,
+      photo_url TEXT NOT NULL,
       responsibilities INTEGER NOT NULL DEFAULT 0,
       tools INTEGER NOT NULL DEFAULT 7,
-      hrDepartmentId INTEGER NULL REFERENCES departments(id) 
+      department_id INTEGER NULL REFERENCES departments(id),
+      PRIMARY KEY (id)
     );
 
-    CREATE TABLE supportedDepartments (
-      unitId INTEGER REFERENCES units(id),
-      departmentId INTEGER REFERENCES departments(id),
-      PRIMARY KEY (unitId, departmentId) 
+    CREATE TABLE supported_departments (
+      unit_id INTEGER NOT NULL REFERENCES units(id),
+      department_id INTEGER NOT NULL REFERENCES departments(id),
+      PRIMARY KEY (unit_id, department_id) 
     );
 
-    CREATE TABLE unitRelations (
-      childUnitId INTEGER REFERENCES units(id),
-      parentUnitId INTEGER REFERENCES units(id),
-      PRIMARY KEY (childUnitId, parentUnitId) 
+    CREATE TABLE unit_relations (
+      child_id INTEGER NOT NULL REFERENCES units(id),
+      parent_id INTEGER NOT NULL REFERENCES units(id),
+      PRIMARY KEY (child_id, parent_id) 
     );
     
-    CREATE TABLE unitMembers (
-      unitId INTEGER REFERENCES units(id),
-      personId INTEGER REFERENCES people(id),
+    CREATE TABLE unit_members (
+      unit_id INTEGER NOT NULL REFERENCES units(id),
+      person_id INTEGER NOT NULL REFERENCES people(id),
       title TEXT NULL,
       role INTEGER NOT NULL DEFAULT 2,
       percentage INTEGER NOT NULL DEFAULT 100,
       tools INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (unitId, personId)
-    )
+      PRIMARY KEY (unit_id, person_id)
+    );
 
     """)
 
   override __.Down() =
     base.Execute("""
-    DROP TABLE IF EXISTS unitMembers;
-    DROP TABLE IF EXISTS unitRelations;
-    DROP TABLE IF EXISTS supportedDepartments;
-    DROP TABLE IF EXISTS units;
-    DROP TABLE IF EXISTS people;
-    DROP TABLE IF EXISTS departments;
+    DROP TABLE IF EXISTS unit_members CASCADE;
+    DROP TABLE IF EXISTS unit_relations CASCADE;
+    DROP TABLE IF EXISTS supported_departments CASCADE;
+    DROP TABLE IF EXISTS units CASCADE;
+    DROP TABLE IF EXISTS people CASCADE;
+    DROP TABLE IF EXISTS departments CASCADE;
 """)
