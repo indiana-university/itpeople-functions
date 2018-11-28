@@ -8,12 +8,11 @@ type CreateBaseTables() =
     base.Execute("""
     CREATE TABLE units ( 
       id SERIAL PRIMARY KEY,
-      parentId INTEGER NULL REFERENCES units(id),
       name TEXT NOT NULL UNIQUE,
       description TEXT NOT NULL,
       url TEXT NULL 
     );
-      
+
     CREATE TABLE departments ( 
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
@@ -44,6 +43,12 @@ type CreateBaseTables() =
       departmentId INTEGER REFERENCES departments(id),
       PRIMARY KEY (unitId, departmentId) 
     );
+
+    CREATE TABLE unitRelations (
+      childUnitId INTEGER REFERENCES units(id),
+      parentUnitId INTEGER REFERENCES units(id),
+      PRIMARY KEY (childUnitId, parentUnitId) 
+    );
     
     CREATE TABLE unitMembers (
       unitId INTEGER REFERENCES units(id),
@@ -60,6 +65,7 @@ type CreateBaseTables() =
   override __.Down() =
     base.Execute("""
     DROP TABLE IF EXISTS unitMembers;
+    DROP TABLE IF EXISTS unitRelations;
     DROP TABLE IF EXISTS supportedDepartments;
     DROP TABLE IF EXISTS units;
     DROP TABLE IF EXISTS people;

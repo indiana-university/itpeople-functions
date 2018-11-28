@@ -89,7 +89,7 @@ module Types =
     [<CLIMutable>]
     [<Table("people")>]
     type Person = {
-        [<Column("id")>] Id: Id
+        [<Key>][<Column("id")>] Id: Id
         [<Column("hash")>] Hash: string
         [<Column("netId")>] NetId: NetId
         [<Column("name")>] Name: Name
@@ -109,7 +109,7 @@ module Types =
     [<CLIMutable>]
     [<Table("departments")>]
     type Department = {
-        [<Column("id")>] Id: Id
+        [<Key>][<Column("id")>] Id: Id
         [<Column("name")>] Name: Name
         [<Column("description")>] Description: Name
         [<Column("displayUnits")>] DisplayUnits: Boolean
@@ -118,25 +118,31 @@ module Types =
     [<CLIMutable>]
     [<Table("units")>]
     type Unit = {
-        [<Column("id")>] Id: Id
-        [<Column("parentId")>] ParentId: int option
+        [<Key>][<Column("id")>] Id: Id
         [<Column("name")>] Name: Name
         [<Column("description")>] Description: Name
         [<Column("url")>] Url: string
     }
 
     [<CLIMutable>]
+    [<Table("unitRelations")>]
+    type UnitRelation = {
+        [<Key>][<Column("childUnitId")>] UnitId: Id
+        [<Key>][<Column("parentUnitId")>] DepartmentId: Id
+    }
+
+    [<CLIMutable>]
     [<Table("supportedDepartments")>]
     type SupportedDepartment = {
-        [<Column("unitId")>] UnitId: Id
-        [<Column("departmentId")>] DepartmentId: Id
+        [<Key>][<Column("unitId")>] UnitId: Id
+        [<Key>][<Column("departmentId")>] DepartmentId: Id
     }
 
     [<CLIMutable>]
     [<Table("unitMembers")>]
     type UnitMember = {
-        [<Column("unitId")>] UnitId: Id
-        [<Column("personId")>] PersonId: Id
+        [<Key>][<Column("unitId")>] UnitId: Id
+        [<Key>][<Column("personId")>] PersonId: Id
         [<Column("title")>] Title: string
         [<Column("role")>] Role: Role
         [<Column("percentage")>] Percentage: int
