@@ -32,3 +32,12 @@ module DatabaseTests=
             let! actual = cn.GetAsync<Unit>(parksAndRec.Id) |> Async.AwaitTask
             Assert.Equal(parksAndRec, actual)
         }
+
+        [<Fact>]
+        member __.``Fetch units through DatabaseRepository`` () = asyncTrial {
+            let repo = DatabaseRepository(connectionString) :> IDataRepository
+            let! fetched = repo.GetUnits()
+            let actual = fetched |> Seq.map (fun f -> f.Name)
+            let expected = [city.Name; parksAndRec.Name]
+            Assert.Equal(expected, actual)
+        }

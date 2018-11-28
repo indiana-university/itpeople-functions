@@ -35,7 +35,7 @@ module TestFixture =
     // database and migrates it to the latest version.
     [<Collection("Integration collection")>]
     type DatabaseIntegrationTestBase() =
-        do Migrations.Program.clearAndMigrate connStr
+        do Migrations.Program.clearAndMigrate connectionString
 
     // A base class for all integration tests that simply expect
     // the database server to be ready.

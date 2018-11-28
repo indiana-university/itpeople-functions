@@ -9,14 +9,14 @@ module PostgresContainer =
     let yep () = "[YEP]" |> Console.WriteLine
     let nope () = "[NOPE]" |> Console.WriteLine
     let result b = if b then "[OK]" else "[ERROR]"
-    let connStr = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
+    let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
     let startSqlServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
     let logsSqlServer = "logs integration_test_db"   
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
 
     /// Get a new postgres connection.
-    let dbConnection () = sqlConnection connStr
+    let dbConnection () = sqlConnection connectionString
     
     /// Attempt to connect to the postgres database.
     let tryConnect () = async {
