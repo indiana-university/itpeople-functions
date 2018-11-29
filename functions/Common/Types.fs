@@ -150,6 +150,8 @@ module Types =
         [<Column("percentage")>] Percentage: int
         [<Column("tools")>] Tools: Tools
         [<ReadOnly(true)>][<Column("name")>] Name: string
+        [<ReadOnly(true)>][<Column("photo_url")>] PhotoUrl: string
+        [<ReadOnly(true)>][<Column("description")>] Description: string
     }
 
     // DOMAIN MODELS

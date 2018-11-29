@@ -14,6 +14,7 @@ module DatabaseTests=
     
     type DatabaseTests(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
+
         do  
             use cn = dbConnection ()
             cn.InsertAsync<Unit>(city) |> Async.AwaitTask |> Async.RunSynchronously |> ignore
@@ -24,13 +25,6 @@ module DatabaseTests=
             use cn = dbConnection ()
             let! actual = cn.GetListAsync<Unit>() |> Async.AwaitTask
             Assert.True(actual |> Seq.forall (fun a -> a.Id <> 0))
-        }
-
-        [<Fact>]
-        member __.``Ensure parksAndRec has correct properties`` () = async {
-            use cn = dbConnection ()
-            let! actual = cn.GetAsync<Unit>(parksAndRec.Id) |> Async.AwaitTask
-            Assert.Equal(parksAndRec, actual)
         }
 
         [<Fact>]

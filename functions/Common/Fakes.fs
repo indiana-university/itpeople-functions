@@ -13,7 +13,7 @@ module Fakes =
     let fourthFloor:Unit = {Id=0; Name="Fourth Floor"; Description="It's spooky up there!"; Url=""}
 
     // Departments
-    let parksDept:Department = {Id=0; Name="PA-PARKS"; Description="Parks and Recreation Department"; DisplayUnits=false}
+    let parksDept:Department = {Id=0; Name="PA-PARKS"; Description="Parks and Recreation Department"; DisplayUnits=true}
     
     // People
     let swanson:Person = {
@@ -38,7 +38,7 @@ module Fakes =
         Id=0
         Hash="hash"
         NetId="lknope"
-        Name="Knope, Lesie"
+        Name="Knope, Lesie Park"
         Position="Parks and Rec Deputy Director "
         Location=""
         Campus=""

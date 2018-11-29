@@ -26,8 +26,8 @@ module ContractTests =
         clearAndMigrate connectionString
         let db = new NpgsqlConnection(connectionString)
         // units
-        let cityId = db.Insert<Unit>(city).GetValueOrDefault()
         let parksAndRecId = db.Insert<Unit>(parksAndRec).GetValueOrDefault()
+        let cityId = db.Insert<Unit>(city).GetValueOrDefault()
         let fourthFloorId = db.Insert<Unit>(fourthFloor).GetValueOrDefault()
         // departments
         let parksDeptId = db.Insert<Department>(parksDept).GetValueOrDefault()
@@ -36,9 +36,9 @@ module ContractTests =
         let knopeId = db.Insert<Person>({knope with HrDepartmentId=parksDeptId}).GetValueOrDefault()
         let sebastianId = db.Insert<Person>({sebastian with HrDepartmentId=parksDeptId}).GetValueOrDefault()
         // unit membership
-        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=swansonId; Role=Role.Leader; Title="Director"; Tools=Tools.AccountMgt; Percentage=100; Name=""})
-        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=knopeId; Role=Role.Sublead; Title="Deputy Director"; Tools=Tools.None; Percentage=100; Name=""})
-        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=sebastianId; Role=Role.Member; Title="Mascot"; Tools=Tools.None; Percentage=100; Name=""})
+        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=swansonId; Role=Role.Leader; Title="Director"; Tools=Tools.AccountMgt; Percentage=100; Name=""; PhotoUrl=""; Description=""})
+        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=knopeId; Role=Role.Sublead; Title="Deputy Director"; Tools=Tools.None; Percentage=100; Name=""; PhotoUrl=""; Description=""})
+        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=sebastianId; Role=Role.Member; Title="Mascot"; Tools=Tools.None; Percentage=100; Name=""; PhotoUrl=""; Description=""})
         // unit relationsips
         let _ = db.Insert<UnitRelation>({ChildUnitId=parksAndRecId; ParentUnitId=cityId})
         let _ = db.Insert<UnitRelation>({ChildUnitId=fourthFloorId; ParentUnitId=parksAndRecId})
@@ -63,11 +63,8 @@ module ContractTests =
         [<Fact>]
         member __.``Test Contracts`` () = async {
             let functionScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
-            let stateScriptPath = "../../../../functions.tests.stateserver/bin/Debug/netcoreapp2.1"
             let functionServerPort = 9091
-            let stateServerPort = 9092
             let mutable functionServer = None
-            let mutable stateServer = None
 
             try            
                 Environment.SetEnvironmentVariable("CorsHosts","*")
