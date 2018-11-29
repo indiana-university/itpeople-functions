@@ -13,6 +13,7 @@ module ContractTests =
     open Npgsql
     open Functions.Common.Types
     open Functions.Common.Fakes
+    open Functions.Common.Database
     open Migrations.Program
 
     
@@ -24,7 +25,7 @@ module ContractTests =
     
     let readyDatabaseState connectionString = 
         clearAndMigrate connectionString
-        let db = new NpgsqlConnection(connectionString)
+        let db = sqlConnection connectionString
         // units
         let parksAndRecId = db.Insert<Unit>(parksAndRec).GetValueOrDefault()
         let cityId = db.Insert<Unit>(city).GetValueOrDefault()

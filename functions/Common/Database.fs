@@ -21,6 +21,7 @@ module Database =
     }
 
     let sqlConnection connectionString =
+        SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
         new NpgsqlConnection(connectionString)
 
     /// Fetch a user given a netid (e.g. 'jhoerr')

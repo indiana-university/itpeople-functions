@@ -23,7 +23,6 @@ module TestFixture =
         // in Circle CI, and (usually) false for tests running locally.
         do
             let log (msg:string) = msg |> System.Console.WriteLine
-            SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
             ensureDatabaseServerStarted log |> Async.RunSynchronously
 
     // This collection provides a common interface for all 
