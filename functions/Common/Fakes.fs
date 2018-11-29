@@ -86,9 +86,8 @@ module Fakes =
         Tools = swanson.Tools |> mapFlagsToSeq
         Responsibilities = swanson.Responsibilities |> mapFlagsToSeq
         Department=parksDept
-        UnitMemberships=[
-            {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100}
-          ]
+        UnitMemberships=
+          [ {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100} ]
     }
 
     let knopeDto:PersonDto = {
@@ -106,9 +105,8 @@ module Fakes =
         Tools = knope.Tools |> mapFlagsToSeq
         Responsibilities = knope.Responsibilities |> mapFlagsToSeq
         Department=parksDept
-        UnitMemberships=[
-            {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100}
-          ]
+        UnitMemberships=
+          [ {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100} ]
     }
 
     let sebastianDto:PersonDto = {
@@ -126,9 +124,9 @@ module Fakes =
         Tools = sebastian.Tools |> mapFlagsToSeq
         Responsibilities = sebastian.Responsibilities |> mapFlagsToSeq
         Department=parksDept
-        UnitMemberships=[
-            {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100}
-          ]
+        UnitMemberships=
+          [ {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100} ]
+        
     }
 
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
@@ -146,19 +144,16 @@ module Fakes =
 
     let getFakeSimpleSearchByTerm () : AsyncResult<SimpleSearch,Error> = asyncTrial {
         let result = {
-                Users=[
-                    {Id=swanson.Id; Name=swanson.Name; Description=""}
+                Users=
+                  [ {Id=swanson.Id; Name=swanson.Name; Description=""}
                     {Id=knope.Id; Name=knope.Name; Description=""}
-                    {Id=sebastian.Id; Name=sebastian.Name; Description=""}
-                ]
-                Departments=[
-                    {Id=parksDept.Id; Name=parksDept.Name; Description=""}
-                ]
-                Units=[
-                    {Id=city.Id; Name=city.Name; Description=""}
+                    {Id=sebastian.Id; Name=sebastian.Name; Description=""} ]
+                Departments=
+                  [ {Id=parksDept.Id; Name=parksDept.Name; Description=""} ]
+                Units=
+                  [ {Id=city.Id; Name=city.Name; Description=""}
                     {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""}
-                    {Id=fourthFloor.Id; Name=fourthFloor.Name; Description=""}
-                ]
+                    {Id=fourthFloor.Id; Name=fourthFloor.Name; Description=""} ]
             }
         return result
     }
@@ -174,11 +169,10 @@ module Fakes =
             Name=parksAndRec.Name
             Description=parksAndRec.Description
             Url=parksAndRec.Url
-            Members= [  
-                {Id=swanson.Id; Name=swanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100}
+            Members= 
+              [ {Id=swanson.Id; Name=swanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100}
                 {Id=knope.Id; Name=knope.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100}
-                {Id=sebastian.Id; Name=sebastian.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100}
-              ]
+                {Id=sebastian.Id; Name=sebastian.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100} ]
             SupportedDepartments= [ parksDept ]
             Children= [ fourthFloor ]
             Parent= Some(city)

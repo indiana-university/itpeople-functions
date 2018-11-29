@@ -129,8 +129,8 @@ ORDER BY p.name ASC"""
 
     let mapUnitMemberRecordsToDto members = 
         members 
-        |> Seq.map (fun m -> {
-            Id=m.PersonId 
+        |> Seq.map (fun m -> 
+          { Id=m.PersonId 
             Name=m.Name
             Description=m.Description
             Title=m.Title
@@ -138,8 +138,7 @@ ORDER BY p.name ASC"""
             Percentage=m.Percentage
             PhotoUrl=m.PhotoUrl
             Tools=m.Tools |> mapFlagsToSeq
-        })
-
+          })
 
     /// Get all people with a relationship to a given unit ID
     let queryPeopleInUnit connStr unitId = asyncTrial {
