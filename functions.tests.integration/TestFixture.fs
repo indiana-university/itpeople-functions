@@ -3,6 +3,8 @@ namespace Integration
 module TestFixture =
 
     open Xunit
+    open Xunit.Abstractions
+    open Xunit.Sdk
     open Chessie.ErrorHandling
     open Dapper
     open PostgresContainer
@@ -15,14 +17,14 @@ module TestFixture =
     // 5. Stop and remove the container.
 
 
-    type IntegrationFixture ()=
+    type IntegrationFixture (output: IMessageSink)=
         // A flag to determine whether the Postgres server container was 
         // started prior to running the tests. This will true for tests run 
         // in Circle CI, and (usually) false for tests running locally.
         do
+            let log (msg:string) = msg |> System.Console.WriteLine
             SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
-            // Ensure the postgres container is started.
-            ensureStarted () |> Async.RunSynchronously
+            ensureDatabaseServerStarted log |> Async.RunSynchronously
 
     // This collection provides a common interface for all 
     // integration tests so that the postgres server only gets 
