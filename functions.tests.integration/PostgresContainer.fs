@@ -10,7 +10,7 @@ module PostgresContainer =
 
     let result b = if b then "[OK]" else "[ERROR]"
     let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
-    let startSqlServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
+    let startServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
     let logsSqlServer = "logs integration_test_db"   
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
@@ -67,7 +67,6 @@ module PostgresContainer =
             match error with 
             | None ->
                 isReady <- true
-                "---> PostgresQL Server is available."  |> log
             | Some(e) ->
                 count <- count + 1
                 if (count = maxTries) then 
@@ -76,13 +75,16 @@ module PostgresContainer =
 
     /// Ensure the postgres container is started
     let ensureDatabaseServerStarted log = async {
-        "---> Checking if PostgresQL Server is already running... " |> log
+        "---> Checking if PostgresQL Server is available... " |> log
         let! error = tryConnect()
         match error with
-        | None ->
-            "---> PostgresQL Server is running. "  |> log
+        | None -> ()
         | Some(_) ->
-            "---> Starting PostgresQL Server... "  |> log
-            runDockerCommand log startSqlServer false
+            "---> Stopping and removing any running 'integration_test_db' containers..." |> log
+            runDockerCommand log "stop integration_test_db" true
+            runDockerCommand log "rm integration_test_db" true
+            "---> Starting PostgresQL Server in 'integration_test_db' container... "  |> log
+            runDockerCommand log startServer false
             do! ensureReady log
+        "---> PostgresQL Server is available. Executing tests..."  |> log
     }
