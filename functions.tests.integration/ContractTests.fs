@@ -8,23 +8,52 @@ module ContractTests =
     open TestFixture
     open TestHost
     open System
+    open PostgresContainer
+    open Dapper
+    open Npgsql
+    open Functions.Common.Types
+    open Functions.Common.Fakes
+    open Migrations.Program
+
     
     type XUnitOutput(output: ITestOutputHelper)=
         let output = output
         interface IOutput with  
             member this.WriteLine(message: string)=
                 message |> output.WriteLine
+    
+    let readyDatabaseState connectionString = 
+        clearAndMigrate connectionString
+        let db = new NpgsqlConnection(connectionString)
+        // units
+        let parksAndRecId = db.Insert<Unit>(parksAndRec).GetValueOrDefault()
+        let cityId = db.Insert<Unit>(city).GetValueOrDefault()
+        let fourthFloorId = db.Insert<Unit>(fourthFloor).GetValueOrDefault()
+        // departments
+        let parksDeptId = db.Insert<Department>(parksDept).GetValueOrDefault()
+        // people
+        let swansonId = db.Insert<Person>({swanson with HrDepartmentId=parksDeptId}).GetValueOrDefault()
+        let knopeId = db.Insert<Person>({knope with HrDepartmentId=parksDeptId}).GetValueOrDefault()
+        let sebastianId = db.Insert<Person>({sebastian with HrDepartmentId=parksDeptId}).GetValueOrDefault()
+        // unit membership
+        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=swansonId; Role=Role.Leader; Title="Director"; Tools=Tools.AccountMgt; Percentage=100; Name=""; PhotoUrl=""; Description=""})
+        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=knopeId; Role=Role.Sublead; Title="Deputy Director"; Tools=Tools.None; Percentage=100; Name=""; PhotoUrl=""; Description=""})
+        let _ = db.Insert<UnitMember>({UnitId=parksAndRecId; PersonId=sebastianId; Role=Role.Member; Title="Mascot"; Tools=Tools.None; Percentage=100; Name=""; PhotoUrl=""; Description=""})
+        // unit relationsips
+        let _ = db.Insert<UnitRelation>({ChildUnitId=parksAndRecId; ParentUnitId=cityId})
+        let _ = db.Insert<UnitRelation>({ChildUnitId=fourthFloorId; ParentUnitId=parksAndRecId})
+        // support relationship
+        let _ = db.Insert<SupportedDepartment>({DepartmentId=parksDeptId; UnitId=parksAndRecId})
+        ()
 
-    let verifyPact functionPort statePort output = 
+    let verifyPact functionPort output = 
         let functionUrl = sprintf "http://localhost:%d" functionPort
-        let stateUrl = sprintf "http://localhost:%d/state" statePort
         let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
         let verifier = PactVerifierConfig(Outputters=outputters, Verbose=true) |> PactVerifier
         verifier
-            .ProviderState(stateUrl)
             .ServiceProvider("API", functionUrl)
             .HonoursPactWith("Client")
-            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/feature/work/contracts/itpeople-app-itpeople-functions.json")
+            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/develop/contracts/itpeople-app-itpeople-functions.json")
             .Verify()
 
     type Pact(output: ITestOutputHelper)=
@@ -34,31 +63,21 @@ module ContractTests =
         [<Fact>]
         member __.``Test Contracts`` () = async {
             let functionScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
-            let stateScriptPath = "../../../../functions.tests.stateserver/bin/Debug/netcoreapp2.1"
             let functionServerPort = 9091
-            let stateServerPort = 9092
             let mutable functionServer = None
-            let mutable stateServer = None
 
             try            
                 Environment.SetEnvironmentVariable("CorsHosts","*")
-                Environment.SetEnvironmentVariable("UseFakeData","true")
+                Environment.SetEnvironmentVariable("UseFakeData","false")
                 Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
-                Environment.SetEnvironmentVariable("DbConnectionString","User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;")
+                Environment.SetEnvironmentVariable("DbConnectionString",connectionString)
 
-                "---> Starting Functions Host..." |> output.WriteLine
+                "---> Preparing database..." |> output.WriteLine
+                do readyDatabaseState connectionString
+                "---> Starting functions hst..." |> output.WriteLine
                 let! functionsServer = startTestServer functionServerPort functionScriptPath output
-                "---> Started Functions Host.\n" |> output.WriteLine
-                "---> Starting State Host..." |> output.WriteLine
-                let! stateServer = startTestServer stateServerPort stateScriptPath output
-                "---> Started State Host.\n" |> output.WriteLine
-                "---> Verifying Pact..." |> output.WriteLine
-                verifyPact functionServerPort stateServerPort output
+                "---> Verifying contract..." |> output.WriteLine
+                verifyPact functionServerPort output
             finally
-                "---> Stopping Functions Host..." |> output.WriteLine
                 stopTestServer functionServer
-                "---> Stopped Functions Host.\n" |> output.WriteLine
-                "---> Stopping State Host..." |> output.WriteLine
-                stopTestServer stateServer
-                "---> Stopped State Host." |> output.WriteLine
         }

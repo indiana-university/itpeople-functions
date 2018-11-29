@@ -1,51 +1,21 @@
 namespace Functions.Common
 
-open Types
-open Util
-open System.IO
-open System.Net
-open System.Net.Http
-open System.Net.Http.Headers
-open Chessie.ErrorHandling
-open Microsoft.AspNetCore.Http
-open Microsoft.Azure.WebJobs.Host
-open Newtonsoft.Json
-open Newtonsoft.Json.Serialization
-open Microsoft.AspNetCore.WebUtilities
-open Serilog.Core
-
-module Json =
-
-    open System
-    open Microsoft.FSharp.Reflection
-    open Newtonsoft.Json
-    open Newtonsoft.Json.Converters
-
-    type OptionConverter() =
-        inherit JsonConverter()
-
-        override x.CanConvert(t) = 
-            t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<option<_>>
-
-        override x.WriteJson(writer, value, serializer) =
-            let value = 
-                if value = null then null
-                else 
-                    let _,fields = FSharpValue.GetUnionFields(value, value.GetType())
-                    fields.[0]  
-            serializer.Serialize(writer, value)
-
-        override x.ReadJson(reader, t, existingValue, serializer) =        
-            let innerType = t.GetGenericArguments().[0]
-            let innerType = 
-                if innerType.IsValueType then (typedefof<Nullable<_>>).MakeGenericType([|innerType|])
-                else innerType        
-            let value = serializer.Deserialize(reader, innerType)
-            let cases = FSharpType.GetUnionCases(t)
-            if value = null then FSharpValue.MakeUnion(cases.[0], [||])
-            else FSharpValue.MakeUnion(cases.[1], [|value|])
-
 module Http =
+
+    open Types
+    open Util
+    open Json
+    open System.IO
+    open System.Net
+    open System.Net.Http
+    open System.Net.Http.Headers
+    open Chessie.ErrorHandling
+    open Microsoft.AspNetCore.Http
+    open Microsoft.Azure.WebJobs.Host
+    open Newtonsoft.Json
+    open Newtonsoft.Json.Serialization
+    open Microsoft.AspNetCore.WebUtilities
+    open Serilog.Core
 
     let client = new HttpClient()
     let tryDeserialize<'T> status str =
@@ -78,13 +48,7 @@ module Http =
         | exn -> return fail (Status.InternalServerError, exn.Message)
     }
 
-    /// JSON Serialization Defaults:
-    /// 1. Format property names in 'camelCase'.
-    /// 2. Convert all enum values to/from their string equivalents.
-    /// 3. Format all options as null or the unwrapped type
-    let jsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
-    jsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
-    jsonSettings.Converters.Add(Json.OptionConverter())
+
 
     let addCORSHeader (res:HttpResponseMessage) (origin:string) (corsHosts:string) =
         match corsHosts with
@@ -101,7 +65,7 @@ module Http =
     /// Construct an HTTP response with JSON content
     let jsonResponse reqHost corsHosts status model = 
         let content = 
-            JsonConvert.SerializeObject(model, jsonSettings)
+            JsonConvert.SerializeObject(model, JsonSettings)
             |> (fun s -> new StringContent(s))
         let response = new HttpResponseMessage(status)
         response.Content <- content

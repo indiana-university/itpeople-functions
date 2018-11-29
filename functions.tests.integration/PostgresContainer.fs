@@ -4,28 +4,29 @@ module PostgresContainer =
 
     open System
     open Npgsql
+    open Functions.Common.Database
+
     let yep () = "[YEP]" |> Console.WriteLine
     let nope () = "[NOPE]" |> Console.WriteLine
     let result b = if b then "[OK]" else "[ERROR]"
-    let connStr = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
+    let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
     let startSqlServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
     let logsSqlServer = "logs integration_test_db"   
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
 
     /// Get a new postgres connection.
-    let dbConnection () = new NpgsqlConnection(connStr) 
+    let dbConnection () = sqlConnection connectionString
     
     /// Attempt to connect to the postgres database.
     let tryConnect () = async {
         try
             use conn = dbConnection ()
             do! conn.OpenAsync() |> Async.AwaitTask
-            return true
+            return None
         with 
         | exn -> 
-            // sprintf "Failed to connect to server: %s" exn.Message |> Console.WriteLine
-            return false
+            return sprintf "Failed to connect to server: %s" exn.Message |> Some
     }
 
     /// Execute an arbitrary docker command.
@@ -42,33 +43,31 @@ module PostgresContainer =
         let mutable isReady = false
         while isReady = false && count < maxTries do
             do! Async.Sleep(delayMs)
-            let! isReady' = tryConnect ()
-            isReady <- isReady'
+            let! error = tryConnect ()
             "---> Is PostgresQL server ready? " |> Console.Write
-            if isReady = false
-            then
+            match error with 
+            | None ->
+                yep()
+                isReady <- true
+            | Some(e) ->
                 nope()
                 count <- count + 1
-            else
-                yep()
-        
-        return count = maxTries
+                if (count = maxTries) then 
+                    e |> sprintf "Database never became ready: %s" |> Exception |> raise
     }
 
     /// Ensure the postgres container is started
     let ensureStarted () = async {
         "---> Checking if PostgresQL Server is already running... " |> Console.Write
-        let! alreadyStarted = tryConnect()
-        if alreadyStarted
-        then 
+        let! error = tryConnect()
+        match error with
+        | None ->
             yep()
-            return true
-        else 
+        | Some(_) ->
             nope()
             "---> Starting PostgresQL Server... "  |> Console.WriteLine
             runDockerCommand startSqlServer false
-            let! started = ensureReady()
-            return started
+            do! ensureReady()
     }
 
     /// Stop and remove the running postgres container

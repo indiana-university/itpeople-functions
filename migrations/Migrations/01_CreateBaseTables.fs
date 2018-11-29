@@ -6,66 +6,71 @@ type CreateBaseTables() =
   inherit Migration()
   override __.Up() =
     base.Execute("""
-    CREATE TABLE Units ( 
-      Id SERIAL PRIMARY KEY,
-      Name text NOT NULL UNIQUE,
-      Description text NULL,
-      Url text NULL );
+    CREATE TABLE units ( 
+      id SERIAL NOT NULL,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      url TEXT NULL,
+      PRIMARY KEY (id)
+    );
+
+    CREATE TABLE departments ( 
+      id SERIAL NOT NULL,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      display_units BOOLEAN NOT NULL DEFAULT FALSE,
+      PRIMARY KEY (id)
+    );
+
+    CREATE TABLE people (
+      id SERIAL NOT NULL,
+      hash TEXT NOT NULL,
+      netid TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      position TEXT NOT NULL,
+      location TEXT NOT NULL,
+      campus TEXT NOT NULL,
+      campus_phone TEXT NOT NULL,
+      campus_email TEXT NOT NULL,
+      expertise TEXT NULL,
+      notes TEXT NOT NULL,
+      photo_url TEXT NOT NULL,
+      responsibilities INTEGER NOT NULL DEFAULT 0,
+      tools INTEGER NOT NULL DEFAULT 7,
+      department_id INTEGER NULL REFERENCES departments(id),
+      PRIMARY KEY (id)
+    );
+
+    CREATE TABLE supported_departments (
+      unit_id INTEGER NOT NULL REFERENCES units(id),
+      department_id INTEGER NOT NULL REFERENCES departments(id),
+      PRIMARY KEY (unit_id, department_id) 
+    );
+
+    CREATE TABLE unit_relations (
+      child_id INTEGER NOT NULL REFERENCES units(id),
+      parent_id INTEGER NOT NULL REFERENCES units(id),
+      PRIMARY KEY (child_id, parent_id) 
+    );
+    
+    CREATE TABLE unit_members (
+      unit_id INTEGER NOT NULL REFERENCES units(id),
+      person_id INTEGER NOT NULL REFERENCES people(id),
+      title TEXT NULL,
+      role INTEGER NOT NULL DEFAULT 2,
+      percentage INTEGER NOT NULL DEFAULT 100,
+      tools INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (unit_id, person_id)
+    );
+
     """)
-
-      // CREATE TABLE Departments( 
-      //       Id SERIAL PRIMARY KEY,
-      //       Name text NOT NULL UNIQUE,
-      //       Description text NULL,
-      //       DisplayUnits boolean NOT NULL DEFAULT 0
-      //     );
-//     CREATE TABLE Users (
-//       Id INT NOT NULL IDENTITY PRIMARY KEY,
-//       Hash VARCHAR(128) NOT NULL,
-//       NetId VARCHAR(16) NOT NULL UNIQUE,
-//       Name VARCHAR(128) NOT NULL,
-//       Position VARCHAR(128) NOT NULL,
-//       Location VARCHAR(256) NULL,
-//       Campus VARCHAR(16) NOT NULL,
-//       CampusPhone VARCHAR(16) NULL,
-//       CampusEmail VARCHAR(32) NOT NULL,
-//       Expertise VARCHAR(2048) NULL,
-//       Notes VARCHAR(2048) NULL,
-//       Role TINYINT NOT NULL,
-//       Responsibilities INT NOT NULL DEFAULT 0,
-//       Tools INT NOT NULL DEFAULT 7,
-//       HrDepartmentId INT NOT NULL,
-//       CONSTRAINT FK_Users_HrDepartment 
-//         FOREIGN KEY (HrDepartmentId) REFERENCES Departments (Id),
-//     )
-
-//     CREATE TABLE SupportedDepartments (
-//       DepartmentId INT,
-//       UnitId INT,
-//       CONSTRAINT PK_SupportedDepartments_UserDepartment PRIMARY KEY (UnitId, DepartmentId),
-//       CONSTRAINT FK_SupportedDepartments_Department 
-//         FOREIGN KEY (DepartmentId) REFERENCES Departments (Id),
-//       CONSTRAINT FK_SupportedDepartments_Unit 
-//         FOREIGN KEY (UnitId) REFERENCES Units (Id) 
-//     )
-
-//     CREATE TABLE UnitMembers (
-//       UserId INT,
-//       UnitId INT,
-//       CONSTRAINT PK_UnitMembers_UnitMember PRIMARY KEY (UserId, UnitId),
-//       CONSTRAINT FK_UnitMembers_User 
-//         FOREIGN KEY (UserId) REFERENCES Users (Id),
-//       CONSTRAINT FK_UnitMembers_Unit 
-//         FOREIGN KEY (UnitId) REFERENCES Units (Id) 
-//     )
-// """
-
-    // DROP TABLE IF EXISTS unitMembers;
-    // DROP TABLE IF EXISTS supportedDepartments;
-    // DROP TABLE IF EXISTS users;
-    // DROP TABLE IF EXISTS departments;
 
   override __.Down() =
     base.Execute("""
-    DROP TABLE IF EXISTS units;
+    DROP TABLE IF EXISTS unit_members CASCADE;
+    DROP TABLE IF EXISTS unit_relations CASCADE;
+    DROP TABLE IF EXISTS supported_departments CASCADE;
+    DROP TABLE IF EXISTS units CASCADE;
+    DROP TABLE IF EXISTS people CASCADE;
+    DROP TABLE IF EXISTS departments CASCADE;
 """)

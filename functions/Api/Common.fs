@@ -40,10 +40,9 @@ module Common =
 
         let config = getConfiguration context
         let data = 
-            FakesRepository() :> IDataRepository
-            // if config.UseFakes
-            // then FakesRepository() :> IDataRepository
-            // else DatabaseRepository(config.DbConnectionString) :> IDataRepository
+            if config.UseFakes
+            then FakesRepository() :> IDataRepository
+            else DatabaseRepository(config.DbConnectionString) :> IDataRepository
         (config,data)
 
     /// Given an API function, resolve required dependencies and get a response.  
