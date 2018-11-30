@@ -1,0 +1,16 @@
+[
+  [
+    {
+      "id": "group id",
+      "name": "group name",
+      "members": [
+        {
+          "username": "username",
+          "vacant": true,
+          "title": "a title",
+          "role": "leadership"
+        }
+      ]
+    }
+  ]
+]
