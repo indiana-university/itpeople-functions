@@ -102,3 +102,4 @@ module Util =
         |> fun s -> s.Split([|','|])
         |> Seq.map (fun s -> s.Trim())
         |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s) :?> 'T)
+        |> Seq.filter (fun e -> e.ToString() <> "None")

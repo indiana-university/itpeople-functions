@@ -22,6 +22,7 @@ module Database =
 
     let sqlConnection connectionString =
         SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
+        Dapper.DefaultTypeMap.MatchNamesWithUnderscores <- true
         new NpgsqlConnection(connectionString)
 
     /// Fetch a user given a netid (e.g. 'jhoerr')
@@ -128,9 +129,17 @@ ORDER BY p.name ASC"""
         return! queryAllById<Member> connStr query "queryPeopleInDepartment" deptId
     }
 
-    let mapUnitMemberRecordsToDto members = 
-        members 
-        |> Seq.map (fun m -> 
+    /// Get all people with a relationship to a given unit ID
+    let queryPeopleInUnit connStr unitId = asyncTrial {
+        let query = """
+SELECT m.unit_id, m.person_id, m.title, m.role, m.percentage, m.tools, p.name, p.photo_url, p.netid as description
+FROM unit_members m
+JOIN units u ON u.id = m.unit_id
+JOIN people p on p.id = m.person_id
+WHERE m.unit_id = @Id
+ORDER BY m.Role DESC, p.Name ASC """
+        let! members = queryAllById<UnitMember> connStr query "queryPeopleInUnit" unitId
+        return members |> Seq.map (fun m -> 
           { Id=m.PersonId 
             Name=m.Name
             Description=m.Description
@@ -140,31 +149,28 @@ ORDER BY p.name ASC"""
             PhotoUrl=m.PhotoUrl
             Tools=m.Tools |> mapFlagsToSeq
           })
-
-    /// Get all people with a relationship to a given unit ID
-    let queryPeopleInUnit connStr unitId = asyncTrial {
-        let query = """
-SELECT u.id as unit_id, m.person_id, p.name, m.title, m.role, m.percentage, m.tools, p.photo_url, p.netid as description
-FROM units u
-LEFT JOIN unit_members m ON u.id = m.unit_id
-LEFT JOIN people p on p.id = m.person_id
-WHERE m.unit_id = @Id
-ORDER BY m.Role DESC, p.Name ASC """
-        let! members = queryAllById<UnitMember> connStr query "queryPeopleInUnit" unitId
-        return members |> mapUnitMemberRecordsToDto
     }
 
     /// Get all units with a relationship to a given person ID
-    let queryUnitMemberships connStr userId = asyncTrial {
+    let queryUnitMemberships connStr personId = asyncTrial {
         let query = """
-SELECT u.id as unit_id, m.person_id, u.name, m.title, m.role, m.percentage, m.tools, p.photo_url, u.description
-FROM units u
-LEFT JOIN unit_members m ON u.id = m.unit_id
-LEFT JOIN people p on p.id = m.person_id
+SELECT m.unit_id AS unit_id, m.person_id AS person_id, m.title, m.role, m.percentage, m.tools, u.name, p.photo_url, u.description
+FROM unit_members m
+JOIN units u ON u.id = m.unit_id
+JOIN people p on p.id = m.person_id
 WHERE m.person_id = @Id
-ORDER BY m.Role DESC, p.Name ASC"""
-        let! members = queryAllById<UnitMember> connStr query "queryUnitMemberships" userId
-        return members |> mapUnitMemberRecordsToDto
+ORDER BY m.Role DESC, u.Name ASC"""
+        let! members = queryAllById<UnitMember> connStr query "queryUnitMemberships" personId
+        return members |> Seq.map (fun m -> 
+          { Id=m.UnitId 
+            Name=m.Name
+            Description=m.Description
+            Title=m.Title
+            Role=m.Role
+            Percentage=m.Percentage
+            PhotoUrl=m.PhotoUrl
+            Tools=m.Tools |> mapFlagsToSeq
+          })
     }
 
     /// Get all units with a relationship to a given person ID
