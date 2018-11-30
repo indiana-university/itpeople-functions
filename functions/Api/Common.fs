@@ -101,8 +101,7 @@ module Common =
     /// </returns>
     let getAll<'T> (req:HttpRequestMessage) (config:AppConfig) (fn:unit->AsyncResult<'T,Error>) = asyncTrial {
         let! _ = requireMembership config req
-        let! result = fn ()
-        return result
+        return! fn ()
     }
 
     /// <summary>
@@ -116,7 +115,6 @@ module Common =
     /// </returns>
     let getById<'T> (req:HttpRequestMessage) (config:AppConfig) (id:Id) (fn:Id->AsyncResult<'T,Error>) = asyncTrial {
         let! _ = requireMembership config req
-        let! result = fn id
-        return result
+        return! fn id
     }
 
