@@ -230,10 +230,20 @@ ORDER BY up.name ASC"""
     /// Get all people, departments, and units whose name matches a given search term
     let querySimpleSearch connStr term = asyncTrial {
         let likeParam = {Term=like term}
-        let! units = queryAll<Entity> connStr "SELECT id, name, description FROM units WHERE name ILIKE @Term OR description ILIKE @Term ORDER BY name ASC" "searchUnits" likeParam
-        let! depts = queryAll<Entity> connStr "SELECT id, name, description FROM departments WHERE name ILIKE @Term OR description ILIKE @Term ORDER BY name ASC" "searchDepartments" likeParam
-        let! people = queryAll<Entity> connStr "SELECT id, name, netid AS description FROM people WHERE name ILIKE @Term OR netid ILIKE @Term ORDER BY name ASC" "searchPeople" likeParam
-        return { Users=people; Units=units; Departments=depts }
+        let query = """
+SELECT id, name, description FROM units WHERE name ILIKE @Term OR description ILIKE @Term ORDER BY name ASC;
+SELECT id, name, description FROM departments WHERE name ILIKE @Term OR description ILIKE @Term ORDER BY name ASC;
+SELECT id, name, netid AS description FROM people WHERE name ILIKE @Term OR netid ILIKE @Term ORDER BY name ASC;
+        """
+        let fn() = async {
+            use cn = sqlConnection connStr
+            let! result = cn.QueryMultipleAsync(query, likeParam) |> Async.AwaitTask
+            let! units = result.ReadAsync<Entity>() |> Async.AwaitTask
+            let! depts = result.ReadAsync<Entity>() |> Async.AwaitTask
+            let! people = result.ReadAsync<Entity>() |> Async.AwaitTask
+            return ok { Users=people; Units=units; Departments=depts }
+        }
+        return! fn |> tryfAsync Status.InternalServerError "Query error: querySimpleSearch"
     }
 
     /// Get a list of all units
