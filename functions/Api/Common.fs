@@ -58,8 +58,8 @@ module Common =
                 return constructResponse req log config.CorsHosts result
             with
             | exn -> 
-                let msg = exn.ToStringDemystified() |> sprintf "Unhandled exception: %s"
-                return constructResponse req log "" (fail(Status.InternalServerError, msg))
+                exn.ToStringDemystified() |> sprintf "Unhandled exception: %s" |> log.LogError
+                return (jsonResponse req "*" Status.InternalServerError "A server error occurred.")
         } |> Async.StartAsTask
 
     /// Given an API function, get a response.  

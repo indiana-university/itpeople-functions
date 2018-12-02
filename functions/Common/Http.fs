@@ -61,21 +61,21 @@ module Http =
                 res.Headers.Add("Access-Control-Allow-Credentials", "true")
             else ()
 
+    let origin (req:HttpRequestMessage) =
+        if req.Headers.Contains("origin")
+        then req.Headers.GetValues("origin") |> Seq.head
+        else ""
+
     /// Construct an HTTP response with JSON content
-    let jsonResponse reqHost corsHosts status model = 
+    let jsonResponse req corsHosts status model = 
         let content = 
             JsonConvert.SerializeObject(model, JsonSettings)
             |> (fun s -> new StringContent(s))
         let response = new HttpResponseMessage(status)
         response.Content <- content
         response.Content.Headers.ContentType <- "application/json" |> MediaTypeHeaderValue;
-        addCORSHeader response reqHost corsHosts
+        addCORSHeader response (origin req) corsHosts
         response
-
-    let origin (req:HttpRequestMessage) =
-        if req.Headers.Contains("origin")
-        then req.Headers.GetValues("origin") |> Seq.head
-        else ""
 
     /// Organize the errors into a status code and a collection of error messages. 
     /// If multiple errors are found, the aggregate status will be that of the 
@@ -104,13 +104,12 @@ module Http =
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
     let constructResponse (req:HttpRequestMessage) (log:ILogger) (corsHosts:string) trialResult : HttpResponseMessage =
-        let referrer = origin req
         let url = sprintf ("%A %s") req.Method (req.RequestUri.ToString())
         match trialResult with
         | Ok(result, _) -> 
             sprintf "%s %O" url Status.OK |> log.LogInformation
-            result |> jsonResponse referrer corsHosts Status.OK
+            result |> jsonResponse req corsHosts Status.OK
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
             sprintf "%s %A %O" url status errors |> log.LogError
-            jsonResponse referrer corsHosts status errors
+            jsonResponse req corsHosts status errors
