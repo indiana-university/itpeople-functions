@@ -25,31 +25,7 @@ module Database =
         Dapper.DefaultTypeMap.MatchNamesWithUnderscores <- true
         new NpgsqlConnection(connectionString)
 
-    /// Fetch a user given a netid (e.g. 'jhoerr')
-    let queryPersonByNetId connStr netId = asyncTrial {
-        let fn () = async {
-            use cn = sqlConnection connStr
-            let! seq = cn.GetListAsync<Person>({NetId=netId}) |> Async.AwaitTask
-            return ok seq
-        }
-        let! result = tryfAsync Status.InternalServerError "Failed to fetch user by netId" fn
-        let! head = tryGetFirst result (sprintf "No user found with netid '%s'" netId)
-        return head
-    }
-
-    /// Fetch a single 'T given an ID
-    let queryTypeById<'T> connStr id = asyncTrial {
-        let fn () = async {
-            use cn = sqlConnection connStr
-            let! result = cn.GetAsync<'T>(id) |> Async.AwaitTask
-            match box result with
-            | null -> return fail (Status.NotFound, sprintf "No %s found with id %d" (typeof<'T>.Name) id)
-            | _ -> return ok result
-        }
-        return! tryfAsync Status.InternalServerError (sprintf "Failed to fetch %s by id %d" (typeof<'T>.Name) id) fn
-    }
-
-    let queryAll'<'T> connStr (query:string) description = asyncTrial {
+    let private queryAll'<'T> connStr (query:string) description = asyncTrial {
         let fn() = async {
             use cn = sqlConnection connStr
             let! seq = cn.QueryAsync<'T>(query) |> Async.AwaitTask
@@ -59,151 +35,59 @@ module Database =
         return! tryfAsync Status.InternalServerError errMsg fn
     }
 
-    let queryAll<'T> connStr query description (parameters:obj) = asyncTrial {
-        let fn() = async {
+    /// Fetch a user given a netid (e.g. 'jhoerr')
+    let queryPersonByNetId connStr netId = asyncTrial {
+        let idParam = {NetId=netId}
+        let query = "SELECT * FROM people WHERE netid = @NetId"
+        let fn () = async {
             use cn = sqlConnection connStr
-            let! seq = cn.QueryAsync<'T>(query, parameters) |> Async.AwaitTask
+            let! seq = cn.QuerySingleOrDefaultAsync<Person>(query, idParam) |> Async.AwaitTask
             return ok seq
         }
-        let errMsg = sprintf "Error when executing '%s'" description
-        return! tryfAsync Status.InternalServerError errMsg fn
+        return! tryfAsync Status.InternalServerError "Failed to fetch user by netId" fn
     }
 
-    /// Fetch all 'T
-    let queryAllById<'T> connStr query description id = asyncTrial {
-        return! queryAll<'T> connStr query description {Id=id}
-    }
-
-    /// Fetch one or no 'T
-    let queryOneById<'T> connStr query msg id = asyncTrial {
-        let! result = queryAllById<'T> connStr query msg id
-        return result |> Seq.tryHead
-    }
-
-    /// Get all departments supported by a given unit ID
-    let queryDepartmentsSupportedByUnit connStr unitId = asyncTrial {
+    /// Get the profile for a given user ID
+    let queryUserProfile connStr id = asyncTrial {
+        let idParam = {Id=id}
         let query = """
-SELECT d.id, d.name, d.description 
-FROM departments d
-JOIN supported_departments sd on d.id = sd.department_id 
-WHERE sd.unit_id = @Id
-GROUP BY d.id, d.name, d.description
-ORDER BY d.name ASC"""
-        return! queryAllById<Department> connStr query "queryDepartmentsSupportedByUnit" unitId
-    }
-
-    /// Get all organizational units that exist within a given department ID
-    let queryOrgUnitsInDepartment connStr deptId = asyncTrial {
-        let query = """
-SELECT u.id, u.name, u.description, u.url
-FROM units u
-JOIN unit_members m on u.id = m.unit_Id
-JOIN people p on p.Id = m.person_id
-WHERE p.department_id = @Id 
-GROUP BY u.id, u.name, u.description
-ORDER BY u.name ASC"""
-        return! queryAllById<Unit> connStr query "queryOrgUnitsInDepartment" deptId
-    }
-
-    /// Get all supporting units for a given department ID
-
-    let queryUnitsSupportingDepartment connStr deptId = asyncTrial {
-        let query = """
-SELECT u.id, u.name, u.description, u.url
-FROM units u
-JOIN supported_departments sd on u.id = sd.unit_id
-WHERE sd.department_id = @Id 
-GROUP BY u.id, u.name, u.description
-ORDER BY u.name ASC"""
-        return! queryAllById<Unit> connStr query "queryUnitsSupportingDepartment" deptId
-    }
-
-    /// Get all people with an HR relationship to a given department ID
-
-    let queryPeopleInDepartment connStr deptId = asyncTrial {
-        let query = """
-SELECT p.id, p.name, p.netid as description 
-FROM people p
-WHERE p.department_id = @Id
-ORDER BY p.name ASC"""
-        return! queryAllById<Member> connStr query "queryPeopleInDepartment" deptId
-    }
-
-    /// Get all people with a relationship to a given unit ID
-    let queryPeopleInUnit connStr unitId = asyncTrial {
-        let query = """
-SELECT m.unit_id, m.person_id, m.title, m.role, m.percentage, m.tools, p.name, p.photo_url, p.netid as description
-FROM unit_members m
-JOIN units u ON u.id = m.unit_id
-JOIN people p on p.id = m.person_id
-WHERE m.unit_id = @Id
-ORDER BY m.Role DESC, p.Name ASC """
-        let! members = queryAllById<UnitMember> connStr query "queryPeopleInUnit" unitId
-        return members |> Seq.map (fun m -> 
-          { Id=m.PersonId 
-            Name=m.Name
-            Description=m.Description
-            Title=m.Title
-            Role=m.Role
-            Percentage=m.Percentage
-            PhotoUrl=m.PhotoUrl
-            Tools=m.Tools |> mapFlagsToSeq
-          })
-    }
-
-    /// Get all units with a relationship to a given person ID
-    let queryUnitMemberships connStr personId = asyncTrial {
-        let query = """
+-- The person
+SELECT * FROM people WHERE id = @Id;
+-- Units to which this person belongs
 SELECT m.unit_id AS unit_id, m.person_id AS person_id, m.title, m.role, m.percentage, m.tools, u.name, p.photo_url, u.description
 FROM unit_members m
 JOIN units u ON u.id = m.unit_id
 JOIN people p on p.id = m.person_id
 WHERE m.person_id = @Id
-ORDER BY m.Role DESC, u.Name ASC"""
-        let! members = queryAllById<UnitMember> connStr query "queryUnitMemberships" personId
-        return members |> Seq.map (fun m -> 
-          { Id=m.UnitId 
-            Name=m.Name
-            Description=m.Description
-            Title=m.Title
-            Role=m.Role
-            Percentage=m.Percentage
-            PhotoUrl=m.PhotoUrl
-            Tools=m.Tools |> mapFlagsToSeq
-          })
-    }
-
-    /// Get all units with a relationship to a given person ID
-    let queryUnitParent connStr unitId = asyncTrial {
-        let query = """
-SELECT up.id , up.name, up.description, up.url
-FROM unit_relations ur
-LEFT JOIN units up on up.id = ur.parent_id
-WHERE ur.child_id = @Id
-ORDER BY up.name ASC"""
-        return! queryOneById<Unit> connStr query "queryUnitParent" unitId
-    }
-
-        /// Get all units with a relationship to a given person ID
-    let queryUnitChildren connStr unitId = asyncTrial {
-        let query = """
-SELECT up.id , up.name, up.description, up.url
-FROM unit_relations ur
-LEFT JOIN units up on up.id = ur.child_id
-WHERE ur.parent_id = @Id
-ORDER BY up.name ASC"""
-        return! queryAllById<Unit> connStr query "queryUnitChildren" unitId
-    }
-        
-    /// Get the profile for a given user ID
-    let queryUserProfile connStr id = asyncTrial {
-        let! user = queryTypeById<Person> connStr id
-        let! unitMemberships = queryUnitMemberships connStr id
-        let! dept = queryTypeById<Department> connStr user.HrDepartmentId
+ORDER BY m.Role DESC, u.Name ASC;
+-- The person's HR department
+SELECT d.* FROM people p
+JOIN departments d ON d.id = p.department_id
+WHERE p.id = @Id;
+"""
+        let fn() = async {
+            use cn = sqlConnection connStr
+            let! result = cn.QueryMultipleAsync(query, idParam) |> Async.AwaitTask
+            let! user = result.ReadSingleOrDefaultAsync<Person>() |> Async.AwaitTask
+            let! units = result.ReadAsync<UnitMember>() |> Async.AwaitTask
+            let! department = result.ReadSingleOrDefaultAsync<Department>() |> Async.AwaitTask
+            return ok (user, units, department)
+        }
+        let! (user, units, department) = fn |> tryfAsync Status.InternalServerError "Query error: queryPersonProfile"
         let expertise = if isNull user.Expertise then [""] else (user.Expertise.Split("|") |> Array.toList) 
         let responsibilities = user.Responsibilities |> mapFlagsToSeq
         let tools = user.Tools |> mapFlagsToSeq
-        let profile = {
+        let unitMemberships = units |> Seq.map (fun m -> 
+              { Id=m.UnitId 
+                Name=m.Name
+                Description=m.Description
+                Title=m.Title
+                Role=m.Role
+                Percentage=m.Percentage
+                PhotoUrl=m.PhotoUrl
+                Tools=m.Tools |> mapFlagsToSeq
+              })
+        return {
             PersonDto.Id=user.Id
             NetId=user.NetId
             Name=user.Name
@@ -217,24 +101,22 @@ ORDER BY up.name ASC"""
             PhotoUrl=user.PhotoUrl
             Responsibilities=responsibilities
             Tools=tools
-            Department=dept
+            Department=department
             UnitMemberships=unitMemberships
-        }       
-        return profile
-    }
-
-    type SimpleSearchQuery = {
-        Term: string
+        }
     }
 
     /// Get all people, departments, and units whose name matches a given search term
     let querySimpleSearch connStr term = asyncTrial {
         let likeParam = {Term=like term}
         let query = """
+-- Search units
 SELECT id, name, description FROM units WHERE name ILIKE @Term OR description ILIKE @Term ORDER BY name ASC;
+-- Search depatments
 SELECT id, name, description FROM departments WHERE name ILIKE @Term OR description ILIKE @Term ORDER BY name ASC;
+-- Search people
 SELECT id, name, netid AS description FROM people WHERE name ILIKE @Term OR netid ILIKE @Term ORDER BY name ASC;
-        """
+"""
         let fn() = async {
             use cn = sqlConnection connStr
             let! result = cn.QueryMultipleAsync(query, likeParam) |> Async.AwaitTask
@@ -253,20 +135,68 @@ SELECT id, name, netid AS description FROM people WHERE name ILIKE @Term OR neti
 
     /// Get a single unit by ID
     let queryUnit connStr id = asyncTrial {
-        let! unit = queryTypeById<Unit> connStr id
-        let! members = queryPeopleInUnit connStr id
-        let! supportedDepartments = queryDepartmentsSupportedByUnit connStr id
-        let! parent = queryUnitParent connStr id
-        let! children = queryUnitChildren connStr id
+        let idParam = {Id=id}
+        let query = """
+-- The unit
+SELECT * FROM units WHERE id = @Id;
+-- The people in this unit
+SELECT m.unit_id, m.person_id, m.title, m.role, m.percentage, m.tools, p.name, p.photo_url, p.netid as description
+FROM unit_members m
+JOIN units u ON u.id = m.unit_id
+JOIN people p on p.id = m.person_id
+WHERE m.unit_id = @Id
+ORDER BY m.Role DESC, p.Name ASC;
+-- The departments supported by this unit
+SELECT d.id, d.name, d.description 
+FROM departments d
+JOIN supported_departments sd on d.id = sd.department_id 
+WHERE sd.unit_id = @Id
+GROUP BY d.id, d.name, d.description
+ORDER BY d.name ASC;
+-- The parent of this unit
+SELECT up.id , up.name, up.description, up.url
+FROM unit_relations ur
+LEFT JOIN units up on up.id = ur.parent_id
+WHERE ur.child_id = @Id
+ORDER BY up.name ASC;
+-- The children of this unit
+SELECT up.id , up.name, up.description, up.url
+FROM unit_relations ur
+LEFT JOIN units up on up.id = ur.child_id
+WHERE ur.parent_id = @Id
+ORDER BY up.name ASC;
+"""
+        let fn() = async {
+            use cn = sqlConnection connStr
+            let! result = cn.QueryMultipleAsync(query, idParam) |> Async.AwaitTask
+            let! unit = result.ReadSingleOrDefaultAsync<Unit>() |> Async.AwaitTask
+            let! members = result.ReadAsync<UnitMember>() |> Async.AwaitTask
+            let! supportedDepartments = result.ReadAsync<Department>() |> Async.AwaitTask
+            let! parent = result.ReadSingleOrDefaultAsync<Unit>() |> Async.AwaitTask
+            let! children = result.ReadAsync<Unit>() |> Async.AwaitTask
+            return ok (unit, members, supportedDepartments, parent, children)
+        }
+        let! (unit, members, supportedDepartments, parent, children) = 
+            fn |> tryfAsync Status.InternalServerError "Query error: queryUnit"
+        let memberships = members |> Seq.map (fun m -> 
+              { Id=m.PersonId 
+                Name=m.Name
+                Description=m.Description
+                Title=m.Title
+                Role=m.Role
+                Percentage=m.Percentage
+                PhotoUrl=m.PhotoUrl
+                Tools=m.Tools |> mapFlagsToSeq
+              })
         return {
             Id=unit.Id
             Name=unit.Name
             Description=unit.Description
             Url=unit.Url
-            Members=members
+            Members=memberships
             SupportedDepartments=supportedDepartments
             Children=children
-            Parent=parent
+            Parent=Some(parent)
         }
     }
 
@@ -277,17 +207,49 @@ SELECT id, name, netid AS description FROM people WHERE name ILIKE @Term OR neti
 
     /// Get a single department by ID
     let queryDepartment connStr id = asyncTrial {
-        let! dept = queryTypeById<Department> connStr id
-        let! members = queryPeopleInDepartment connStr id
-        let! orgUnits = queryOrgUnitsInDepartment connStr id
-        let! supportingUnits = queryUnitsSupportingDepartment connStr id
+        let idParam = {Id=id}
+        let query = """
+-- The department
+SELECT * FROM departments WHERE id = @Id;
+-- The people in this department
+SELECT p.id, p.name, p.netid as description 
+FROM people p
+WHERE p.department_id = @Id
+ORDER BY p.name ASC;
+-- The units in this department
+SELECT u.id, u.name, u.description, u.url
+FROM units u
+JOIN unit_members m on u.id = m.unit_Id
+JOIN people p on p.Id = m.person_id
+WHERE p.department_id = @Id 
+GROUP BY u.id, u.name, u.description
+ORDER BY u.name ASC;
+-- The units supporting this department
+SELECT u.id, u.name, u.description, u.url
+FROM units u
+JOIN supported_departments sd on u.id = sd.unit_id
+WHERE sd.department_id = @Id 
+GROUP BY u.id, u.name, u.description
+ORDER BY u.name ASC;
+"""
+        let fn() = async {
+            use cn = sqlConnection connStr
+            let! result = cn.QueryMultipleAsync(query, idParam) |> Async.AwaitTask
+            let! dept = result.ReadSingleOrDefaultAsync<Department>() |> Async.AwaitTask
+            let! members = result.ReadAsync<Entity>() |> Async.AwaitTask
+            let! unitsInDept = result.ReadAsync<Unit>() |> Async.AwaitTask
+            let! unitsSupportingDept = result.ReadAsync<Unit>() |> Async.AwaitTask
+            return ok (dept, members, unitsInDept, unitsSupportingDept)
+        }
+        let! (dept, members, unitsInDepartment, unitsSupportingDept) = 
+            fn |> tryfAsync Status.InternalServerError "Query error: queryDepartment"
         return {
             Id=dept.Id
             Name=dept.Name
             Description=dept.Description
-            Units = orgUnits
+            Units = unitsInDepartment
             Members = members
-            SupportingUnits=supportingUnits
+            SupportingUnits=unitsSupportingDept
         }
     }
 
