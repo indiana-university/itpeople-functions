@@ -8,17 +8,14 @@ open Npgsql
 open Newtonsoft.Json
 
 module Database =
+
+    type IdFilter = { Id: Id }
+    type NetIdFilter = { NetId: NetId }
+    type SimpleSearchQuery = { Term: string }
+
     let private like (term:string)  = 
         term.Replace("[", "[[]").Replace("%", "[%]") 
         |> sprintf "%%%s%%"
-
-    type IdFilter = {
-        Id: Id
-    }
-
-    type NetIdFilter = {
-        NetId: NetId
-    }
 
     let sqlConnection connectionString =
         SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
