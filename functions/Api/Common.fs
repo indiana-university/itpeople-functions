@@ -11,6 +11,7 @@ open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
 open Functions.Common.Http
 open System
+open System.Diagnostics
 open Microsoft.Extensions.Logging
 
 module Common =
@@ -57,24 +58,7 @@ module Common =
                 return constructResponse req log config.CorsHosts result
             with
             | exn -> 
-                let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
-                return constructResponse req log "" (fail(Status.InternalServerError, msg))
-        } |> Async.StartAsTask
-
-    /// Given an API function, get a response.  
-    let getResponse'<'T> 
-        (req: HttpRequestMessage)
-        (log: ILogger) 
-        (context: ExecutionContext) 
-        (fn:unit->AsyncResult<'T,Error>) = 
-        async { 
-            try
-                let (config,data) = getDependencies(context)
-                let! result = () |> fn |> Async.ofAsyncResult
-                return constructResponse req log config.CorsHosts result
-            with
-            | exn -> 
-                let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
+                let msg = exn.ToStringDemystified() |> sprintf "Unhandled exception: %s"
                 return constructResponse req log "" (fail(Status.InternalServerError, msg))
         } |> Async.StartAsTask
 

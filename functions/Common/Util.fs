@@ -10,6 +10,7 @@ module Util =
     open Json
     open Newtonsoft.Json
     open System
+    open System.Diagnostics
     open Chessie.ErrorHandling
 
     /// An active pattern to identify empty sequences
