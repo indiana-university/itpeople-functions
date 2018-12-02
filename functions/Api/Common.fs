@@ -11,7 +11,6 @@ open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
 open Functions.Common.Http
 open System
-open Serilog.Core
 open Microsoft.Extensions.Logging
 
 module Common =
@@ -48,7 +47,7 @@ module Common =
     /// Given an API function, resolve required dependencies and get a response.  
     let getResponse<'T> 
         (req: HttpRequestMessage)
-        (log: Logger) 
+        (log: ILogger) 
         (context: ExecutionContext) 
         (fn:(AppConfig*IDataRepository)->AsyncResult<'T,Error>) = 
         async {
@@ -65,7 +64,7 @@ module Common =
     /// Given an API function, get a response.  
     let getResponse'<'T> 
         (req: HttpRequestMessage)
-        (log: Logger) 
+        (log: ILogger) 
         (context: ExecutionContext) 
         (fn:unit->AsyncResult<'T,Error>) = 
         async { 
@@ -82,7 +81,7 @@ module Common =
     /// Given an API function, get a response.  
     let optionsResponse
         (req: HttpRequestMessage)
-        (log: Logger) 
+        (log: ILogger) 
         (context: ExecutionContext)  = 
             let (config,data) = getDependencies(context)
             let origin = origin req
