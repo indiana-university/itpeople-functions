@@ -9,7 +9,23 @@ open System
 module Database =
 
     type Unit = {
-        [<Column("name")>] Name: string
+        Name: string
+    }
+
+    type Person = {
+        NetId: string
+    } 
+
+    type UnitRelation = {
+        ChildId: int
+        ParentId: int
+    }
+
+    type UserRelation = {
+        UnitId: int
+        PersonId: int
+        Title: string
+        Role: int
     }
 
     let sqlConnection connectionString =
@@ -24,6 +40,11 @@ module Database =
         match value with
         | 0 -> raise (Exception "UITS missing")
         | v -> v
+
+    let getUserForNetId connStr netId =
+        let sql = "Select id from people where netId=@NetId"
+        use cn = sqlConnection connStr
+        cn.QueryFirstOrDefault<int>(sql, {NetId = netId}) 
 
     let addUnitToDb connStr name= 
         let sql = """
@@ -48,5 +69,45 @@ module Database =
         | 0 -> raise (Exception (sprintf "could not insert unit %s" name))
         | v -> v
 
+    let addUnitRelation connStr unitId childId = 
+        let sql = """
+            insert into unit_relations (child_id, parent_id)
+               select @ChildId, @ParentId
+               where not exists (select 1 from unit_relations
+                where child_id=@ChildId AND parent_id=@ParentId)
+            
+        """
+        use cn = sqlConnection connStr
+        cn.Execute(sql, {ChildId = childId; ParentId = unitId}) |> ignore
+        childId
+
+    let addMemberRelation' connStr unitId personId title role = 
+        let sql = """
+            insert into unit_members (unit_id, person_id, title, role, percentage, tools)
+            Values (@UnitId, @PersonId, @Title, @Role, 100, 0)
+            where not exists 
+                ( select 1 from unit_members 
+                  where unit_id = @UnitId AND person_id = @personId
+                )
+        """
+
+        use cn = sqlConnection connStr
+        
+        let paramaters = {
+            UnitId = unitId
+            PersonId = personId
+            Title = title
+            Role = role
+        }
+        cn.Execute(sql, paramaters) |> ignore
+        true
+
+    let addMemberRelation connStr unitId netId title role =
+        let userId = getUserForNetId connStr netId
+        match userId with
+        | 0 -> false
+        | id -> addMemberRelation' connStr unitId id title role
+
+        
     
     
