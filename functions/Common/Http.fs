@@ -16,7 +16,7 @@ module Http =
     open Newtonsoft.Json
     open Newtonsoft.Json.Serialization
     open Microsoft.AspNetCore.WebUtilities
-    open Microsoft.Extensions.Logging
+    open Serilog.Core
 
     let client = new HttpClient()
     let tryDeserialize<'T> status str =
@@ -103,13 +103,13 @@ module Http =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let constructResponse (req:HttpRequestMessage) (log:ILogger) (corsHosts:string) trialResult : HttpResponseMessage =
+    let constructResponse (req:HttpRequestMessage) (log:Logger) (corsHosts:string) trialResult : HttpResponseMessage =
         let url = sprintf ("%A %s") req.Method (req.RequestUri.ToString())
         match trialResult with
         | Ok(result, _) -> 
-            sprintf "%s %O" url Status.OK |> log.LogInformation
+            sprintf "%s %O" url Status.OK |> log.Information
             result |> jsonResponse req corsHosts Status.OK
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
-            sprintf "%s %A %O" url status errors |> log.LogError
+            sprintf "%s %A %O" url status errors |> log.Error
             jsonResponse req corsHosts status errors

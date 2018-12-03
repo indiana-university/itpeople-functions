@@ -19,10 +19,8 @@ module User =
     /// <returns>
     /// A user profile, or error information.
     /// </returns>
-    let getMe (req: HttpRequestMessage) (config:AppConfig) (queryUser: FetchById<PersonDto>) = asyncTrial {
-        let! claims = requireMembership config req
-        let! profile = queryUser claims.UserId
-        return profile
+    let getMe (claims:JwtClaims) (queryUser: FetchById<PersonDto>) = asyncTrial {
+        return! queryUser claims.UserId
     }
 
 // module Put =

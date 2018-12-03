@@ -1,55 +1,53 @@
 namespace Functions
 
 open Functions.Common.Types
+open Functions.Api.Common
+open Functions.Api.User
+open Functions.Api.Auth
 open Microsoft.Azure.WebJobs
 open Microsoft.AspNetCore.Http
 open Microsoft.Azure.WebJobs.Host
-open Microsoft.Extensions.Logging
-open System
 open System.Net.Http
-
+open Serilog
+open Microsoft.Extensions.Logging
 ///<summary>
 /// This module defines the bindings and triggers for all functions in the project
 ///</summary
 module Functions =
-    
+
     /// (Anonymous) A function that simply returns, "Pong!" 
     [<FunctionName("Options")>]
     let options
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "options", Route = "{*url}")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) =
-        Api.Common.optionsResponse req log context
+        req: HttpRequestMessage, context: ExecutionContext) =
+        optionsResponse req context
 
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) =
-        let fn (config, data:IDataRepository) = Api.Ping.get req
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, context: ExecutionContext) =
+        getAnonymousResponse req context (fun _ _ -> Api.Ping.get req)
 
     /// (Anonymous) Exchanges a UAA OAuth code for an application-scoped JWT
     [<FunctionName("AuthGet")>]
     let auth
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "auth")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) =
-        let fn (config, data:IDataRepository) = Api.Auth.get req config data.GetUserByNetId
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, context: ExecutionContext) =
+        getAnonymousResponse req context (fun cfg data -> getAuthToken req cfg data.GetUserByNetId)
 
     /// (Authenticated) Get a user profile for a given user 'id'
     [<FunctionName("UserGetId")>]
     let profileGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "people/{id}")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext, id: Id) =
-        let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetProfile
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, context: ExecutionContext, id: Id) =
+        getAuthorizedResponse req context (fun data _ -> data.GetProfile id)
 
     /// (Authenticated) Get a user profile associated with the JWT in the request Authorization header.
     [<FunctionName("UserGetMe")>]
     let profileGetMe
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "me")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) = 
-        let fn (config, data:IDataRepository) = Api.User.getMe req config data.GetProfile
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, context: ExecutionContext) = 
+        getAuthorizedResponse req context (fun data user -> data.GetProfile user.UserId)
 
     // [<FunctionName("UserPut")>]
     // let profilePut
@@ -64,39 +62,34 @@ module Functions =
     [<FunctionName("SearchGet")>]
     let searchSimpleGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "search")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) =
-        let fn (config, data:IDataRepository) = Api.Search.getSimple req config data.GetSimpleSearchByTerm
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, ctx: ExecutionContext) =
+        getAuthorizedResponse req ctx (fun data _ -> Api.Search.getSimple req data.GetSimpleSearchByTerm)
 
 
     /// (Authenticated) Get all units.
     [<FunctionName("UnitGetAll")>]
     let unitGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) =
-        let fn (config, data:IDataRepository) = Api.Common.getAll req config data.GetUnits
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, context: ExecutionContext) =
+        getAuthorizedResponse req context (fun data _ -> data.GetUnits())
             
     /// (Authenticated) Get a unit profile for a given unit 'id'.
     [<FunctionName("UnitGetId")>]
     let unitGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext, id: Id) =
-        let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetUnit
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, context: ExecutionContext, id: Id) =
+        getAuthorizedResponse req context (fun data _ -> data.GetUnit id)
             
     /// (Authenticated) Get all departments.
     [<FunctionName("DepartmentGetAll")>]
     let departmentGetAll
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext) =
-        let fn (config, data:IDataRepository) = Api.Common.getAll req config data.GetDepartments
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, context: ExecutionContext) =
+        getAuthorizedResponse req context (fun data _ -> data.GetDepartments())
 
     /// (Authenticated) Get a department profile for a given department 'id'.
     [<FunctionName("DepartmentGetId")>]
     let departmentGetId
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>]
-        req: HttpRequestMessage, log: ILogger, context: ExecutionContext, id: Id) =
-        let fn (config, data:IDataRepository) = Api.Common.getById req config id data.GetDepartment
-        Api.Common.getResponse req log context fn
+        req: HttpRequestMessage, context: ExecutionContext, id: Id) =
+        getAuthorizedResponse req context (fun data _ -> data.GetDepartment id)

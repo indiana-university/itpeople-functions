@@ -7,11 +7,5 @@
         "http": {
             "routePrefix": ""
         }
-    },
-    "logging": {
-        "fileLoggingMode": "debugOnly",
-        "logLevel": {
-          "default": "Information"
-        }
     }
 }

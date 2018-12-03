@@ -44,7 +44,7 @@ module Auth =
 
     /// Exchange an OAuth code for a UAA JWT. Fetch the user associated with the JWT and roll a new JWT
     /// containing the original JWT, the user ID, and user Role.  
-    let get (req: HttpRequestMessage) config (queryUserByName:string -> AsyncResult<Person,Error>) = asyncTrial {
+    let getAuthToken (req: HttpRequestMessage) config (queryUserByName:string -> AsyncResult<Person,Error>) = asyncTrial {
         let getUaaJwt request = bindAsyncResult (fun () -> postAsync<ResponseModel> config.OAuth2TokenUrl request)
         let! oauthCode = getQueryParam "oauth_code" req
         let! uaaRequest = createTokenRequest config.OAuth2ClientId config.OAuth2ClientSecret config.OAuth2RedirectUrl oauthCode
