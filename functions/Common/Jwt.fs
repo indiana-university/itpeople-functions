@@ -109,7 +109,7 @@ module Jwt =
         return claims
     }
     
-    let requireMembership (config:AppConfig) (req: HttpRequestMessage) = trial {
+    let authorizeRequest (config:AppConfig) (req: HttpRequestMessage) = trial {
         let! claims = validateAuth config.JwtSecret req
         return claims
     }

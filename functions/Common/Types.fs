@@ -15,20 +15,18 @@ module Types =
     type Status = HttpStatusCode
     type Message = string
     type Error = Status * Message
-    type ErrorModel = {
-        errors: array<string>
-    }
+    type ErrorModel = 
+      { errors: array<string> }
 
-    type AppConfig = {
-        OAuth2ClientId: string
+    type AppConfig = 
+      { OAuth2ClientId: string
         OAuth2ClientSecret: string
         OAuth2TokenUrl: string
         OAuth2RedirectUrl: string
         JwtSecret: string
         DbConnectionString: string
         UseFakes: bool
-        CorsHosts: string
-    }
+        CorsHosts: string }
 
     type Role =
         | Related=1
@@ -36,24 +34,15 @@ module Types =
         | Sublead=3
         | Leader=4
 
-
     type Id = int
     type Name = string
     type NetId = string
 
     [<CLIMutable>]
-    type Entity = {
-        Id: Id
+    type Entity = 
+      { Id: Id
         Name: Name
-        Description: Name
-    }
-
-    [<CLIMutable>]
-    type EntityRole = {
-        Id: Id
-        Name: Name
-        Role: Role
-    }
+        Description: Name }
 
     [<Flags>]
     type Tools =
@@ -90,8 +79,8 @@ module Types =
 
     [<CLIMutable>]
     [<Table("people")>]
-    type Person = {
-        [<Key>][<Column("id")>] Id: Id
+    type Person = 
+      { [<Key>][<Column("id")>] Id: Id
         [<Column("hash")>] Hash: string
         [<Column("netid")>] NetId: NetId
         [<Column("name")>] Name: Name
@@ -105,70 +94,63 @@ module Types =
         [<Column("photo_url")>] PhotoUrl: string
         [<Column("responsibilities")>] Responsibilities: Responsibilities
         [<Column("tools")>] Tools: Tools
-        [<Column("department_id")>] HrDepartmentId: Id
-    }
+        [<Column("department_id")>] HrDepartmentId: Id }
 
     [<CLIMutable>]
     [<Table("departments")>]
-    type Department = {
-        [<Key>][<Column("id")>] Id: Id
+    type Department = 
+      { [<Key>][<Column("id")>] Id: Id
         [<Column("name")>] Name: Name
         [<Column("description")>] Description: Name
-        [<Column("display_units")>] DisplayUnits: bool
-    }
+        [<Column("display_units")>] DisplayUnits: bool }
 
     [<CLIMutable>]
     [<Table("units")>]
-    type Unit = {
-        [<Key>][<Column("id")>] Id: Id
+    type Unit = 
+      { [<Key>][<Column("id")>] Id: Id
         [<Column("name")>] Name: Name
         [<Column("description")>] Description: Name
-        [<Column("url")>] Url: string
-    }
+        [<Column("url")>] Url: string }
 
     [<CLIMutable>]
     [<Table("unit_relations")>]
-    type UnitRelation = {
-        [<Key>][<Required>][<Column("child_id")>] ChildUnitId: Id
-        [<Key>][<Required>][<Column("parent_id")>] ParentUnitId: Id
-    }
+    type UnitRelation = 
+      { [<Key>][<Required>][<Column("child_id")>] ChildUnitId: Id
+        [<Key>][<Required>][<Column("parent_id")>] ParentUnitId: Id }
 
     [<CLIMutable>]
     [<Table("supported_departments")>]
-    type SupportedDepartment = {
-        [<Key>][<Required>][<Column("unit_id")>] UnitId: Id
-        [<Key>][<Required>][<Column("department_id")>] DepartmentId: Id
-    }
+    type SupportedDepartment = 
+      { [<Key>][<Required>][<Column("unit_id")>] UnitId: Id
+        [<Key>][<Required>][<Column("department_id")>] DepartmentId: Id }
 
     [<CLIMutable>]
     [<Table("unit_members")>]
-    type UnitMember = {
-        [<Key>][<Required>][<Column("unit_id")>] UnitId: Id
-        [<Key>][<Required>][<Column("person_id")>] PersonId: Id
+    type UnitMember = 
+      { [<Key>][<Required>][<Column("unit_id")>] UnitId: int
+        [<Key>][<Required>][<Column("person_id")>] PersonId: int
         [<Column("title")>] Title: string
         [<Column("role")>] Role: Role
         [<Column("percentage")>] Percentage: int
         [<Column("tools")>] Tools: Tools
         [<ReadOnly(true)>][<Column("name")>] Name: string
         [<ReadOnly(true)>][<Column("photo_url")>] PhotoUrl: string
-        [<ReadOnly(true)>][<Column("description")>] Description: string
-    }
+        [<ReadOnly(true)>][<Column("description")>] Description: string }
 
     // DOMAIN MODELS
     type Member = Entity
-    type UnitMembership = {
-        Id: Id
+    type UnitMembership = 
+      { Id: Id
         Name: Name
         Description: string
         PhotoUrl: string
         Percentage: int
         Title: string
         Role: Role
-        Tools: seq<Tools>
-    }
+        Tools: seq<Tools> }
     
-    type PersonDto = {
-        Id: Id
+    type PersonDto = 
+      { Id: Id
         NetId: NetId
         Name: Name
         Position: string
@@ -182,34 +164,30 @@ module Types =
         Responsibilities: seq<Responsibilities>
         Tools: seq<Tools>
         Department: Department
-        UnitMemberships: seq<UnitMembership>
-    }
+        UnitMemberships: seq<UnitMembership> }
 
-    type UnitDto = {
-        Id: Id
+    type UnitDto = 
+      { Id: Id
         Name: Name
         Description: string
         Url: string
         Members: seq<UnitMembership>
         SupportedDepartments: seq<Department>
         Children: seq<Unit>
-        Parent: Unit option
-    }
+        Parent: Unit option }
 
-    type DepartmentDto = {
-        Id: Id
+    type DepartmentDto = 
+      { Id: Id
         Name: Name
         Description: string
         SupportingUnits: seq<Unit>
         Units: seq<Unit>
-        Members: seq<Member>
-    }
+        Members: seq<Member> }
 
-    type SimpleSearch = {
-        Users: seq<Entity>
+    type SimpleSearch = 
+      { Users: seq<Entity>
         Departments: seq<Entity>
-        Units: seq<Entity>
-    }
+        Units: seq<Entity> }
 
     type FetchById<'T> = Id -> AsyncResult<'T,Error>
     type FetchAll<'T> = unit -> AsyncResult<'T,Error>
@@ -230,8 +208,7 @@ module Types =
         /// Get a single department by ID
         abstract member GetDepartment: Id -> AsyncResult<DepartmentDto,Error>
 
-    type JwtClaims = {
-        UserId: Id
+    type JwtClaims = 
+      { UserId: Id
         UserName: NetId
-        Expiration: System.DateTime
-    }
+        Expiration: System.DateTime }

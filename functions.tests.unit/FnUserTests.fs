@@ -4,7 +4,7 @@ open Chessie.ErrorHandling
 open Functions.Common.Types
 open Functions.Common.Jwt
 open Functions.Common.Util
-open Functions.Api.User
+open Functions.Api.Common
 open Xunit
 
 module FnUserTests =
@@ -17,12 +17,16 @@ module FnUserTests =
         |> Async.ofAsyncResult 
         |> Async.RunSynchronously
 
+    let fakeTrial user = asyncTrial {
+        return "ok!"
+    }
+
     [<Fact>]
     let ``getMe requires JWT`` () =
         let expected = Bad ([(Status.Unauthorized, MissingAuthHeader)])
         let req = TestFakes.requestWithNoJwt
         let appConfig = TestFakes.appConfig
-        let actual = getMe req appConfig getUserById |> await
+        let actual = doWithAuth req appConfig fakeTrial |> await
         Assert.Equal(expected, actual)
 
 module UtilTests =

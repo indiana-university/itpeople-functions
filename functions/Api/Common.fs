@@ -11,12 +11,14 @@ open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
 open Functions.Common.Http
 open System
+open System.Diagnostics
+open Serilog
 open Serilog.Core
 open Microsoft.Extensions.Logging
 
 module Common =
 
-    let getConfiguration(context: ExecutionContext) : AppConfig =
+    let private getConfiguration(context: ExecutionContext) : AppConfig =
         let configRoot = 
             ConfigurationBuilder()
                 .AddJsonFile("local.settings.json", optional=true)
@@ -35,88 +37,53 @@ module Common =
             CorsHosts = configRoot.["CorsHosts"]
         }
 
-    /// Get app configuration and data dependencies resolvers.
-    let private getDependencies(context: ExecutionContext) : AppConfig*IDataRepository = 
+    let private getData config =
+        if config.UseFakes
+        then FakesRepository() :> IDataRepository
+        else DatabaseRepository(config.DbConnectionString) :> IDataRepository
 
-        let config = getConfiguration context
-        let data = 
-            if config.UseFakes
-            then FakesRepository() :> IDataRepository
-            else DatabaseRepository(config.DbConnectionString) :> IDataRepository
-        (config,data)
+    let private getLogger config =
+        Serilog.LoggerConfiguration()
+            .WriteTo.Console()
+            .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
+            .CreateLogger()
+
+    let private resolveDependenciesAndDo req context fn = 
+        async {
+            let config = getConfiguration context
+            let data = getData config
+            let log = getLogger config
+            try
+                let! result = fn config data |> Async.ofAsyncResult
+                return constructResponse req log config.CorsHosts result
+            with
+            | exn -> 
+                exn.ToStringDemystified() |> sprintf "Unhandled exception: %s" |> log.Error
+                return (jsonResponse req "*" Status.InternalServerError "A server error occurred.")
+        } |> Async.StartAsTask
 
     /// Given an API function, resolve required dependencies and get a response.  
-    let getResponse<'T> 
-        (req: HttpRequestMessage)
-        (log: Logger) 
-        (context: ExecutionContext) 
-        (fn:(AppConfig*IDataRepository)->AsyncResult<'T,Error>) = 
-        async {
-            try
-                let (config,data) = getDependencies(context)
-                let! result = (config, data) |> fn |> Async.ofAsyncResult
-                return constructResponse req log config.CorsHosts result
-            with
-            | exn -> 
-                let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
-                return constructResponse req log "" (fail(Status.InternalServerError, msg))
-        } |> Async.StartAsTask
+    let getAnonymousResponse<'T> req context (fn: AppConfig->IDataRepository->AsyncResult<'T,Error>) =
+        resolveDependenciesAndDo req context fn
+    
+    let doWithAuth<'T> (req:HttpRequestMessage) (config:AppConfig) (fn:JwtClaims->AsyncResult<'T,Error>) = asyncTrial {
+        let! user = authorizeRequest config req
+        return! fn user
+    }
 
-    /// Given an API function, get a response.  
-    let getResponse'<'T> 
+    /// Given an API function, resolve required dependencies and get a response.  
+    let getAuthorizedResponse<'T> 
         (req: HttpRequestMessage)
-        (log: Logger) 
         (context: ExecutionContext) 
-        (fn:unit->AsyncResult<'T,Error>) = 
-        async { 
-            try
-                let (config,data) = getDependencies(context)
-                let! result = () |> fn |> Async.ofAsyncResult
-                return constructResponse req log config.CorsHosts result
-            with
-            | exn -> 
-                let msg = exn.ToString() |> sprintf "Unhandled exception in request: %s" 
-                return constructResponse req log "" (fail(Status.InternalServerError, msg))
-        } |> Async.StartAsTask
+        (fn: IDataRepository -> JwtClaims -> AsyncResult<'T,Error>) = 
+        resolveDependenciesAndDo req context (fun config data -> doWithAuth req config (fn data))
 
     /// Given an API function, get a response.  
     let optionsResponse
         (req: HttpRequestMessage)
-        (log: Logger) 
         (context: ExecutionContext)  = 
-            let (config,data) = getDependencies(context)
+            let config = getConfiguration context
             let origin = origin req
             let response = new HttpResponseMessage(Status.OK)
             addCORSHeader response origin config.CorsHosts
             response
-
-    /// <summary>
-    /// Get all items.
-    /// </summary>
-    /// <param name="req">The HTTP request that triggered this function</param>
-    /// <param name="config">The application configuration</param>
-    /// <param name="fn">A function to fetch all items</param>
-    /// <returns>
-    /// A collection of items, or error information.
-    /// </returns>
-    let getAll<'T> (req:HttpRequestMessage) (config:AppConfig) (fn:unit->AsyncResult<'T,Error>) = asyncTrial {
-        let! _ = requireMembership config req
-        let! result = fn ()
-        return result
-    }
-
-    /// <summary>
-    /// Get a single item by ID.
-    /// </summary>
-    /// <param name="req">The HTTP request that triggered this function</param>
-    /// <param name="config">The application configuration</param>
-    /// <param name="fn">A function to fetch a given item by its Id</param>
-    /// <returns>
-    /// A single item, or error information.
-    /// </returns>
-    let getById<'T> (req:HttpRequestMessage) (config:AppConfig) (id:Id) (fn:Id->AsyncResult<'T,Error>) = asyncTrial {
-        let! _ = requireMembership config req
-        let! result = fn id
-        return result
-    }
-
