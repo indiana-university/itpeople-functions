@@ -5,6 +5,7 @@ module Http =
     open Types
     open Util
     open Json
+    open Logging
     open System.Diagnostics
     open System.IO
     open System.Net
@@ -103,13 +104,12 @@ module Http =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let constructResponse (req:HttpRequestMessage) (log:Logger) (corsHosts:string) trialResult : HttpResponseMessage =
-        let url = sprintf ("%A %s") req.Method (req.RequestUri.ToString())
+    let constructResponse (req:HttpRequestMessage) (log:Logger) (corsHosts:string) trialResult elapsed : HttpResponseMessage =
         match trialResult with
         | Ok(result, _) -> 
-            sprintf "%s %O" url Status.OK |> log.Information
+            logInfo log req Status.OK elapsed
             result |> jsonResponse req corsHosts Status.OK
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
-            sprintf "%s %A %O" url status errors |> log.Error
+            logError log req status elapsed errors
             jsonResponse req corsHosts status errors

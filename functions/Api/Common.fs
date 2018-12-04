@@ -6,15 +6,19 @@ open Functions.Common.Jwt
 open System.Net.Http
 open Functions.Common.Database
 open Functions.Common.Fakes
+open Functions.Common.Logging
 open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Host
 open Microsoft.Extensions.Configuration
 open Functions.Common.Http
 open System
 open System.Diagnostics
+open NpgsqlTypes
+
 open Serilog
 open Serilog.Core
-open Microsoft.Extensions.Logging
+open Serilog.Context
+open Serilog.Sinks.PostgreSQL
 
 module Common =
 
@@ -42,23 +46,18 @@ module Common =
         then FakesRepository() :> IDataRepository
         else DatabaseRepository(config.DbConnectionString) :> IDataRepository
 
-    let private getLogger config =
-        Serilog.LoggerConfiguration()
-            .WriteTo.Console()
-            .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
-            .CreateLogger()
-
-    let private resolveDependenciesAndDo req context fn = 
+    let private resolveDependenciesAndDo (req:HttpRequestMessage) context fn = 
         async {
             let config = getConfiguration context
             let data = getData config
-            let log = getLogger config
+            let log = createLogger config
+            let timer = Stopwatch.StartNew()
             try
                 let! result = fn config data |> Async.ofAsyncResult
-                return constructResponse req log config.CorsHosts result
+                return constructResponse req log config.CorsHosts result timer.ElapsedMilliseconds
             with
             | exn -> 
-                exn.ToStringDemystified() |> sprintf "Unhandled exception: %s" |> log.Error
+                logFatal log req (timer.ElapsedMilliseconds) exn
                 return (jsonResponse req "*" Status.InternalServerError "A server error occurred.")
         } |> Async.StartAsTask
 
