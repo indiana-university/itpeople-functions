@@ -84,11 +84,9 @@ module Database =
     let addMemberRelation' connStr unitId personId title role = 
         let sql = """
             insert into unit_members (unit_id, person_id, title, role, percentage, tools)
-            Values (@UnitId, @PersonId, @Title, @Role, 100, 0)
+            select @UnitId, @PersonId, @Title, @Role,100,0
             where not exists 
-                ( select 1 from unit_members 
-                  where unit_id = @UnitId AND person_id = @personId
-                )
+                (select 1 from unit_members where unit_id = @UnitId AND person_id = @PersonId)
         """
 
         use cn = sqlConnection connStr
