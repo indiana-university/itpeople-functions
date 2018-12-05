@@ -125,9 +125,14 @@ SELECT id, name, netid AS description FROM people WHERE name ILIKE @Term OR neti
         return! fn |> tryfAsync Status.InternalServerError "Query error: querySimpleSearch"
     }
 
-    /// Get a list of all units
+    /// Get a list of all top-level units
     let queryUnits connStr = asyncTrial {
-        return! queryAll'<Unit> connStr "SELECT * from units" "queryAllUnits"
+        let query = """
+SELECT * from units u
+WHERE u.id NOT IN
+( SELECT child_id from unit_relations );
+"""
+        return! queryAll'<Unit> connStr query "queryAllUnits"
     }
 
     /// Get a single unit by ID

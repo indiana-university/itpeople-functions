@@ -58,9 +58,9 @@ module DatabaseTests=
             Assert.True(actual |> Seq.forall (fun a -> a.Id <> 0))
 
         [<Fact>]
-        member __.``Units have expected names`` () = 
+        member __.``Units should only return top-level units`` () = 
             let actual = actual |> Seq.map (fun f -> f.Name) |> Seq.sort
-            let expected = [city.Name; fourthFloor.Name; parksAndRec.Name;]
+            let expected = [city.Name]
             Assert.Equal(expected, actual)
 
     type UnitDto(output: ITestOutputHelper)=
