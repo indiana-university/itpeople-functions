@@ -16,6 +16,7 @@ module Program =
     // all of the possible fields of the json that will
     // eventually be parsed.
     type OrgData = JsonProvider<"OrgDataSample.json">
+    type ParentChildId = (string*string)
 
     let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
     
@@ -53,7 +54,7 @@ module Program =
     type UnitNameId = (string*string)
 
     let findUnitWithId (units: OrgData.Root[]) id = 
-        units |> Array.find (fun unit -> unit.Id = id)
+        units |> Array.tryFind (fun unit -> unit.Id = id)
 
     let findUnitWithName (units: OrgData.Root[]) name = 
         units |> Array.tryFind (fun unit -> unit.Name.Trim() = name)
@@ -64,6 +65,14 @@ module Program =
         match unit with
         | Some unit -> (child.Name, unit.Id)
         | _ -> (name, "")
+
+
+    let resolveLinkChildId (units: OrgData.Root[]) (child: OrgData.Child) =
+        let name = child.Name.Trim()
+        let unit = findUnitWithName units (name)
+        match unit with
+        | Some unit -> unit.Id
+        | _ -> ""
 
     let extractChildNamesAndIds (units:OrgData.Root[]) =
         let children = new List<UnitNameId>()
@@ -148,9 +157,10 @@ module Program =
         
         assigned.ToArray()
     
-    let getTopLevelUnits (units: OrgData.Root[]) (children: string[]) =
-        units |> Array.filter (fun unit -> children |> (Array.exists (fun id -> unit.Id =id )
+    let getTopLevelUnits (units: OrgData.Root[]) (ids: ParentChildId[]) =
+        units |> Array.filter (fun unit -> ids |> (Array.exists (fun (parentId, childId) -> unit.Id =childId )
             >> not ))
+
 
     let extractParents (units: OrgData.Root[]) (children: UnitNameId[]) =
         units |> Array.filter (fun unit -> children |> (Array.exists (fun (_,id) -> unit.Id = id)
@@ -168,7 +178,54 @@ module Program =
 
     let getDuplicateNames (units: OrgData.Root[]) = units |> Array.groupBy (fun unit -> unit.Name)
                                                           |> Array.choose (fun (key,set) -> 
-                                                             if set.Length > 1 then Some key else None)
+                                                             if set.Length > 1 then Some (key,set) else None)
+
+    let getMemberName (person:OrgData.Member) =
+        if (String.IsNullOrWhiteSpace(person.Username)) then
+            "Vacant"
+        else
+            person.Username
+ 
+    let getChildIds (units: OrgData.Root[]) = 
+        let ids = new List<ParentChildId>()
+        for unit in units do
+            for child in unit.Children do
+                if not(child.Type="link") then
+                    ids.Add(unit.Id, child.CmsId)
+                else
+                    let id = resolveLinkChildId units child
+                    if (String.IsNullOrWhiteSpace(id)) then
+                        printfn "Id missing for child %s" child.Name
+                    else ids.Add(unit.Id,id)
+        
+        ids.ToArray()
+
+    let getMembers (members:OrgData.Member[]) =
+        let usernames = new List<string>()
+        for person in members do    
+            usernames.Add (getMemberName person)
+
+        (",", usernames) |> String.Join
+
+    let resolveIdForChild (units:OrgData.Root[]) (child:OrgData.Child) =
+        if (child.Type = "link") then
+            resolveLinkChildId units child
+        else
+            child.CmsId
+
+    let rec evalUnit (units:OrgData.Root[]) (unit: OrgData.Root) indent =
+        if (indent = "") then
+            printfn "\n"
+        printfn "%s%s" indent unit.Name
+        printfn "%s  Members: %s" indent (getMembers unit.Members)
+        
+        for child in unit.Children do
+            let id = resolveIdForChild units child
+            let childUnit = findUnitWithId units id
+            match childUnit with
+                | Some u -> evalUnit units u (sprintf "    %s" indent)
+                | None _ -> printfn "%sCould not find child %s (%s)" indent child.Name id
+
 
     [<EntryPoint>]
     let main argv =
@@ -176,32 +233,56 @@ module Program =
             printfn "Starting Import"
         
             let path = getJsonPath argv
-            printfn "---> Json path is %s" path
+            printfn "Json path is %s" path
 
-            let uitsId = addUnitToDatabase "UITS"
-            printfn "---> UITS id is %i" uitsId
+            //let uitsId = addUnitToDatabase "UITS"
+            //printfn "  UITS id is %i" uitsId
 
-            printfn "---> Loading %s" (Path.GetFileName path)
+                      
+            printfn "Loading %s" (Path.GetFileName path)
             let data = OrgData.Load path
 
-            printfn "---> Importing units"
+            printfn "Importing units"
             let units = flattenUnits data
-                        
-            let childNamesAndIds = extractChildNamesAndIds units
-            let unitHashes = addUnitsToDatabase units childNamesAndIds
+
+            printfn "Mapping children"
+            let childIds = getChildIds units
+
+            printfn "Mapping top-level units"
+            let topLevelUnits = getTopLevelUnits units childIds
+            for unit in topLevelUnits do
+                evalUnit units unit ""
             
-            printfn "---> Assigning child relationships"
-            let children = assignUnitRelationships units unitHashes
+            
+            
+            //let duplicateUnitSets = getDuplicateNames units
+            //printfn "  Duplicate names"
+            
+            //for (key,set) in duplicateUnitSets do
+            //    printfn "\n      %s (%i nodes)" key set.Length
+            //    for unit in set do
+            //        printfn "         %s (%s)" unit.Name unit.Id
+            //        printfn "         Members:"
+            //        for person in unit.Members do
+            //            let name = getMemberName person
+            //            printfn "           %s (%s, %s)" name person.Title person.Role
+                
+                        
+            //let childNamesAndIds = extractChildNamesAndIds units
+            //let unitHashes = addUnitsToDatabase units childNamesAndIds
+            
+            //printfn "---> Assigning child relationships"
+            //let children = assignUnitRelationships units unitHashes
 
-            printfn "---> Assigning top-level units to UITS" 
-            let topLevelUnits = assignTopLevelUnitsToUits uitsId (getTopLevelUnits units children) unitHashes
+            //printfn "---> Assigning top-level units to UITS" 
+            //let topLevelUnits = assignTopLevelUnitsToUits uitsId (getTopLevelUnits units children) unitHashes
 
-            assignUnitsMembers units unitHashes
+            //assignUnitsMembers units unitHashes
 
-            printfn ""
-            printfn "---------------------------------"
-            printfn "Imported units: %i" units.Length
-            printfn "Assigned units: %i" (children.Length + topLevelUnits.Length)
+            //printfn ""
+            //printfn "---------------------------------"
+            //printfn "Imported units: %i" units.Length
+            //printfn "Assigned units: %i" (children.Length + topLevelUnits.Length)
 
             0        
          with 
