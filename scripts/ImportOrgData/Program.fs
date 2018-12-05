@@ -44,12 +44,9 @@ module Program =
         | _ -> 0
 
     let flattenUnits (data:OrgData.Root[][]) =
-        let flattened = new List<OrgData.Root>();
-        for units in data do
-            for unit in units do
-                flattened.Add(unit)
-        
-        flattened.ToArray()
+        data
+        |> Seq.collect (fun u -> u)
+        |> Seq.toArray
 
     type UnitNameId = (string*string)
 
@@ -72,7 +69,9 @@ module Program =
         let unit = findUnitWithName units (name)
         match unit with
         | Some unit -> unit.Id
-        | _ -> ""
+        | None -> 
+            printfn "Id missing for child %s" child.Name
+            ""
 
     let extractChildNamesAndIds (units:OrgData.Root[]) =
         let children = new List<UnitNameId>()
@@ -129,19 +128,14 @@ module Program =
             //assignMembersToUnit unitId unit.Members |> ignore
             printfn "---> Imported unit %s (Id=%i)" nameToUse unitId
         unitHashes
-
     
     let addUnitsToDatabase' (units: OrgData.Root[]) = 
-        let usedNames = new List<string>()
-        let unitHashes = new Dictionary<string, int>()
-                
-        for unit in units do
-            let nameToUse = sprintf "%s (%s)" unit.Name unit.Id
+        units
+        |> Seq.map (fun u ->
+            let nameToUse = sprintf "%s (%s)" u.Name u.Id
             let unitId = addUnitToDatabase nameToUse
-            unitHashes.Add(unit.Id, unitId) 
-            //assignMembersToUnit unitId unit.Members |> ignore
             printfn "---> Imported unit %s (Id=%i)" nameToUse unitId
-        unitHashes
+            (u.Id, unitId))
 
     let assignUnitRelationships (units: OrgData.Root[]) (hashes: Dictionary<string, int>) =
         let assigned = new List<string>()
@@ -161,7 +155,6 @@ module Program =
         units |> Array.filter (fun unit -> ids |> (Array.exists (fun (parentId, childId) -> unit.Id =childId )
             >> not ))
 
-
     let extractParents (units: OrgData.Root[]) (children: UnitNameId[]) =
         units |> Array.filter (fun unit -> children |> (Array.exists (fun (_,id) -> unit.Id = id)
             >> not ))
@@ -176,46 +169,36 @@ module Program =
         
         assigned.ToArray()            
 
-    let getDuplicateNames (units: OrgData.Root[]) = units |> Array.groupBy (fun unit -> unit.Name)
-                                                          |> Array.choose (fun (key,set) -> 
-                                                             if set.Length > 1 then Some (key,set) else None)
+    let getDuplicateNames (units: OrgData.Root[]) = 
+        units 
+        |> Array.groupBy (fun unit -> unit.Name)
+        |> Array.choose (fun (key,set) -> if set.Length > 1 then Some (key,set) else None)
 
     let getMemberName (person:OrgData.Member) =
-        if (String.IsNullOrWhiteSpace(person.Username)) then
-            "Vacant"
-        else
-            person.Username
+        if (String.IsNullOrWhiteSpace(person.Username))
+        then "Vacant"
+        else person.Username
  
+    let resolveIdForChild (units:OrgData.Root[]) (child:OrgData.Child) =
+        match child.Type with 
+        | "link" -> resolveLinkChildId units child
+        | _ -> child.CmsId
+
     let getChildIds (units: OrgData.Root[]) = 
-        let ids = new List<ParentChildId>()
-        for unit in units do
-            for child in unit.Children do
-                if not(child.Type="link") then
-                    ids.Add(unit.Id, child.CmsId)
-                else
-                    let id = resolveLinkChildId units child
-                    if (String.IsNullOrWhiteSpace(id)) then
-                        printfn "Id missing for child %s" child.Name
-                    else ids.Add(unit.Id,id)
-        
-        ids.ToArray()
+        units
+        |> Seq.collect (fun u ->
+            u.Children 
+            |> Seq.map (fun c -> 
+                (u.Id, (resolveIdForChild units c)) ))
+        |> Seq.toArray
 
     let getMembers (members:OrgData.Member[]) =
-        let usernames = new List<string>()
-        for person in members do    
-            usernames.Add (getMemberName person)
-
-        (",", usernames) |> String.Join
-
-    let resolveIdForChild (units:OrgData.Root[]) (child:OrgData.Child) =
-        if (child.Type = "link") then
-            resolveLinkChildId units child
-        else
-            child.CmsId
+        members
+        |> Seq.map getMemberName
+        |> String.concat ", "
 
     let rec evalUnit (units:OrgData.Root[]) (unit: OrgData.Root) indent =
-        if (indent = "") then
-            printfn "\n"
+        if (indent = "") then printfn "\n"
         printfn "%s%s" indent unit.Name
         printfn "%s  Members: %s" indent (getMembers unit.Members)
         
@@ -224,8 +207,7 @@ module Program =
             let childUnit = findUnitWithId units id
             match childUnit with
                 | Some u -> evalUnit units u (sprintf "    %s" indent)
-                | None _ -> printfn "%sCould not find child %s (%s)" indent child.Name id
-
+                | None -> printfn "%sCould not find child %s (%s)" indent child.Name id
 
     [<EntryPoint>]
     let main argv =
