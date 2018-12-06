@@ -11,8 +11,8 @@ open System.Collections.Generic
 
 module Take2 = 
 
-    let ignoreUnits = [
-        "301d63b3814f4e1006f2bd60005e1461" // Orphans
+    let ignoreUnits =
+      [ "301d63b3814f4e1006f2bd60005e1461" // Orphans
         "301e6869814f4e1006f2bd60f7a84c6d"
         "301e64d2814f4e1006f2bd603137f37a"
         "301e6be1814f4e1006f2bd60f259e977"
@@ -37,8 +37,33 @@ module Take2 =
         "304de5fe814f4e1006f2bd606e2aa9de"
         "30224885814f4e1006f2bd60f97d709e"
         "301fe05a814f4e1006f2bd60bdf99279" // Duplicate Chief of Staff
-        "301c1367814f4e1006f2bd606c8ec1ee" // PTI
-    ]
+        "301c1367814f4e1006f2bd606c8ec1ee" ] // PTI
+
+    let divisions = 
+      [ "Learning Technologies"
+        "Client Services and Support"
+        "Networks"
+        "Enterprise Systems"
+        "Clinical Affairs Information Technology Services"
+        "Research Technologies" ]
+
+    let regionals =
+      [ "IU Northwest"
+        "IU East"
+        "IUPUC"
+        "IU Southeast"
+        "IU South Bend"
+        "IU Kokomo" ]
+    
+    let ovpit = 
+      [ "Chief of Staff"
+        "Communications Office"
+        "Media Digitization and Preservation Institute"
+        "Financial Planning, Budget Administration and Accounting"
+        "Human Resources Office"
+        "Pervasive Technology Institute"
+        "Institutional Assurance"
+        "User Experience Office" ]
 
     type OrgData = JsonProvider<"OrgDataSample.json">
 
@@ -88,7 +113,7 @@ module Take2 =
     let icic = StringComparison.InvariantCultureIgnoreCase
 
     let extraUnits =
-      [ { Id = ""
+      [ { Id = "301c1367814f4e1006f2bd606c8ec1ee"
           Name="Pervasive Technology Institute"
           Url="https://pti.iu.edu/index.html"
           ChildrenRaw=[]
@@ -129,23 +154,37 @@ module Take2 =
         |> Seq.filter (fun u -> childIds |> Seq.exists (fun cid -> u.Id = cid) |> not)
         |> Seq.filter (fun u -> ignoreUnits |> Seq.exists(fun uid -> u.Id = uid) |> not)
         |> Seq.map buildTree'
-        |> Seq.append extraUnits
-
+    
+    let partition (units:seq<Unit>) =
+        let divisions_units = 
+          { emptyUnit with 
+                Name="Divisions";
+                Children = units |> Seq.filter (fun u -> divisions |> Seq.contains u.Name ) }
+        let ovpit_units = 
+          { emptyUnit with 
+                Name="Office for the Vice President of Information Technology (OVPIT)";
+                Children = units |> Seq.filter (fun u -> ovpit |> Seq.contains u.Name ) }
+        let regional_units = 
+          { emptyUnit with 
+                Name="Regional Campuses";
+                Children = units |> Seq.filter (fun u -> regionals |> Seq.contains u.Name ) }
+        { emptyUnit with 
+            Name="University Information Technology Services (UITS)"
+            Url="https://uits.iu.edu"
+            Children = [ divisions_units; ovpit_units; regional_units ] }
+        
     let whiteSpace level =
         (String.replicate (2*level) " ")
 
-    let printTree (units:seq<Unit>) =
+    let printTree (uits:Unit) =
         let rec printTree' level (unit:Unit) =
-            if level = 0 
-            then printfn "\n%s (%s)" unit.Name unit.Id
-            else printfn "%s%s" (whiteSpace level) unit.Name
-            printfn "%sMembers: %s" (whiteSpace (level+1)) (unit.Members |> Seq.map (fun m -> m.Name) |> String.concat ", ")
-            if (unit.Children |> Seq.isEmpty)
-            then ()
-            else unit.Children |> Seq.iter (printTree' (level+1))
-
-        units
-        |> Seq.iter (printTree' 0)
+            if level < 3 then printfn ""
+            printfn "%s%s" (whiteSpace level) unit.Name
+            if (unit.Members |> Seq.isEmpty |> not)
+            then printfn "%sMembers: %s" (whiteSpace (level+1)) (unit.Members |> Seq.map (fun m -> m.Name) |> String.concat ", ")
+            if (unit.Children |> Seq.isEmpty |> not)
+            then unit.Children |> Seq.iter (printTree' (level+1))
+        printTree' 0 uits
 
     let go (path:string) =
         path
@@ -153,4 +192,6 @@ module Take2 =
         |> flattenUnits
         |> Seq.map projectUnit
         |> buildTree
+        |> Seq.append extraUnits
+        |> partition
         |> printTree
