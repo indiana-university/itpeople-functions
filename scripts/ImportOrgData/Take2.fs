@@ -1,15 +1,18 @@
 namespace ImportOrgData
 
 open System
-open Types
-open Util
 open Chessie.ErrorHandling
 open FSharp.Data
 open Database;
 open System.IO
 open System.Collections.Generic
+open Npgsql
+open Dapper
+open Types
 
 module Take2 = 
+
+    /// ORG JSON PARSING STUFF
 
     let ignoreUnits =
       [ "301d63b3814f4e1006f2bd60005e1461" // Orphans
@@ -65,23 +68,7 @@ module Take2 =
         "Institutional Assurance"
         "User Experience Office" ]
 
-    type OrgData = JsonProvider<"OrgDataSample.json">
 
-    type Member = {
-        Name: string
-        Title: string
-        Role: string
-        Percentage: int
-    }
-
-    type Unit = {
-        Id: string
-        Name: string
-        Url: string
-        Members: seq<Member>
-        ChildrenRaw: seq<OrgData.Child>
-        Children: seq<Unit>
-    }
 
     let emptyUnit = {Id=""; Name=""; Url=""; Members=[]; ChildrenRaw=[]; Children=[]}
     
@@ -185,8 +172,9 @@ module Take2 =
             if (unit.Children |> Seq.isEmpty |> not)
             then unit.Children |> Seq.iter (printTree' (level+1))
         printTree' 0 uits
-
-    let go (path:string) =
+        uits
+    
+    let go (path:string) (dbConnectionString:string) =
         path
         |> OrgData.Load
         |> flattenUnits
@@ -195,3 +183,5 @@ module Take2 =
         |> Seq.append extraUnits
         |> partition
         |> printTree
+        |> dropExistingUnits dbConnectionString
+        // |> addUnits dbConnectionString 

@@ -3,18 +3,12 @@ namespace ImportOrgData
 open Chessie.ErrorHandling
 open Dapper
 open Npgsql
-open Util
 open System
+open Types 
 
 module Database =
 
-    type Unit = {
-        Name: string
-    }
-
-    type Person = {
-        NetId: string
-    } 
+    type NameParam = { Name:string }
 
     type UnitRelation = {
         ChildId: int
@@ -23,88 +17,63 @@ module Database =
 
     type UserRelation = {
         UnitId: int
-        PersonId: int
+        NetId: string
         Title: string
         Role: int
     }
 
+    let (|EmptySeq|_|) a = if Seq.isEmpty a then Some () else None
+
+    let deleteUnit = """
+DELETE FROM unit_members um
+WHERE um.unit_id = (SELECT id FROM units WHERE name = @Name);
+DELETE FROM unit_relations ur
+WHERE ur.child_id = (SELECT id FROM units WHERE name = @Name)
+  OR ur.parent_id = (SELECT id FROM units WHERE name = @Name);
+DELETE FROM units WHERE name = @Name;"""
+
     let sqlConnection connectionString =
-        SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
+        Dapper.DefaultTypeMap.MatchNamesWithUnderscores <- true
         new NpgsqlConnection(connectionString)
 
-    /// Fetch a user given a netid (e.g. 'jhoerr')
-    let getUitsId connStr = 
-        let sql = "Select id From units where name='UITS'"
-        use cn = sqlConnection connStr
-        let value = cn.QueryFirstOrDefault<int>(sql) 
-        match value with
-        | 0 -> raise (Exception "UITS missing")
-        | v -> v
 
-    let getUserForNetId connStr netId =
-        let sql = "Select id from people where netId=@NetId"
-        use cn = sqlConnection connStr
-        cn.QueryFirstOrDefault<int>(sql, {NetId = netId}) 
+    let dropExistingUnits (dbConnectionString:string) (uits:Unit) =
+        let rec unitNames (unit:Unit) =
+            match unit.Children with
+            | EmptySeq -> [ unit.Name ] |> List.toSeq
+            | _ -> unit.Children |> Seq.collect unitNames
+
+        use cn = sqlConnection dbConnectionString
+        uits
+        |> unitNames
+        |> Seq.map (fun u -> {Name=u})
+        |> fun names -> cn.Execute(deleteUnit, names)
+        |> ignore
+
+        uits
 
     let addUnitToDb connStr name= 
         let sql = """
-            with s as (
-                select id
-                from units
-                where name=@name
-            ), 
-            i as (
-                insert into units (name, description, url)
-                select @Name, '',''
-                where not exists (select 1 from s)
-                returning id
-            )
-            select id from i
-            union all
-            select id from s
-        """
+            INSERT INTO units (name, url, description)
+            VALUES (@Name, @Url, @Description) RETURNING id;"""
         use cn = sqlConnection connStr
-        let value = cn.QueryFirstOrDefault<int>(sql, {Name = name})
-        match value with
-        | 0 -> raise (Exception (sprintf "could not insert unit %s" name))
-        | v -> v
+        cn.QueryFirstOrDefault<int>(sql, {Name = name})
 
     let addUnitRelation connStr unitId childId = 
         let sql = """
-            insert into unit_relations (child_id, parent_id)
-               select @ChildId, @ParentId
-               where not exists (select 1 from unit_relations
-                where child_id=@ChildId AND parent_id=@ParentId)
-            
-        """
+            INSERT INTO unit_relations (child_id, parent_id)
+            VALUES (@ChildId, @ParentId);"""
         use cn = sqlConnection connStr
         cn.Execute(sql, {ChildId = childId; ParentId = unitId}) |> ignore
-        childId
 
-    let addMemberRelation' connStr unitId personId title role = 
+    let addMemberRelation connStr unitId netid title role = 
         let sql = """
-            insert into unit_members (unit_id, person_id, title, role, percentage, tools)
-            select @UnitId, @PersonId, @Title, @Role,100,0
-            where not exists 
-                (select 1 from unit_members where unit_id = @UnitId AND person_id = @PersonId)
+            INSERT INTO unit_members (unit_id, person_id, title, role, percentage, tools)
+            VALUES (@UnitId, (SELECT id FROM people WHERE netid = @NetId), @Title, @Role, 100, 0);
         """
-
         use cn = sqlConnection connStr
-        
-        let paramaters = {
-            UnitId = unitId
-            PersonId = personId
-            Title = title
-            Role = role
-        }
+        let paramaters = { UnitId = unitId; NetId = netid; Title = title; Role = role }
         cn.Execute(sql, paramaters) |> ignore
-        true
-
-    let addMemberRelation connStr unitId netId title role =
-        let userId = getUserForNetId connStr netId
-        match userId with
-        | 0 -> false
-        | id -> addMemberRelation' connStr unitId id title role
 
         
     
