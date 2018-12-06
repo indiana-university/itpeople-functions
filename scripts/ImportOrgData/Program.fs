@@ -3,11 +3,13 @@
 open System
 open Types
 open Util
+open Take2
 open Chessie.ErrorHandling
 open FSharp.Data
 open Database;
 open System.IO
 open System.Collections.Generic
+
 
 module Program = 
 
@@ -15,7 +17,6 @@ module Program =
     // just a sample that includes the structure and
     // all of the possible fields of the json that will
     // eventually be parsed.
-    type OrgData = JsonProvider<"OrgDataSample.json">
     type ParentChildId = (string*string)
 
     let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
@@ -159,7 +160,7 @@ module Program =
         units |> Array.filter (fun unit -> children |> (Array.exists (fun (_,id) -> unit.Id = id)
             >> not ))
 
-    let assignTopLevelUnitsToUits uitsId (topLevelUnits: OrgData.Root[]) (hashes: Dictionary<string, int>) =
+    let assignTopLevelUnitsToUITS uitsId (topLevelUnits: OrgData.Root[]) (hashes: Dictionary<string, int>) =
         let assigned = new List<string>()
         for unit in topLevelUnits do
             let childId = getUnitIdFromDictionary unit.Id hashes
@@ -179,6 +180,7 @@ module Program =
         then "Vacant"
         else person.Username
  
+
     let resolveIdForChild (units:OrgData.Root[]) (child:OrgData.Child) =
         match child.Type with 
         | "link" -> resolveLinkChildId units child
@@ -192,48 +194,58 @@ module Program =
                 (u.Id, (resolveIdForChild units c)) ))
         |> Seq.toArray
 
-    let getMembers (members:OrgData.Member[]) =
+    let stringifyMembers (members:OrgData.Member[]) =
         members
         |> Seq.map getMemberName
         |> String.concat ", "
 
-    let rec evalUnit (units:OrgData.Root[]) (unit: OrgData.Root) indent =
-        if (indent = "") then printfn "\n"
-        printfn "%s%s" indent unit.Name
-        printfn "%s  Members: %s" indent (getMembers unit.Members)
-        
-        for child in unit.Children do
-            let id = resolveIdForChild units child
-            let childUnit = findUnitWithId units id
-            match childUnit with
-                | Some u -> evalUnit units u (sprintf "    %s" indent)
-                | None -> printfn "%sCould not find child %s (%s)" indent child.Name id
+    let evalUnit (units:OrgData.Root[]) (topLevelUnit: OrgData.Root) =
+
+        // let printUnit (unit: OrgData.Root) indent= 
+        //     if (indent = "") then printfn "\n"
+        //     printfn "%s%s" indent unit.Name
+        //     printfn "%s  Members: %s" indent (stringifyMembers unit.Members)
+
+        // let rec evalUnit' (child: OrgData.Root) (parent: OrgData.Root) indent : OrgData.Root =
+        //     for c in child.Children do
+        //         let id = resolveIdForChild units c
+        //         let childUnit = findUnitWithId units id
+        //         match childUnit with
+        //             | Some u -> 
+        //                 evalUnit' u child (sprintf "    %s" indent)
+        //             | None -> 
+        //                 printfn "%sCould not find child %s (%s)" indent child.Name id
+
+        //     if (parent.Name = child.Name || child.Name = child.Name.ToLower())
+        //     then {parent with Members = parent.Members |> Seq.concat child.Members}
+        //     else child
+
+        // let foo = evalUnit' topLevelUnit topLevelUnit ""
+        ()
 
     [<EntryPoint>]
     let main argv =
         try
-            printfn "Starting Import"
+
+            // printfn "Starting Import"
         
-            let path = getJsonPath argv
-            printfn "Json path is %s" path
+            getJsonPath argv |> go |> ignore
 
-            //let uitsId = addUnitToDatabase "UITS"
-            //printfn "  UITS id is %i" uitsId
-
+            // //let uitsId = addUnitToDatabase "UITS"
+            // //printfn "  UITS id is %i" uitsId
                       
-            printfn "Loading %s" (Path.GetFileName path)
-            let data = OrgData.Load path
+            // let data = OrgData.Load path
 
-            printfn "Importing units"
-            let units = flattenUnits data
+            // printfn "Importing units"
+            // let units = flattenUnits data
 
-            printfn "Mapping children"
-            let childIds = getChildIds units
+            // printfn "Mapping children"
+            // let childIds = getChildIds units
 
-            printfn "Mapping top-level units"
-            let topLevelUnits = getTopLevelUnits units childIds
-            for unit in topLevelUnits do
-                evalUnit units unit ""
+            // printfn "Mapping top-level units"
+            // let topLevelUnits = getTopLevelUnits units childIds
+            // for unit in topLevelUnits do
+            //     evalUnit units unit
             
             
             
@@ -257,7 +269,7 @@ module Program =
             //let children = assignUnitRelationships units unitHashes
 
             //printfn "---> Assigning top-level units to UITS" 
-            //let topLevelUnits = assignTopLevelUnitsToUits uitsId (getTopLevelUnits units children) unitHashes
+            //let topLevelUnits = assignTopLevelUnitsToUITS uitsId (getTopLevelUnits units children) unitHashes
 
             //assignUnitsMembers units unitHashes
 
