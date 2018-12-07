@@ -8,7 +8,7 @@ type CreateBaseTables() =
     base.Execute("""
     CREATE TABLE units ( 
       id SERIAL NOT NULL,
-      name TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
       description TEXT NOT NULL,
       url TEXT NULL,
       PRIMARY KEY (id)

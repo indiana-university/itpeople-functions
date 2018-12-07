@@ -333,3 +333,4 @@ functions/spa/
 .DS_Store
 local.settings.json
 .ionide/symbolCache.db
+scripts/ImportOrgData/uits-groups.json
