@@ -28,9 +28,12 @@ module Program =
         try
             let path = argv |> getJsonPath
             let connectionString = argv |> getConnectionString
+
             path
             |> buildOrgTree
             |> updateDatabase connectionString
+            |> ignore
+            
             0        
          with 
          | exn -> 
