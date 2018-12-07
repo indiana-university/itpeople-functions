@@ -10,11 +10,10 @@ open Npgsql
 open Dapper
 open Types
 
-module Take2 = 
+module OrgTree = 
 
-    /// ORG JSON PARSING STUFF
-
-    let ignoreUnits =
+    /// WCMS IDs of units that are cruft or unusable.
+    let private ignoreUnits =
       [ "301d63b3814f4e1006f2bd60005e1461" // Orphans
         "301e6869814f4e1006f2bd60f7a84c6d"
         "301e64d2814f4e1006f2bd603137f37a"
@@ -42,7 +41,8 @@ module Take2 =
         "301fe05a814f4e1006f2bd60bdf99279" // Duplicate Chief of Staff
         "301c1367814f4e1006f2bd606c8ec1ee" ] // PTI
 
-    let divisions = 
+    /// The names of known UITS divisions
+    let private divisions = 
       [ "Learning Technologies"
         "Client Services and Support"
         "Networks"
@@ -50,7 +50,8 @@ module Take2 =
         "Clinical Affairs Information Technology Services"
         "Research Technologies" ]
 
-    let regionals =
+    /// The names of known Regional Campus units
+    let private regionals =
       [ "IU Northwest"
         "IU East"
         "IUPUC"
@@ -58,7 +59,8 @@ module Take2 =
         "IU South Bend"
         "IU Kokomo" ]
     
-    let ovpit = 
+    /// The names of known OVPIT units
+    let private ovpit = 
       [ "Chief of Staff"
         "Communications Office"
         "Media Digitization and Preservation Institute"
@@ -68,22 +70,17 @@ module Take2 =
         "Institutional Assurance"
         "User Experience Office" ]
 
+    let private emptyUnit = {Id=""; Name=""; Url=""; Members=[]; ChildrenRaw=[]; Children=[]}
 
-
-    let emptyUnit = {Id=""; Name=""; Url=""; Members=[]; ChildrenRaw=[]; Children=[]}
-    
-    let projectMember (m:OrgData.Member) = 
+    /// Map a JsonProvider 'Member' to a domain Member
+    let private projectMember (m:OrgData.Member) = 
       { Name = if String.IsNullOrWhiteSpace(m.Username) then "vacant" else m.Username
         Title = m.Title
         Role = m.Role 
         Percentage = 0 }
 
-    let flattenUnits (data:OrgData.Root[][]) =
-        data
-        |> Seq.collect (fun u -> u)
-        |> Seq.toArray
-
-    let projectUnit (u:OrgData.Root) =
+    /// Map a JsonProvider 'Root' to a domain Unit
+    let private projectUnit (u:OrgData.Root) =
         { Id = u.Id 
           Name = u.Name
           Members = u.Members |> Seq.map projectMember 
@@ -91,15 +88,15 @@ module Take2 =
           Children = Seq.empty;
           Url="" }
 
-    let childrenOf (unit:Unit) (units:seq<Unit>) =
-        units 
-        |> Seq.filter (fun u -> 
-            unit.Children 
-            |> Seq.exists (fun c -> c.Id = unit.Id))
+    /// Flatten a 2D sequence into a 1D sequence
+    let private flattenUnits data =
+        data |> Seq.collect (fun u -> u)
 
-    let icic = StringComparison.InvariantCultureIgnoreCase
+    let private icic = StringComparison.InvariantCultureIgnoreCase
 
-    let extraUnits =
+    /// Any extra units that aren't properly accounted for in the WCMS data, or
+    ///  are simply to gnarly to parse. 
+    let private extraUnits =
       [ { Id = "301c1367814f4e1006f2bd606c8ec1ee"
           Name="Pervasive Technology Institute"
           Url="https://pti.iu.edu/index.html"
@@ -116,10 +113,11 @@ module Take2 =
               { emptyUnit with Name="Research Technologies"; Url="https://pti.iu.edu/centers/rt/index.html" }  
               { emptyUnit with Name="National Center for Genome Analysis Support NCGAS"; Url="https://ncgas.org/" } ] } ]
 
-    let buildTree (units:seq<Unit>) = 
+    /// Identity the top-level units and build out the unit tree for each.
+    let private buildTree (units:seq<Unit>) = 
 
+        /// Recursively identify and gather up all the child units of this unit
         let rec buildTree' (unit:Unit) =
-
             let children = List<Unit>()
             for cid in unit.ChildrenRaw |> Seq.map (fun c -> c.CmsId) do
                 let child = units |> Seq.tryFind (fun u -> u.Id = cid)
@@ -129,20 +127,28 @@ module Take2 =
                     | None -> { Unit.Id=cid; Name="Unknown Unit"; Members=Seq.empty; ChildrenRaw=Seq.empty; Children=Seq.empty; Url="" }
                 children.Add(resolvedChild)
             
+            /// Some child units are actually just the member lists of the parent unit.
+            /// This was done for display purposes in WCMS, to make everything "look right".
+            /// These parent/child units need to be collapsed so the data structures are consistent and correct. 
             if (children.Count = 1 && (children.[0].Name.Equals(unit.Name,icic) || children.[0].Name = children.[0].Name.ToLowerInvariant()))
             then {unit with Children = Seq.empty; ChildrenRaw = Seq.empty; Members = unit.Members |> Seq.append children.[0].Members}
             else {unit with Children = children}
-            
+        
+        /// Identity all the units that are known to be children of others.
         let childIds = 
             units 
             |> Seq.collect (fun u -> u.ChildrenRaw |> Seq.map (fun c -> c.CmsId))
 
+        /// Identify all the top-level (non-child) units, filtering out those that 
+        /// are known to be garbage data. Build out a unit tree for each.
         units
         |> Seq.filter (fun u -> childIds |> Seq.exists (fun cid -> u.Id = cid) |> not)
         |> Seq.filter (fun u -> ignoreUnits |> Seq.exists(fun uid -> u.Id = uid) |> not)
         |> Seq.map buildTree'
     
-    let partition (units:seq<Unit>) =
+    /// Partition the units into three buckets: Divisions, OVPIT, and Regional Campuses.
+    /// Place the three buckets under a single UITS unit.
+    let private partition (units:seq<Unit>) =
         let divisions_units = 
           { emptyUnit with 
                 Name="Divisions";
@@ -155,15 +161,17 @@ module Take2 =
           { emptyUnit with 
                 Name="Regional Campuses";
                 Children = units |> Seq.filter (fun u -> regionals |> Seq.contains u.Name ) }
+        /// Collect divisions, OVPIT, and regionals under UITS.
         { emptyUnit with 
             Name="University Information Technology Services (UITS)"
             Url="https://uits.iu.edu"
             Children = [ divisions_units; ovpit_units; regional_units ] }
         
-    let whiteSpace level =
-        (String.replicate (2*level) " ")
 
-    let printTree (uits:Unit) =
+    /// Pretty-print the org tree.
+    let private printTree (uits:Unit) =
+        let whiteSpace level = (String.replicate (2*level) " ")
+
         let rec printTree' level (unit:Unit) =
             if level < 3 then printfn ""
             printfn "%s%s" (whiteSpace level) unit.Name
@@ -171,10 +179,12 @@ module Take2 =
             then printfn "%sMembers: %s" (whiteSpace (level+1)) (unit.Members |> Seq.map (fun m -> m.Name) |> String.concat ", ")
             if (unit.Children |> Seq.isEmpty |> not)
             then unit.Children |> Seq.iter (printTree' (level+1))
+
         printTree' 0 uits
         uits
     
-    let go (path:string) (dbConnectionString:string) =
+    /// From a JSON file at 'path', generate a UITS org heirarchy.
+    let buildOrgTree (path:string) = 
         path
         |> OrgData.Load
         |> flattenUnits
@@ -183,5 +193,3 @@ module Take2 =
         |> Seq.append extraUnits
         |> partition
         |> printTree
-        |> dropExistingUnits dbConnectionString
-        // |> addUnits dbConnectionString 
