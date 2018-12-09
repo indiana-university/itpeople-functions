@@ -3,19 +3,15 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Common/Types.fs" />
-    <Compile Include="Common/Logging.fs" />
-    <Compile Include="Common/Json.fs" />
-    <Compile Include="Common/Util.fs" />
-    <Compile Include="Common/Jwt.fs" />
-    <Compile Include="Common/Http.fs" />
-    <Compile Include="Common/Fakes.fs" />
-    <Compile Include="Common/Database.fs" />
-    <Compile Include="Api/Common.fs" />
-    <Compile Include="Api/Auth.fs" />
-    <Compile Include="Api/Ping.fs" />
-    <Compile Include="Api/Search.fs" />
-    <Compile Include="Api/User.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="Logging.fs" />
+    <Compile Include="Json.fs" />
+    <Compile Include="Util.fs" />
+    <Compile Include="Jwt.fs" />
+    <Compile Include="Http.fs" />
+    <Compile Include="Fakes.fs" />
+    <Compile Include="Database.fs" />
+    <Compile Include="Api.fs" />
     <Compile Include="Functions.fs" />
     <None Include="host.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

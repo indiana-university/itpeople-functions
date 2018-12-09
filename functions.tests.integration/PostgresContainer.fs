@@ -5,7 +5,7 @@ module PostgresContainer =
     open System
     open System.Diagnostics
     open Npgsql
-    open Functions.Common.Database
+    open Functions.Database
     open Xunit.Abstractions
 
     let result b = if b then "[OK]" else "[ERROR]"

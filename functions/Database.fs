@@ -1,8 +1,9 @@
-namespace Functions.Common
+namespace Functions
 
-open Chessie.ErrorHandling
 open Types
 open Util
+open Json
+open Chessie.ErrorHandling
 open Dapper
 open Npgsql
 open Newtonsoft.Json

@@ -1,9 +1,8 @@
-namespace Functions.Common
+namespace Functions
 
 open Types
-open Util
+open Json
 open Chessie.ErrorHandling
-open System
 
 module Fakes =
 

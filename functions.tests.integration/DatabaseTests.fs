@@ -6,9 +6,9 @@ module DatabaseTests=
     open Xunit.Abstractions
     open Dapper
     open Chessie.ErrorHandling
-    open Functions.Common.Types
-    open Functions.Common.Fakes
-    open Functions.Common.Database
+    open Functions.Types
+    open Functions.Fakes
+    open Functions.Database
     open TestFixture
     open PostgresContainer
     open FsUnit.Xunit

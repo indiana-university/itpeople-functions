@@ -1,15 +1,11 @@
 namespace Functions
 
-open Functions.Common.Types
-open Functions.Api.Common
-open Functions.Api.User
-open Functions.Api.Auth
+open Types
+open Http
+open Api
+open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
-open Microsoft.AspNetCore.Http
-open Microsoft.Azure.WebJobs.Host
 open System.Net.Http
-open Serilog
-open Microsoft.Extensions.Logging
 ///<summary>
 /// This module defines the bindings and triggers for all functions in the project
 ///</summary
@@ -26,7 +22,8 @@ module Functions =
     let ping
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "ping")>]
         req: HttpRequestMessage, context: ExecutionContext) =
-        getAnonymousResponse req context (fun _ _ -> Api.Ping.get req)
+        let getResponse = asyncTrial { return { MessageResult.Message="pong!" } }
+        getAnonymousResponse req context (fun _ _ -> getResponse)
 
     /// (Anonymous) Exchanges a UAA OAuth code for an application-scoped JWT
     [<FunctionName("AuthGet")>]
@@ -63,7 +60,11 @@ module Functions =
     let searchSimpleGet
         ([<HttpTrigger(Extensions.Http.AuthorizationLevel.Anonymous, "get", Route = "search")>]
         req: HttpRequestMessage, ctx: ExecutionContext) =
-        getAuthorizedResponse req ctx (fun data _ -> Api.Search.getSimple req data.GetSimpleSearchByTerm)
+        let getResponse getSearchResults = asyncTrial {
+            let! term = getQueryParam "term" req
+            return! getSearchResults term
+        }
+        getAuthorizedResponse req ctx (fun data _ -> getResponse data.GetSimpleSearchByTerm)
 
 
     /// (Authenticated) Get all units.

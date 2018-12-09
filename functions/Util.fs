@@ -1,16 +1,9 @@
-namespace Functions.Common
+namespace Functions
 
-
-///<summary>
-/// This module contains common types and functions to facilitate request 
-/// handling and response creation. 
-///</summary>
 module Util =
+
     open Types 
-    open Json
-    open Newtonsoft.Json
     open System
-    open System.Diagnostics
     open Chessie.ErrorHandling
 
     /// An active pattern to identify empty sequences
@@ -97,10 +90,3 @@ module Util =
         let! result = doAsync status msg fn |> bindAsync
         return result
     }
-
-    let mapFlagsToSeq<'T when 'T :> System.Enum> (value: 'T) = 
-        JsonConvert.SerializeObject(value, JsonSettings).Trim('"')
-        |> fun s -> s.Split([|','|])
-        |> Seq.map (fun s -> s.Trim())
-        |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s) :?> 'T)
-        |> Seq.filter (fun e -> e.ToString() <> "None")

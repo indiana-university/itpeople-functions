@@ -8,9 +8,9 @@ module TestFixture =
     open Chessie.ErrorHandling
     open Dapper
     open PostgresContainer
-    open Functions.Common.Database
-    open Functions.Common.Fakes
-    open Functions.Common.Types
+    open Functions.Database
+    open Functions.Fakes
+    open Functions.Types
     open Migrations.Program
 
     let mutable parksAndRecId = 0

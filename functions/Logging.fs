@@ -1,10 +1,11 @@
-namespace Functions.Common
+namespace Functions
 
 module Logging =
 
+    open Types
+
     open System
     open System.Net.Http
-    open Types
 
     open Serilog
     open Serilog.Core

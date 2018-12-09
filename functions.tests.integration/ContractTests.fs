@@ -11,9 +11,9 @@ module ContractTests =
     open PostgresContainer
     open Dapper
     open Npgsql
-    open Functions.Common.Types
-    open Functions.Common.Fakes
-    open Functions.Common.Database
+    open Functions.Types
+    open Functions.Fakes
+    open Functions.Database
     open Migrations.Program
     
     type XUnitOutput(output: ITestOutputHelper)=

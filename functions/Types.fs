@@ -1,10 +1,8 @@
-namespace Functions.Common
+namespace Functions
 
 open System
 open System.Net
 open Chessie.ErrorHandling
-open Dapper
-open Newtonsoft.Json
 open Dapper
 
 module Types = 
@@ -188,7 +186,11 @@ module Types =
       { Users: seq<Entity>
         Departments: seq<Entity>
         Units: seq<Entity> }
-
+    
+    type MessageResult = {
+        Message: string
+    }
+    
     type FetchById<'T> = Id -> AsyncResult<'T,Error>
     type FetchAll<'T> = unit -> AsyncResult<'T,Error>
 

@@ -1,9 +1,10 @@
-namespace Functions.Common
+namespace Functions
 
 open Types
 open Util
 open System
 open System.Collections.Generic
+open System.Net
 open System.Net.Http
 open Chessie.ErrorHandling
 open JWT

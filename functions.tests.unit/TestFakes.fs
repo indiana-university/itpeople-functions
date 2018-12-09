@@ -1,8 +1,8 @@
 namespace Tests
 
 open Chessie.ErrorHandling
-open Functions.Common.Util
-open Functions.Common.Types
+open Functions.Util
+open Functions.Types
 open System
 open Xunit
 open System.Net.Http

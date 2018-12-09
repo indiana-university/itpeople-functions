@@ -1,11 +1,10 @@
-namespace Functions.Common
+namespace Functions
 
 module Json =
 
     open System
     open Microsoft.FSharp.Reflection
     open Newtonsoft.Json
-    open Newtonsoft.Json.Converters
     open Newtonsoft.Json.Serialization
 
     type OptionConverter() =
@@ -32,10 +31,17 @@ module Json =
             if value = null then FSharpValue.MakeUnion(cases.[0], [||])
             else FSharpValue.MakeUnion(cases.[1], [|value|])
 
-        /// JSON Serialization Defaults:
+    /// JSON Serialization Defaults:
     /// 1. Format property names in 'camelCase'.
     /// 2. Convert all enum values to/from their string equivalents.
     /// 3. Format all options as null or the unwrapped type
     let JsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
     JsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
     JsonSettings.Converters.Add(OptionConverter())
+
+    let mapFlagsToSeq<'T when 'T :> System.Enum> (value: 'T) = 
+        JsonConvert.SerializeObject(value, JsonSettings).Trim('"')
+        |> fun s -> s.Split([|','|])
+        |> Seq.map (fun s -> s.Trim())
+        |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s) :?> 'T)
+        |> Seq.filter (fun e -> e.ToString() <> "None")

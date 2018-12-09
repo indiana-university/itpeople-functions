@@ -1,9 +1,9 @@
 namespace Tests
 
 open Chessie.ErrorHandling
-open Functions.Common.Util
-open Functions.Common.Types
-open Functions.Common.Jwt
+open Functions.Util
+open Functions.Types
+open Functions.Jwt
 open System
 open Xunit
 
