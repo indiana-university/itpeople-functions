@@ -7,5 +7,5 @@ export DOCKER_TAG=${TEAMCITY_BRANCH/refs\/heads\//}
 source $HOME/.dcd/$DOCKER_UCP_BUNDLE.sh
 
 # Update the service and non-secret environment variables
-echo Updating itpeople-functions service from $DOCKER_HUB_REPO:$DOCKER_TAG
-docker service update --image $DOCKER_HUB_REPO:$DOCKER_TAG itpeople-functions
+echo Updating $DOCKER_SERVICE service from $DOCKER_HUB_REPO:$DOCKER_TAG
+docker service update --image $DOCKER_HUB_REPO:$DOCKER_TAG $DOCKER_SERVICE

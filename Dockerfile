@@ -6,6 +6,5 @@ RUN cd /src/dotnet-function-app && \
     dotnet publish -c Release functions/functions.fsproj --output /home/site/wwwroot
 
 FROM microsoft/azure-functions-dotnet-core2.0
+ENV AzureWebJobsScriptRoot=/home/site/wwwroot
 COPY --from=installer-env ["/home/site/wwwroot", "/home/site/wwwroot"]
-
-ENV FUNCTIONS_WORKER_RUNTIME dotnet
