@@ -7,6 +7,7 @@ services:
     image: uitsssl/itpeople-functions:develop
     networks:
       - backend
+    working_dir: /home/site/wwwroot
     deploy:
       mode: replicated
       replicas: 3
