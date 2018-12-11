@@ -169,6 +169,7 @@ module OrgTree =
         { emptyUnit with 
             Name="University Information Technology Services (UITS)"
             Url="https://uits.iu.edu"
+            Members = [ { Member.Name="bwheeler"; Title = "Vice President, Chief Information Officer and Dean"; Role="leadership"; Percentage=100} ]
             Children = [ divisions_units; ovpit_units; regional_units ] }
         
 
