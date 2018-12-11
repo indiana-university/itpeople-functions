@@ -74,10 +74,14 @@ module OrgTree =
 
     /// Map a JsonProvider 'Member' to a domain Member
     let private projectMember (m:OrgData.Member) = 
-      { Name = if String.IsNullOrWhiteSpace(m.Username) then "vacant" else m.Username
-        Title = m.Title
-        Role = m.Role 
-        Percentage = 0 }
+        let username = 
+            match m.Vacant with
+            | Some(v) -> if v then "vacant" else m.Username
+            | None -> m.Username
+        { Name = username
+          Title = m.Title
+          Role = m.Role 
+          Percentage = 0 }
 
     /// Map a JsonProvider 'Root' to a domain Unit
     let private projectUnit (u:OrgData.Root) =

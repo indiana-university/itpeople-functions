@@ -6,9 +6,14 @@
       "members": [
         {
           "username": "username",
-          "vacant": true,
           "title": "a title",
           "role": "leadership"
+        },
+        {
+          "username": "username",
+          "title": "a title",
+          "role": "leadership",
+          "vacant": true
         }
       ],
       "children": [
