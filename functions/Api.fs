@@ -21,8 +21,24 @@ open Newtonsoft.Json
 
 module Api =
 
-    let private getConfiguration(context: ExecutionContext) : AppConfig =
-        let configRoot = 
+    ///
+    /// CONFIGURATION 
+    ///
+    
+    let getRequiredValue<'T> (config:IConfigurationRoot) key =
+        try
+            config.GetValue<'T>(key)
+        with
+        | exn -> 
+            let msg = sprintf "Configuration is missing required value: %s" key
+            System.Console.WriteLine(sprintf "[FATAL] %s" msg)
+            msg |> System.Exception |> raise
+
+    let getValueOrDefault<'T> (config:IConfigurationRoot) key defaultValue =
+        config.GetValue<'T>(key, defaultValue)
+
+    let private getConfiguration(context: ExecutionContext) =
+        let config = 
             ConfigurationBuilder()
                 .AddJsonFile("local.settings.json", optional=true)
                 .AddKeyPerFile("/run/secrets", optional=true)
@@ -30,14 +46,14 @@ module Api =
                 .Build();
 
         {
-            OAuth2ClientId = configRoot.["OAuthClientId"]
-            OAuth2ClientSecret = configRoot.["OAuthClientSecret"]
-            OAuth2TokenUrl = configRoot.["OAuthTokenUrl"]
-            OAuth2RedirectUrl = configRoot.["OAuthRedirectUrl"]
-            JwtSecret = configRoot.["JwtSecret"]
-            DbConnectionString = configRoot.["DbConnectionString"]
-            UseFakes = bool.Parse configRoot.["UseFakeData"]
-            CorsHosts = configRoot.["CorsHosts"]
+            OAuth2ClientId = getRequiredValue<string> config "OAuthClientId"
+            OAuth2ClientSecret = getRequiredValue<string> config "OAuthClientSecret"
+            OAuth2TokenUrl = getRequiredValue<string> config "OAuthTokenUrl"
+            OAuth2RedirectUrl = getRequiredValue<string> config "OAuthRedirectUrl"
+            JwtSecret = getRequiredValue<string> config "JwtSecret"
+            DbConnectionString = getRequiredValue<string> config "DbConnectionString"
+            UseFakes = getValueOrDefault<bool> config "UseFakeData" false
+            CorsHosts = getValueOrDefault<string> config "CorsHosts" "*"
         }
 
     let private getData config =
