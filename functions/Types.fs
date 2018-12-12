@@ -4,6 +4,7 @@ open System
 open System.Net
 open Chessie.ErrorHandling
 open Dapper
+open Serilog.Core
 
 module Types = 
 
@@ -210,7 +211,24 @@ module Types =
         /// Get a single department by ID
         abstract member GetDepartment: Id -> AsyncResult<DepartmentDto,Error>
 
+    type UaaResponse = {
+        access_token: string
+    }
+
     type JwtClaims = 
       { UserId: Id
         UserName: NetId
         Expiration: System.DateTime }
+
+
+    type RequestContext = 
+      { Started: DateTime
+        Config: AppConfig
+        Data: IDataRepository
+        Log: Logger }
+
+    type AuthorizedRequestContext = 
+      { Config: AppConfig
+        Data: IDataRepository
+        Log: Logger
+        User: JwtClaims }

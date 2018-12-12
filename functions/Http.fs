@@ -30,12 +30,12 @@ module Http =
         else fail (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName))
 
     /// Attempt to post an HTTP request and deserialize the ressponse
-    let postAsync<'T> (url:string) (content:HttpContent) : Async<Result<'T,(HttpStatusCode*string)>> = async {
+    let postAsync<'T> (url:string) (content:HttpContent) = async {
         try
             let! response = client.PostAsync(url, content) |> Async.AwaitTask
             let! content = response.Content.ReadAsStringAsync() |> Async.AwaitTask
             if (response.IsSuccessStatusCode)
-            then return tryDeserialize Status.InternalServerError content
+            then return tryDeserialize<'T> Status.InternalServerError content
             else return fail (response.StatusCode, content)
         with 
         | exn -> return fail (Status.InternalServerError, exn.Message)

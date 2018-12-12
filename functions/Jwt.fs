@@ -2,6 +2,7 @@ namespace Functions
 
 open Types
 open Util
+open Logging
 open System
 open System.Collections.Generic
 open System.Net
@@ -13,6 +14,20 @@ open JWT.Builder
 
 module Jwt =
 
+    /// Generate a form url-encoded request to exchange the code for a JWT.
+    let createUaaTokenRequest (appConfig:AppConfig) code =
+        let fn () = 
+            dict[
+                "grant_type", "authorization_code"
+                "code", code
+                "client_id", appConfig.OAuth2ClientId
+                "client_secret", appConfig.OAuth2ClientSecret
+                "redirect_uri", appConfig.OAuth2RedirectUrl
+            ]
+            |> Dictionary
+            |> (fun d-> new FormUrlEncodedContent(d))
+        tryf Status.InternalServerError fn
+
     let ExpClaim = "exp"
     let UserIdClaim = "user_id"
     let UserNameClaim = "user_name"
@@ -20,16 +35,18 @@ module Jwt =
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
     /// Create and sign a JWT
-    let encodeJwt secret exp id netId = 
+    let encodeAppJwt secret expiration (person:Person) = 
         let fn() =
-            JwtBuilder()
-                .WithAlgorithm(new HMACSHA256Algorithm())
-                .WithSecret(secret)
-                .ExpirationTime(exp)
-                .AddClaim(UserIdClaim, (id.ToString()))
-                .AddClaim(UserNameClaim, netId)
-                // .AddClaim(UserRoleClaim, (role.ToString()))
-                .Build();
+            let jwt = 
+                JwtBuilder()
+                    .WithAlgorithm(new HMACSHA256Algorithm())
+                    .WithSecret(secret)
+                    .ExpirationTime(expiration)
+                    .AddClaim(UserIdClaim, (person.Id.ToString()))
+                    .AddClaim(UserNameClaim, person.NetId)
+                    // .AddClaim(UserRoleClaim, (role.ToString()))
+                    .Build();
+            { access_token = jwt }
         tryf' Status.InternalServerError "Failed to create access token" fn
 
     /// Convert the "exp" unix timestamp into a Datetime
@@ -40,12 +57,12 @@ module Jwt =
         |> (fun unixTicks -> epoch.AddSeconds(unixTicks))
 
     /// Decode a JWT from the UAA service
-    let decodeUaaJwt (jwt:string) = 
+    let decodeUaaJwt (jwt:UaaResponse) = 
         try
             // decode the UAA JWT
             let decoded = 
                 JwtBuilder()
-                    .Decode<IDictionary<string, obj>>(jwt)
+                    .Decode<IDictionary<string, obj>>(jwt.access_token)
             // map the claims to a domain object
             let claims = {
                 UserId = 0
@@ -103,14 +120,12 @@ module Jwt =
         else parts.[1] |> ok
 
     /// Attempt to decode the app JWT claims
-    let validateAuth (secret:string) (req: HttpRequestMessage) = trial {
-        let! authHeader = extractAuthHeader req
-        let! jwt = extractJwt authHeader
-        let! claims = decodeAppJwt secret jwt
-        return claims
-    }
+    let validateAuth (secret:string) (req: HttpRequestMessage) = 
+        extractAuthHeader req
+        >>= extractJwt
+        >>= decodeAppJwt secret
     
-    let authorizeRequest (config:AppConfig) (req: HttpRequestMessage) = trial {
-        let! claims = validateAuth config.JwtSecret req
-        return claims
-    }
+
+    let authenticateRequest (req: HttpRequestMessage) (ctx:RequestContext) = 
+        validateAuth ctx.Config.JwtSecret req
+    

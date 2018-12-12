@@ -11,6 +11,24 @@ module JwtUtilTests =
 
     let name = "johndoe"
     let id = 1
+
+    let person = 
+      { Person.Id=id
+        NetId=name
+        Name="" 
+        Hash=""
+        Campus=""
+        CampusEmail=""
+        CampusPhone=""
+        Responsibilities=Responsibilities.None
+        Tools=Tools.None
+        Position=""
+        Location=""
+        Expertise=""
+        Notes=""
+        PhotoUrl=""
+        HrDepartmentId=0 }
+
     let expiration = DateTime(2030,9,13,15,44,03,DateTimeKind.Utc)
 
     /// NOTE: You can view the contents of these tokens at jwt.io.
@@ -19,13 +37,13 @@ module JwtUtilTests =
     [<Fact>]
     let ``Decode UAA JWT`` () =
         let expected = Ok ({ UserName=name; UserId=0; Expiration=expiration; }, [])
-        let actual = decodeUaaJwt TestFakes.validJwt
+        let actual = decodeUaaJwt {access_token = TestFakes.validJwt}
         Assert.Equal(expected, actual)
 
     [<Fact>]
     let ``Encode app JWT`` () =
-        let expected = Ok (TestFakes.validJwt, [])
-        let actual = encodeJwt TestFakes.jwtSingingSecret expiration id name
+        let expected = Ok ({access_token = TestFakes.validJwt}, [])
+        let actual = encodeAppJwt TestFakes.jwtSingingSecret expiration person
         Assert.Equal(expected, actual)
 
     [<Fact>]

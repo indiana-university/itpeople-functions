@@ -41,6 +41,18 @@ module Util =
             | Some (x) -> ok x
 
 
+    // An awaiter for normal async functions
+    let await f x = 
+        f x 
+        |> Async.RunSynchronously
+
+    // An awaiter for async trials
+    let await' f x = 
+        f x 
+        |> Async.ofAsyncResult 
+        |> Async.RunSynchronously
+
+
     /// Given an async computation expression that returns a Result<TSuccess,TFailure>,
     /// bind and return the TSuccess.
     let bindAsyncResult<'T> (asyncFn: unit -> Async<Result<'T,(Status*string)>>) = asyncTrial {
@@ -90,3 +102,5 @@ module Util =
         let! result = doAsync status msg fn |> bindAsync
         return result
     }
+
+    let now () = DateTime.UtcNow
