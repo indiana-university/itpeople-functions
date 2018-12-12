@@ -131,18 +131,16 @@ module Fakes =
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
     let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
 
-    let getFakeUser () = asyncTrial {
-        let! user = async.Return swanson
-        return user
+    let getFakeUser () = async {
+        return! swanson |> ok |> async.Return
     }
 
-    let getFakeProfile () : AsyncResult<PersonDto,Error> = asyncTrial {
-        let! profile = async.Return swansonDto
-        return profile
+    let getFakeProfile () = async {
+        return! swansonDto |> ok |> async.Return
     }
 
-    let getFakeSimpleSearchByTerm () : AsyncResult<SimpleSearch,Error> = asyncTrial {
-        let result = {
+    let getFakeSimpleSearchByTerm () = async {
+        return! {
                 Users=
                   [ {Id=swanson.Id; Name=swanson.Name; Description=""}
                     {Id=knope.Id; Name=knope.Name; Description=""}
@@ -153,17 +151,15 @@ module Fakes =
                   [ {Id=city.Id; Name=city.Name; Description=""}
                     {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""}
                     {Id=fourthFloor.Id; Name=fourthFloor.Name; Description=""} ]
-            }
-        return result
+        } |> ok |> async.Return
     }
 
-    let getFakeUnits () = asyncTrial {
-        let! units = async.Return ([parksAndRec; city] |> List.toSeq)
-        return units
+    let getFakeUnits () = async {
+        return! [parksAndRec; city] |> List.toSeq |> ok |> async.Return
     }
 
-    let getFakeUnit () = asyncTrial {
-        let! profile = async.Return {
+    let getFakeUnit () = async {
+         return! {
             Id=parksAndRec.Id
             Name=parksAndRec.Name
             Description=parksAndRec.Description
@@ -175,17 +171,15 @@ module Fakes =
             SupportedDepartments= [ parksDept ]
             Children= [ fourthFloor ]
             Parent= Some(city)
-        }
-        return profile
+         } |> ok |> async.Return
     }
 
-    let getFakeDepartments () = asyncTrial {
-        let! departments = async.Return ([ parksDept ] |> List.toSeq)
-        return departments
+    let getFakeDepartments () = async {
+        return! [ parksDept ] |> List.toSeq |> ok |> async.Return
     }
 
-    let getFakeDepartment () = asyncTrial {
-        let! profile = async.Return {
+    let getFakeDepartment () = async {
+        return! {
             Id=parksDept.Id
             Name=parksDept.Name
             Description=parksDept.Description
@@ -195,8 +189,7 @@ module Fakes =
               [ {Member.Id=swanson.Id; Name=swanson.Name; Description=""}
                 {Member.Id=knope.Id; Name=knope.Name; Description=""}
                 {Member.Id=sebastian.Id; Name=sebastian.Name; Description=""} ]
-        }
-        return profile
+        } |> ok |> async.Return 
     }
 
     /// A canned data implementation of IDatabaseRespository (for testing)

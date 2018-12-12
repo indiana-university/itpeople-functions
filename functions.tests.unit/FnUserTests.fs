@@ -14,10 +14,6 @@ module FnUserTests =
         Functions.Fakes.getFakeProfile()
 
 
-    let fakeTrial user = asyncTrial {
-        return "ok!"
-    }
-
     // [<Fact>]
     // let ``getMe requires JWT`` () =
     //     let expected = Bad ([(Status.Unauthorized, MissingAuthHeader)])

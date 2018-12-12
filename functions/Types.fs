@@ -197,19 +197,19 @@ module Types =
 
     type IDataRepository =
         /// Get a user record for a given net ID (e.g. 'jhoerr')
-        abstract member GetUserByNetId: NetId -> AsyncResult<Person,Error>
+        abstract member GetUserByNetId: NetId -> Async<Result<Person,Error>>
         /// Get a user profile for a given user ID
-        abstract member GetProfile: Id -> AsyncResult<PersonDto,Error>
+        abstract member GetProfile: Id -> Async<Result<PersonDto,Error>>
         /// Get all users, units, and departments matching a given search term
-        abstract member GetSimpleSearchByTerm: string -> AsyncResult<SimpleSearch,Error>
+        abstract member GetSimpleSearchByTerm: string -> Async<Result<SimpleSearch,Error>>
         /// Get a list of all units
-        abstract member GetUnits: unit -> AsyncResult<Unit seq,Error>
+        abstract member GetUnits: unit -> Async<Result<Unit seq,Error>>
         /// Get a single unit by ID
-        abstract member GetUnit: Id -> AsyncResult<UnitDto,Error>
+        abstract member GetUnit: Id -> Async<Result<UnitDto,Error>>
         /// Get a list of all departments
-        abstract member GetDepartments: unit -> AsyncResult<Department seq,Error>
+        abstract member GetDepartments: unit -> Async<Result<Department seq,Error>>
         /// Get a single department by ID
-        abstract member GetDepartment: Id -> AsyncResult<DepartmentDto,Error>
+        abstract member GetDepartment: Id -> Async<Result<DepartmentDto,Error>>
 
     type UaaResponse = {
         access_token: string

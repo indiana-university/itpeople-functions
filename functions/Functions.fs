@@ -46,7 +46,7 @@ module Functions =
         >>= createUaaTokenRequest
         >>= await requestTokenFromUaa
         >>= decodeUaaJwt
-        >>= await' resolveAppUser
+        >>= await resolveAppUser
         >>= encodeAppJwt
         |> constructResponse req deps
 
@@ -57,7 +57,7 @@ module Functions =
         req: HttpRequestMessage, context: ExecutionContext, id: Id) =
         let deps = resolveDependencies context
         authenticateRequest req deps
-        >>= await' (fun _ -> deps.Data.GetProfile id)
+        >>= await (fun _ -> deps.Data.GetProfile id)
         |> constructResponse req deps
 
     /// (Authenticated) Get a user profile associated with the JWT in the request Authorization header.
@@ -68,7 +68,7 @@ module Functions =
         let deps = resolveDependencies context
         let getUserProfile user = deps.Data.GetProfile user.UserId
         authenticateRequest req deps
-        >>= await' getUserProfile
+        >>= await getUserProfile
         |> constructResponse req deps
 
     // [<FunctionName("UserPut")>]
@@ -88,7 +88,7 @@ module Functions =
         let deps = resolveDependencies context
         authenticateRequest req deps
         >>= (fun _ -> getQueryParam "term" req)
-        >>= await' deps.Data.GetSimpleSearchByTerm
+        >>= await deps.Data.GetSimpleSearchByTerm
         |> constructResponse req deps
 
     /// (Authenticated) Get all units.
@@ -98,7 +98,7 @@ module Functions =
         req: HttpRequestMessage, context: ExecutionContext) =
         let deps = resolveDependencies context
         authenticateRequest req deps
-        >>= await' (fun _ -> deps.Data.GetUnits())
+        >>= await (fun _ -> deps.Data.GetUnits())
         |> constructResponse req deps
 
     /// (Authenticated) Get a unit profile for a given unit 'id'.
@@ -108,7 +108,7 @@ module Functions =
         req: HttpRequestMessage, context: ExecutionContext, id: Id) =
         let deps = resolveDependencies context
         authenticateRequest req deps
-        >>= await' (fun _ -> deps.Data.GetUnit id)
+        >>= await (fun _ -> deps.Data.GetUnit id)
         |> constructResponse req deps
             
     /// (Authenticated) Get all departments.
@@ -118,7 +118,7 @@ module Functions =
         req: HttpRequestMessage, context: ExecutionContext) =
         let deps = resolveDependencies context
         authenticateRequest req deps
-        >>= await' (fun _ -> deps.Data.GetDepartments())
+        >>= await (fun _ -> deps.Data.GetDepartments())
         |> constructResponse req deps
 
     /// (Authenticated) Get a department profile for a given department 'id'.
@@ -128,5 +128,5 @@ module Functions =
         req: HttpRequestMessage, context: ExecutionContext, id: Id) =
         let deps = resolveDependencies context
         authenticateRequest req deps
-        >>= await' (fun _ -> deps.Data.GetDepartment id)
+        >>= await (fun _ -> deps.Data.GetDepartment id)
         |> constructResponse req deps

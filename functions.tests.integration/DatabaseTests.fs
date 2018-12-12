@@ -12,9 +12,9 @@ module DatabaseTests=
     open TestFixture
     open PostgresContainer
     open FsUnit.Xunit
-    
-    let awaitAndUnpack<'T> (asyncResult:AsyncResult<'T,_>) = 
-        let result = asyncResult |> Async.ofAsyncResult |> Async.RunSynchronously
+
+    let awaitAndUnpack<'T> (asyncResult:Async<Result<'T,_>>) = 
+        let result = asyncResult |> Async.RunSynchronously
         match result with 
         | Ok(value, _) -> value
         | Bad(msgs) -> 
@@ -28,6 +28,9 @@ module DatabaseTests=
         actual.Name |> should equal expected.Name
         actual.Url |> should equal expected.Url
         actual.Description |> should equal expected.Description
+
+    type Name = Name of string
+    let name = Name(null)
 
     type InsertionTests(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
