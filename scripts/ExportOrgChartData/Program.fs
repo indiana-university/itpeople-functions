@@ -15,12 +15,13 @@ let saveToFile (o) =
     File.WriteAllText(path, json)
 
 let GetConnectionString (args:string[]) =
-    // TODO: get from args
-    @"server=localhost;database=orgchart_wcms;user=root;pwd=secret;"
+    if args.Length > 0 
+    then args.[0]
+    else  @"server=localhost;database=orgchart_wcms;user=root;pwd=secret;"
 
 [<EntryPoint>]
 let main args =
-    ConnectionString <- GetConnectionString args
+    ConnectionString <-  args |> GetConnectionString 
 
     GetPages
     |> pagesToGroups
