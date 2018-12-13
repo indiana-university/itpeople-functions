@@ -43,10 +43,14 @@ module ContractTests =
             let mutable functionServer = None
 
             try            
-                Environment.SetEnvironmentVariable("CorsHosts","*")
-                Environment.SetEnvironmentVariable("UseFakeData","false")
+                // These config settings are needed for the tests
                 Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
                 Environment.SetEnvironmentVariable("DbConnectionString",connectionString)
+                // These config settings aren't needed for the tests, but the config expects them
+                Environment.SetEnvironmentVariable("OAuthClientId","na")
+                Environment.SetEnvironmentVariable("OAuthClientSecret","na")
+                Environment.SetEnvironmentVariable("OAuthTokenUrl","na")
+                Environment.SetEnvironmentVariable("OAuthRedirectUrl","na")
 
                 "---> Starting functions hst..." |> output.WriteLine
                 let! functionsServer = startTestServer functionServerPort functionScriptPath output

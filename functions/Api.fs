@@ -26,10 +26,9 @@ module Api =
     ///
     
     let getRequiredValue<'T> (config:IConfigurationRoot) key =
-        try
-            config.GetValue<'T>(key)
-        with
-        | exn -> 
+        if config.GetChildren() |> Seq.exists (fun c -> c.Key = key)
+        then config.GetValue<'T>(key)
+        else 
             let msg = sprintf "Configuration is missing required value: %s" key
             System.Console.WriteLine(sprintf "[FATAL] %s" msg)
             msg |> System.Exception |> raise
