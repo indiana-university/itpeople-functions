@@ -11,6 +11,7 @@ open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
 open System.Net.Http
 open System
+open Microsoft.Azure.WebJobs.Extensions.Http
 
 ///<summary>
 /// This module defines the bindings and triggers for all functions in the project
