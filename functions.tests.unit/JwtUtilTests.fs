@@ -4,6 +4,7 @@ open Chessie.ErrorHandling
 open Functions.Util
 open Functions.Types
 open Functions.Jwt
+open Functions.Fakes
 open System
 open Xunit
 
@@ -11,23 +12,6 @@ module JwtUtilTests =
 
     let name = "johndoe"
     let id = 1
-
-    let person = 
-      { Person.Id=id
-        NetId=name
-        Name="" 
-        Hash=""
-        Campus=""
-        CampusEmail=""
-        CampusPhone=""
-        Responsibilities=Responsibilities.None
-        Tools=Tools.None
-        Position=""
-        Location=""
-        Expertise=""
-        Notes=""
-        PhotoUrl=""
-        HrDepartmentId=0 }
 
     let expiration = DateTime(2030,9,13,15,44,03,DateTimeKind.Utc)
 
@@ -42,6 +26,7 @@ module JwtUtilTests =
 
     [<Fact>]
     let ``Encode app JWT`` () =
+        let person = {swanson with Id=id; NetId=name}
         let expected = Ok ({access_token = TestFakes.validJwt}, [])
         let actual = encodeAppJwt TestFakes.jwtSingingSecret expiration person
         Assert.Equal(expected, actual)
