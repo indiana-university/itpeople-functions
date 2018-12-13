@@ -126,6 +126,6 @@ module Jwt =
         >>= decodeAppJwt secret
     
 
-    let authenticateRequest (req: HttpRequestMessage) (ctx:RequestContext) = 
-        validateAuth ctx.Config.JwtSecret req
+    let authenticateRequest (req: HttpRequestMessage) (config:AppConfig) = 
+        validateAuth config.JwtSecret req
     

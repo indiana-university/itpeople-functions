@@ -37,7 +37,7 @@ module Api =
     let getValueOrDefault<'T> (config:IConfigurationRoot) key defaultValue =
         config.GetValue<'T>(key, defaultValue)
 
-    let private getConfiguration(context: ExecutionContext) =
+    let getConfiguration () =
         let config = 
             ConfigurationBuilder()
                 .AddJsonFile("local.settings.json", optional=true)
@@ -56,16 +56,10 @@ module Api =
             CorsHosts = getValueOrDefault<string> config "CorsHosts" "*"
         }
 
-    let private getData config =
+    let getData config =
         if config.UseFakes
         then FakesRepository() :> IDataRepository
         else DatabaseRepository(config.DbConnectionString) :> IDataRepository
-
-    let resolveDependencies (context: ExecutionContext) = 
-        let config = context |> getConfiguration
-        let data = config |> getData
-        let logger = config |> createLogger
-        {Started=System.DateTime.UtcNow; Config=config; Data=data; Log=logger}
 
     ///
     /// CORS
@@ -93,10 +87,7 @@ module Api =
     ///
 
     /// Given an API function, get a response.  
-    let optionsResponse
-        (req: HttpRequestMessage)
-        (context: ExecutionContext)  = 
-            let config = getConfiguration context
+    let optionsResponse (req: HttpRequestMessage) (config: AppConfig)  = 
             let origin = origin req
             let response = new HttpResponseMessage(Status.OK)
             addCORSHeader response origin config.CorsHosts
@@ -137,15 +128,14 @@ module Api =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let constructResponse (req:HttpRequestMessage) (ctx:RequestContext) trialResult : HttpResponseMessage =
-        let elapsed = (System.DateTime.UtcNow-ctx.Started).TotalMilliseconds
-        match trialResult with
+    let createResponse (req:HttpRequestMessage) (config:AppConfig) (log:Logger) (timer:Stopwatch) result : HttpResponseMessage =
+        match result with
         | Ok(result, _) -> 
-            logInfo ctx.Log req Status.OK elapsed
-            jsonResponse req ctx.Config.CorsHosts Status.OK result
+            logInfo log req Status.OK timer.ElapsedMilliseconds
+            jsonResponse req config.CorsHosts Status.OK result
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
-            logError ctx.Log req status elapsed errors
-            jsonResponse req ctx.Config.CorsHosts status errors
+            logError log req status timer.ElapsedMilliseconds errors
+            jsonResponse req config.CorsHosts status errors
 
 

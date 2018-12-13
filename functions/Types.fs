@@ -219,16 +219,3 @@ module Types =
       { UserId: Id
         UserName: NetId
         Expiration: System.DateTime }
-
-
-    type RequestContext = 
-      { Started: DateTime
-        Config: AppConfig
-        Data: IDataRepository
-        Log: Logger }
-
-    type AuthorizedRequestContext = 
-      { Config: AppConfig
-        Data: IDataRepository
-        Log: Logger
-        User: JwtClaims }
