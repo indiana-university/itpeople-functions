@@ -1,0 +1,29 @@
+[
+  [
+    {
+      "id": "group id",
+      "name": "group name",
+      "members": [
+        {
+          "username": "username",
+          "title": "a title",
+          "role": "leadership"
+        },
+        {
+          "username": "username",
+          "title": "a title",
+          "role": "leadership",
+          "vacant": true
+        }
+      ],
+      "children": [
+        {
+          "type": "string",
+          "link": "string",
+          "cms_id": "string",
+          "name": "string"
+        }
+      ]
+    }
+  ]
+]

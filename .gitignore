@@ -217,7 +217,6 @@ ClientBin/
 *.dbmdl
 *.dbproj.schemaview
 *.jfm
-*.pfx
 *.publishsettings
 orleans.codegen.cs
 
@@ -328,3 +327,10 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+# static_files folder
+functions/spa/
+.DS_Store
+local.settings.json
+.ionide/symbolCache.db
+scripts/ImportOrgData/uits-groups.json
