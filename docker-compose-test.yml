@@ -27,7 +27,7 @@ services:
     environment:
       APPINSIGHTS_INSTRUMENTATIONKEY: "36a9cb35-1b64-4224-9426-d4da8b21a4c1"
       FUNCTIONS_WORKER_RUNTIME: "dotnet"
-      AzureWebJobsDisableHomepage: true
+      AzureWebJobsDisableHomepage: "true"
       CorsHosts: "https://itpeople.apps-test.iu.edu"
       OAuthClientId: "uxo-skunkworks"
       OAuthTokenUrl: "https://apps-test.iu.edu/uaa-stg/oauth/token"
