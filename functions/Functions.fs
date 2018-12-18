@@ -69,7 +69,7 @@ module Functions =
         let timer = start()
         authenticateRequest req config
         >>= await (fun _ -> data.GetProfile id)
-        |> createResponse req config log (start())
+        |> createResponse req config log timer
 
     /// (Authenticated) Get a user profile associated with the JWT in the request Authorization header.
     [<FunctionName("UserGetMe")>]
