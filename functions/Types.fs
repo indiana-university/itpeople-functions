@@ -200,7 +200,7 @@ module Types =
 
     type IDataRepository =
         /// Get a user record for a given net ID (e.g. 'jhoerr')
-        abstract member GetUserByNetId: NetId -> Async<Result<Person,Error>>
+        abstract member TryGetPersonId: NetId -> Async<Result<(NetId*Id),Error>>
         /// Get a user profile for a given user ID
         abstract member GetProfile: Id -> Async<Result<PersonDto,Error>>
         /// Get all users, units, and departments matching a given search term

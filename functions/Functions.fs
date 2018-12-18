@@ -21,6 +21,7 @@ open Microsoft.Azure.WebJobs.Extensions.Http
 ///</summary
 module Functions =    
 
+    let anonymous = AuthorizationLevel.Anonymous
     let start = System.Diagnostics.Stopwatch.StartNew
 
     let config = getConfiguration()
@@ -50,14 +51,14 @@ module Functions =
         // workflow partials
         let createUaaTokenRequest = createUaaTokenRequest config
         let requestTokenFromUaa = postAsync<UaaResponse> config.OAuth2TokenUrl
-        let resolveAppUser claims = data.GetUserByNetId claims.UserName
+        let resolveAppUserId claims = data.TryGetPersonId claims.UserName
         let encodeAppJwt = encodeAppJwt config.JwtSecret (now().AddHours(8.))
 
         getQueryParam "oauth_code" req
         >>= createUaaTokenRequest
         >>= await requestTokenFromUaa
         >>= decodeUaaJwt
-        >>= await resolveAppUser
+        >>= await resolveAppUserId
         >>= encodeAppJwt
         |> createResponse req config log timer
 

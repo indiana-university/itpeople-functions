@@ -29,7 +29,7 @@ module JwtUtilTests =
 
     [<Fact>]
     let ``Encode app JWT`` () =
-        let person = {swanson with Id=id; NetId=name}
+        let person = (name, id)
         let expected = Ok ({access_token = TestFakes.validJwt}, [])
         let actual = encodeAppJwt TestFakes.jwtSingingSecret expiration person
         Assert.Equal(expected, actual)
