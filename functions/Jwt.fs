@@ -129,6 +129,6 @@ module Jwt =
         >>= decodeAppJwt secret
     
 
-    let authenticateRequest (req: HttpRequestMessage) (config:AppConfig) = 
+    let authenticateRequest (config:AppConfig) (req: HttpRequestMessage)= 
         validateAuth config.JwtSecret req
     

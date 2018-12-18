@@ -130,14 +130,14 @@ module Api =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let createResponse (req:HttpRequestMessage) (config:AppConfig) (log:Logger) (timer:Stopwatch) result : HttpResponseMessage =
+    let createResponse (req:HttpRequestMessage) (config:AppConfig) (log:Logger) result : HttpResponseMessage =
         match result with
         | Ok(result, _) -> 
-            logSuccess log req Status.OK timer.ElapsedMilliseconds
+            logSuccess log req Status.OK
             jsonResponse req config.CorsHosts Status.OK result
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
-            logError log req status timer.ElapsedMilliseconds errors
+            logError log req status errors
             jsonResponse req config.CorsHosts status errors
 
 
