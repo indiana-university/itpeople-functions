@@ -54,7 +54,11 @@ module Logging =
             .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 
-    let logInfo (log:Logger) (req:HttpRequestMessage) (status:Status) elapsed =
+    let logInfo (log:Logger) (req:HttpRequestMessage) msg =
+        log.Information("{Method} {Function}/{Parameters}{Query}: {Detail}.", 
+            req.Method, req |> funcName, req |> funcParams, req |> query, msg)
+
+    let logSuccess (log:Logger) (req:HttpRequestMessage) (status:Status) elapsed =
         log.Information("{Method} {Function}/{Parameters}{Query} finished in {Elapsed} ms with status {Status}.", 
             req.Method, req |> funcName, req |> funcParams, req |> query, elapsed, int status)
 

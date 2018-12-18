@@ -54,3 +54,9 @@ module Util =
         | exn -> fail (status, sprintf "%s: %s" msg (exn.Message))
 
     let now () = DateTime.UtcNow
+
+    /// ROP: Apply a function f to the provided argument x,
+    /// then return x unchanged.
+    let tap f x =
+        f x
+        ok x

@@ -53,12 +53,14 @@ module Functions =
         let requestTokenFromUaa = postAsync<UaaResponse> config.OAuth2TokenUrl
         let resolveAppUserId claims = data.TryGetPersonId claims.UserName
         let encodeAppJwt = encodeAppJwt config.JwtSecret (now().AddHours(8.))
+        let logSignin user = sprintf "%s signed in" (fst user) |> logInfo log req
 
         getQueryParam "oauth_code" req
         >>= createUaaTokenRequest
         >>= await requestTokenFromUaa
         >>= decodeUaaJwt
         >>= await resolveAppUserId
+        >>= tap logSignin
         >>= encodeAppJwt
         |> createResponse req config log timer
 

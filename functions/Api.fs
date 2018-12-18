@@ -133,7 +133,7 @@ module Api =
     let createResponse (req:HttpRequestMessage) (config:AppConfig) (log:Logger) (timer:Stopwatch) result : HttpResponseMessage =
         match result with
         | Ok(result, _) -> 
-            logInfo log req Status.OK timer.ElapsedMilliseconds
+            logSuccess log req Status.OK timer.ElapsedMilliseconds
             jsonResponse req config.CorsHosts Status.OK result
         | Bad(msgs) -> 
             let (status, errors) = failure (msgs)
