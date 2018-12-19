@@ -41,11 +41,11 @@ module Database =
     /// Fetch a user given a netid (e.g. 'jhoerr')
     let queryPersonByNetId connStr netId = async {
         let idParam = {NetId=netId}
-        let query = "SELECT * FROM people WHERE netid = @NetId"
+        let query = "SELECT id FROM people WHERE netid = @NetId"
         try
             use cn = sqlConnection connStr
-            let! seq = cn.QuerySingleOrDefaultAsync<Person>(query, idParam) |> awaitTask
-            return ok seq
+            let! id = cn.QuerySingleOrDefaultAsync<int>(query, idParam) |> awaitTask
+            return (netId, id) |> ok
         with exn -> return dbFail "queryPersonByNetId" exn
     }
 
@@ -257,7 +257,7 @@ ORDER BY u.name ASC;
         let connStr = connectionString
 
         interface IDataRepository with 
-            member this.GetUserByNetId netId = queryPersonByNetId connStr netId
+            member this.TryGetPersonId netId = queryPersonByNetId connStr netId
             member this.GetProfile id = queryUserProfile connStr id
             member this.GetSimpleSearchByTerm term = querySimpleSearch connStr term
             member this.GetUnits () = queryUnits connStr
