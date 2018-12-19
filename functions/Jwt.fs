@@ -53,7 +53,7 @@ module Jwt =
         tryf' Status.InternalServerError "Failed to create access token" fn
 
     /// Convert the "exp" unix timestamp into a Datetime
-    let decodeExp (exp:obj) = 
+    let decodeExp exp = 
         exp 
         |> string 
         |> System.Double.Parse 
@@ -80,7 +80,7 @@ module Jwt =
             fail (Status.Unauthorized, sprintf "Failed to decode access token: %s" (exn.Message))
 
     /// Decode a JWT issued by the Api.Auth.get function.
-    let decodeAppJwt (secret:string) (jwt:string) =
+    let decodeAppJwt secret jwt =
         try
             // decode and validate the app JWT
             let decoded = 
@@ -123,12 +123,12 @@ module Jwt =
         else parts.[1] |> ok
 
     /// Attempt to decode the app JWT claims
-    let validateAuth (secret:string) (req: HttpRequestMessage) = 
+    let validateAuth secret req = 
         extractAuthHeader req
         >>= extractJwt
         >>= decodeAppJwt secret
     
 
-    let authenticateRequest (config:AppConfig) (req: HttpRequestMessage)= 
+    let authenticateRequest (config:AppConfig) req = 
         validateAuth config.JwtSecret req
     

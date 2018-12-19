@@ -33,12 +33,12 @@ module Logging =
     let private splitPath (req:HttpRequestMessage) =
         req.RequestUri.AbsolutePath.Split("/", StringSplitOptions.RemoveEmptyEntries)
 
-    let private funcName (req:HttpRequestMessage) =
+    let private funcName req =
         req
         |> splitPath
         |> Seq.head
     
-    let private funcParams (req:HttpRequestMessage) =
+    let private funcParams req =
         req
         |> splitPath
         |> Seq.skip 1
@@ -84,7 +84,7 @@ module Logging =
             .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 
-    let logInfo (log:Logger) (req:HttpRequestMessage) msg =
+    let logInfo (log:Logger) req msg =
         log.Information(
             "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query}: {Detail}.", 
             req |> tryGetIPAddress, 
@@ -95,7 +95,7 @@ module Logging =
             req |> query, 
             msg)
 
-    let logSuccess (log:Logger) (req:HttpRequestMessage) (status:Status) =
+    let logSuccess (log:Logger) req (status:Status) =
         log.Information(
             "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} finished in {Elapsed} ms with status {Status}.", 
             req |> tryGetIPAddress, 
@@ -107,7 +107,7 @@ module Logging =
             req |> tryGetElapsedTime, 
             int status)
 
-    let logError (log:Logger) (req:HttpRequestMessage) (status:Status) errors =
+    let logError (log:Logger) req (status:Status) errors =
         log.Error(
             "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} errored in {Elapsed} ms with status {Status}. Errors: {Detail}", 
             req |> tryGetIPAddress, 
@@ -120,7 +120,7 @@ module Logging =
             int status, 
             errors)
 
-    let logFatal (log:Logger) (req:HttpRequestMessage) (exn:Exception) =
+    let logFatal (log:Logger) req (exn:Exception) =
         log.Fatal(
             exn,
             "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} threw an exception after {Elapsed} ms with status {Status}. {Detail}", 

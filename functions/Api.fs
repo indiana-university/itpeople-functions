@@ -67,7 +67,7 @@ module Api =
     /// CORS
     ///
 
-    let addCORSHeader (res:HttpResponseMessage) (origin:string) (corsHosts:string) =
+    let addCORSHeader (res:HttpResponseMessage) (origin) (corsHosts) =
         match corsHosts with
         | null -> ()
         | "" -> ()
@@ -89,7 +89,7 @@ module Api =
     ///
 
     /// Given an API function, get a response.  
-    let optionsResponse (req: HttpRequestMessage) (config: AppConfig)  = 
+    let optionsResponse req config  = 
             let origin = origin req
             let response = new HttpResponseMessage(Status.OK)
             addCORSHeader response origin config.CorsHosts
@@ -130,7 +130,7 @@ module Api =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let createResponse (req:HttpRequestMessage) (config:AppConfig) (log:Logger) result : HttpResponseMessage =
+    let createResponse req config log result =
         match result with
         | Ok(result, _) -> 
             logSuccess log req Status.OK
