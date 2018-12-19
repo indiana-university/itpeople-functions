@@ -53,12 +53,15 @@ module Logging =
         else None
 
     let tryGetIPAddress (req:HttpRequestMessage) = 
-        match tryGetHeaderValue req "X-Forwarded-For" with
+        match tryGetHeaderValue req "X-Cluster-Client-Ip" with
         | Some v -> v
         | None -> 
-            match tryGetHeaderValue req "REMOTE_ADDR" with
+            match tryGetHeaderValue req "X-Forwarded-For" with
             | Some v -> v
-            | None -> ""         
+            | None -> 
+                match tryGetHeaderValue req "REMOTE_ADDR" with
+                | Some v -> v
+                | None -> ""         
 
     let tryGetElapsedTime (req:HttpRequestMessage) = 
         if req.Properties.ContainsKey(WorkflowStarted)
