@@ -14,7 +14,7 @@ module Types =
     let ROLE_ADMIN = "admin"
     let ROLE_USER = "user"
 
-    let WorkflowStarted = "WORKFLOW_STARTED"
+    let WorkflowTimestamp = "WORKFLOW_TIMESTAMP"
     let WorkflowUser = "WORKFLOW_USER"
 
     type Status = HttpStatusCode

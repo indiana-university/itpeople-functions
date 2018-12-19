@@ -64,9 +64,9 @@ module Logging =
                 | None -> ""         
 
     let tryGetElapsedTime (req:HttpRequestMessage) = 
-        if req.Properties.ContainsKey(WorkflowStarted)
+        if req.Properties.ContainsKey(WorkflowTimestamp)
         then 
-            let started = req.Properties.[WorkflowStarted] :?> DateTime
+            let started = req.Properties.[WorkflowTimestamp] :?> DateTime
             (DateTime.UtcNow - started).TotalMilliseconds |> int
         else -1
 

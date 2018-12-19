@@ -21,22 +21,26 @@ open Microsoft.Azure.WebJobs.Extensions.Http
 ///</summary
 module Functions =    
 
+    /// Dependencies are resolved once at startup.
     let config = getConfiguration()
     let data = getData config
     let log = createLogger config
 
-    /// Update the request properties with the start time of this request.
-    let start (req:HttpRequestMessage) = 
-        req.Properties.Add(WorkflowStarted, DateTime.UtcNow)
+    /// Logging: Add a timestamp to the request properties.
+    let timestamp (req:HttpRequestMessage) = 
+        req.Properties.Add(WorkflowTimestamp, DateTime.UtcNow)
         req
 
-    /// Attempt to authenticate the request and update the request properties 
-    /// with the net ID of the authenticated user.
+    /// Logging: Add the authenticated user to the request properties
+    let recordAuthenticatedUser (req:HttpRequestMessage) user =
+        req.Properties.Add(WorkflowUser, user.UserName)
+        ok user
+        
+    /// Attempt to authenticate the request.
     let authenticate (req:HttpRequestMessage) = 
         req
-        |> start
         |> authenticateRequest config
-        >>= tap (fun user -> req.Properties.Add(WorkflowUser, user.UserName))
+        >>= recordAuthenticatedUser req
         
     /// (Anonymous) A function that simply returns, "Pong!" 
     [<FunctionName("Options")>]
@@ -62,18 +66,17 @@ module Functions =
         let requestTokenFromUaa = postAsync<UaaResponse> config.OAuth2TokenUrl
         let resolveAppUserId claims = data.TryGetPersonId claims.UserName
         let encodeAppJwt = encodeAppJwt config.JwtSecret (now().AddHours(8.))
-        // let logSignin user = sprintf "%s signed in" (fst user) |> logInfo log req
 
         req
-        |> start
+        |> timestamp
         |> getQueryParam "oauth_code"
         >>= createUaaTokenRequest
         >>= await requestTokenFromUaa
         >>= decodeUaaJwt
+        >>= recordAuthenticatedUser req
         >>= await resolveAppUserId
         >>= encodeAppJwt
         |> createResponse req config log
-
         
     /// (Authenticated) Get a user profile for a given user 'id'
     [<FunctionName("UserGetId")>]
@@ -81,6 +84,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{id}")>]
         req: HttpRequestMessage, id: Id) =
         req 
+        |> timestamp
         |> authenticate
         >>= await (fun _ -> data.GetProfile id)
         |> createResponse req config log
@@ -91,6 +95,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "me")>]
         req: HttpRequestMessage) = 
         req 
+        |> timestamp
         |> authenticate
         >>= await (fun user -> data.GetProfile user.UserId)
         |> createResponse req config log
@@ -100,7 +105,8 @@ module Functions =
     let searchSimpleGet
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "search")>]
         req: HttpRequestMessage) =
-        req
+        req 
+        |> timestamp
         |> authenticate
         >>= (fun _ -> getQueryParam "term" req)
         >>= await data.GetSimpleSearchByTerm
@@ -112,6 +118,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units")>]
         req: HttpRequestMessage) =
         req 
+        |> timestamp
         |> authenticate
         >>= await (fun _ -> data.GetUnits())
         |> createResponse req config log
@@ -122,6 +129,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>]
         req: HttpRequestMessage, id: Id) =
         req 
+        |> timestamp
         |> authenticate
         >>= await (fun _ -> data.GetUnit id)
         |> createResponse req config log
@@ -132,6 +140,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments")>]
         req: HttpRequestMessage) =
         req 
+        |> timestamp
         |> authenticate
         >>= await (fun _ -> data.GetDepartments())
         |> createResponse req config log
@@ -142,6 +151,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>]
         req: HttpRequestMessage, id: Id) =
         req 
+        |> timestamp
         |> authenticate
         >>= await (fun _ -> data.GetDepartment id)
         |> createResponse req config log
