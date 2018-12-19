@@ -3,11 +3,6 @@ open OrgGroupHelpers
 open System.IO
 open Newtonsoft.Json
 
-let pagesToGroups (pages : PageRecord list) =
-    pages
-    |> List.map pageToGroup
-    |> List.choose id
-
 let saveToFile (o) =
     let path = "output/groups.json"
     let json = JsonConvert.SerializeObject o
@@ -22,7 +17,7 @@ let GetConnectionString (args:string[]) =
 [<EntryPoint>]
 let main args =
     ConnectionString <-  args |> GetConnectionString 
-
+    
     GetPages
     |> pagesToGroups
     |> saveToFile

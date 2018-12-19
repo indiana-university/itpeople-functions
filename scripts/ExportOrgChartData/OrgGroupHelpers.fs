@@ -68,3 +68,8 @@ let pageToGroup (page : PageRecord) =
     else if xml |> isUnit then Some(unitDataToGroup (page, xml))
     else if xml |> isTeam then Some(teamDataToGroup (page, xml))
     else None
+
+let pagesToGroups (pages : PageRecord list) =
+    pages
+    |> List.map pageToGroup
+    |> List.choose id
