@@ -38,22 +38,22 @@ module Jwt =
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
     /// Create and sign a JWT
-    let encodeAppJwt secret expiration (person:Person) = 
+    let encodeAppJwt secret expiration (netId, id) = 
         let fn() =
             let jwt = 
                 JwtBuilder()
                     .WithAlgorithm(new HMACSHA256Algorithm())
                     .WithSecret(secret)
                     .ExpirationTime(expiration)
-                    .AddClaim(UserIdClaim, (person.Id.ToString()))
-                    .AddClaim(UserNameClaim, person.NetId)
+                    .AddClaim(UserIdClaim, (id.ToString()))
+                    .AddClaim(UserNameClaim, netId)
                     // .AddClaim(UserRoleClaim, (role.ToString()))
                     .Build();
             { access_token = jwt }
         tryf' Status.InternalServerError "Failed to create access token" fn
 
     /// Convert the "exp" unix timestamp into a Datetime
-    let decodeExp (exp:obj) = 
+    let decodeExp exp = 
         exp 
         |> string 
         |> System.Double.Parse 
@@ -80,7 +80,7 @@ module Jwt =
             fail (Status.Unauthorized, sprintf "Failed to decode access token: %s" (exn.Message))
 
     /// Decode a JWT issued by the Api.Auth.get function.
-    let decodeAppJwt (secret:string) (jwt:string) =
+    let decodeAppJwt secret jwt =
         try
             // decode and validate the app JWT
             let decoded = 
@@ -123,12 +123,12 @@ module Jwt =
         else parts.[1] |> ok
 
     /// Attempt to decode the app JWT claims
-    let validateAuth (secret:string) (req: HttpRequestMessage) = 
+    let validateAuth secret req = 
         extractAuthHeader req
         >>= extractJwt
         >>= decodeAppJwt secret
     
 
-    let authenticateRequest (req: HttpRequestMessage) (config:AppConfig) = 
+    let authenticateRequest (config:AppConfig) req = 
         validateAuth config.JwtSecret req
     

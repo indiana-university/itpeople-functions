@@ -134,8 +134,8 @@ module Fakes =
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
     let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
 
-    let getFakeUser () = async {
-        return! swanson |> ok |> async.Return
+    let getPersonId () = async {
+        return! (swanson.NetId, swanson.Id) |> ok |> async.Return
     }
 
     let getFakeProfile () = async {
@@ -199,7 +199,7 @@ module Fakes =
 
     type FakesRepository() =
         interface IDataRepository with 
-            member this.GetUserByNetId netId = getFakeUser ()
+            member this.TryGetPersonId netId = getPersonId ()
             member this.GetProfile id = getFakeProfile ()
             member this.GetSimpleSearchByTerm term = getFakeSimpleSearchByTerm ()
             member this.GetUnits () = getFakeUnits ()
