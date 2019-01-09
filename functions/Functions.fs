@@ -12,14 +12,42 @@ open Logging
 
 open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
-open System.Net.Http
 open System
+open System.Net.Http
+open System.Reflection
 open Microsoft.Azure.WebJobs.Extensions.Http
+open Microsoft.Extensions.DependencyInjection
+
+open Swashbuckle.AspNetCore.Annotations
+open Swashbuckle.AspNetCore.Swagger
+open Swashbuckle.AspNetCore.AzureFunctions.Annotations
+open Swashbuckle.AspNetCore.AzureFunctions.Filters
+open Swashbuckle.AspNetCore.AzureFunctions.Extensions
 
 ///<summary>
 /// This module defines the bindings and triggers for all functions in the project
 ///</summary
 module Functions =    
+
+    /// OpenAPI SPEC
+    
+    let apiInfo = 
+        Info(
+            Title="IT People API",
+            Version="v1",
+            Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
+            Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
+
+    let services = ServiceCollection()
+    Assembly.GetExecutingAssembly() |> services.AddAzureFunctionsApiProvider
+    let openApiSpec = 
+        services
+          .AddSwaggerGen((fun options -> 
+            options.SwaggerDoc(name="v1", info=apiInfo)
+            options.DescribeAllEnumsAsStrings()
+            options.EnableAnnotations()))
+          .BuildServiceProvider(true)
+          .GetSwagger("v1")
 
     /// DEPENDENCY RESOLUTION
 
