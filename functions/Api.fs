@@ -90,21 +90,23 @@ module Api =
 
     /// Given an API function, get a response.  
     let optionsResponse req config  = 
-            let origin = origin req
-            let response = new HttpResponseMessage(Status.OK)
-            addCORSHeader response origin config.CorsHosts
-            response
+        let origin = origin req
+        let response = new HttpResponseMessage(Status.OK)
+        addCORSHeader response origin config.CorsHosts
+        response
 
-    /// Construct an HTTP response with JSON content
-    let jsonResponse req corsHosts status model = 
-        let content = 
-            JsonConvert.SerializeObject(model, Json.JsonSettings)
-            |> (fun s -> new StringContent(s))
+    let contentResponse req corsHosts status content = 
         let response = new HttpResponseMessage(status)
         response.Content <- content
         response.Content.Headers.ContentType <- "application/json" |> MediaTypeHeaderValue;
         addCORSHeader response (origin req) corsHosts
         response
+
+    /// Construct an HTTP response with JSON content
+    let jsonResponse req corsHosts status model = 
+        JsonConvert.SerializeObject(model, Json.JsonSettings)
+        |> (fun s -> new StringContent(s))
+        |> contentResponse req corsHosts status
 
     /// Organize the errors into a status code and a collection of error messages. 
     /// If multiple errors are found, the aggregate status will be that of the 
