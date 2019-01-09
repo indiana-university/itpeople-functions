@@ -4,16 +4,23 @@
 namespace ImportOrgData
 
 open System
-open Chessie.ErrorHandling
 open FSharp.Data
 open Database;
 open System.IO
 open System.Collections.Generic
-open Npgsql
-open Dapper
 open Types
 
-module OrgTree = 
+module UitsUnitBuilder = 
+
+    type UitsUnit = {
+        Id: string
+        Name: string
+        Url: string
+        Members: seq<Member>
+        ChildrenRaw: seq<Uits.Child>
+        Children: seq<Unit>
+    }
+
 
     /// WCMS IDs of units that are cruft or unusable.
     let private ignoreUnits =
@@ -73,10 +80,10 @@ module OrgTree =
         "Institutional Assurance"
         "User Experience Office" ]
 
-    let private emptyUnit = {Id=""; Name=""; Url=""; Members=[]; ChildrenRaw=[]; Children=[]}
+    let private emptyUnit = { Name=""; Url=""; Members=[]; Children=[]; }
 
     /// Map a JsonProvider 'Member' to a domain Member
-    let private projectMember (m:OrgData.Member) = 
+    let private projectMember (m:Uits.Member) = 
         let username = 
             match m.Vacant with
             | Some(v) -> if v then "vacant" else m.Username
@@ -87,13 +94,21 @@ module OrgTree =
           Percentage = 0 }
 
     /// Map a JsonProvider 'Root' to a domain Unit
-    let private projectUnit (u:OrgData.Root) =
+    let private projectUitsUnit (u:Uits.Root) =
         { Id = u.Id 
           Name = u.Name
           Members = u.Members |> Seq.map projectMember 
           ChildrenRaw = u.Children
           Children = Seq.empty;
           Url="" }
+
+    let private projectUnit (u:UitsUnit) =
+        { 
+          Name = u.Name
+          Members = u.Members
+          Children = u.Children
+          Url=u.Url
+        }
 
     /// Flatten a 2D sequence into a 1D sequence
     let private flattenUnits data =
@@ -104,10 +119,8 @@ module OrgTree =
     /// Any extra units that aren't properly accounted for in the WCMS data, or
     ///  are simply to gnarly to parse. 
     let private extraUnits =
-      [ { Id = "301c1367814f4e1006f2bd606c8ec1ee"
-          Name="Pervasive Technology Institute"
+      [ { Name="Pervasive Technology Institute"
           Url="https://pti.iu.edu/index.html"
-          ChildrenRaw=[]
           Members=
             [ { Name="stewart"; Title="Executive Director"; Role="leadership"; Percentage=100 }
               { Name="moshann"; Title="Administrative Assistant"; Role="other"; Percentage=100 } ] 
@@ -121,25 +134,25 @@ module OrgTree =
               { emptyUnit with Name="National Center for Genome Analysis Support NCGAS"; Url="https://ncgas.org/" } ] } ]
 
     /// Identity the top-level units and build out the unit tree for each.
-    let private buildTree (units:seq<Unit>) = 
+    let private buildTree (units:seq<UitsUnit>) = 
 
         /// Recursively identify and gather up all the child units of this unit
-        let rec buildTree' (unit:Unit) =
+        let rec buildTree' (unit:UitsUnit) =
             let children = List<Unit>()
             for cid in unit.ChildrenRaw |> Seq.map (fun c -> c.CmsId) do
                 let child = units |> Seq.tryFind (fun u -> u.Id = cid)
                 let resolvedChild = 
                     match child with
                     | Some c -> buildTree' c
-                    | None -> { Unit.Id=cid; Name="Unknown Unit"; Members=Seq.empty; ChildrenRaw=Seq.empty; Children=Seq.empty; Url="" }
+                    | None -> { emptyUnit with Name="Unknown Unit" }
                 children.Add(resolvedChild)
             
             /// Some child units are actually just the member lists of the parent unit.
             /// This was done for display purposes in WCMS, to make everything "look right".
             /// These parent/child units need to be collapsed so the data structures are consistent and correct. 
             if (children.Count = 1 && (children.[0].Name.Equals(unit.Name,icic) || children.[0].Name = children.[0].Name.ToLowerInvariant()))
-            then {unit with Children = Seq.empty; ChildrenRaw = Seq.empty; Members = unit.Members |> Seq.append children.[0].Members}
-            else {unit with Children = children}
+            then { Name=unit.Name; Url=unit.Url; Members = unit.Members |> Seq.append children.[0].Members; Children = Seq.empty; }
+            else { Name=unit.Name; Url=unit.Url; Members = unit.Members; Children = children; }
         
         /// Identity all the units that are known to be children of others.
         let childIds = 
@@ -169,11 +182,11 @@ module OrgTree =
                 Name="Regional Campuses";
                 Children = units |> Seq.filter (fun u -> regionals |> Seq.contains u.Name ) }
         /// Collect divisions, OVPIT, and regionals under UITS.
-        { emptyUnit with 
+        [{ emptyUnit with 
             Name="University Information Technology Services (UITS)"
             Url="https://uits.iu.edu"
             Members = [ { Member.Name="bwheeler"; Title = "Vice President, Chief Information Officer and Dean"; Role="leadership"; Percentage=100} ]
-            Children = [ divisions_units; ovpit_units; regional_units ] }
+            Children = [ divisions_units; ovpit_units; regional_units ] } ]
         
 
     /// Pretty-print the org tree.
@@ -189,15 +202,14 @@ module OrgTree =
             then unit.Children |> Seq.iter (printTree' (level+1))
 
         printTree' 0 uits
-        uits
+        [ uits ]
     
     /// From a JSON file at 'path', generate a UITS org heirarchy.
-    let buildOrgTree (path:string) = 
+    let build (path:string) = 
         path
-        |> OrgData.Load
+        |> Uits.Load
         |> flattenUnits
-        |> Seq.map projectUnit
+        |> Seq.map projectUitsUnit
         |> buildTree
         |> Seq.append extraUnits
         |> partition
-        |> printTree

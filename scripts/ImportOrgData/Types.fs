@@ -4,9 +4,9 @@
 namespace ImportOrgData
 
 module Types =
+    
+    open Argu
     open FSharp.Data
-
-    type OrgData = JsonProvider<"OrgDataSample.json">
 
     type Member = {
         Name: string
@@ -16,10 +16,33 @@ module Types =
     }
 
     type Unit = {
-        Id: string
         Name: string
         Url: string
         Members: seq<Member>
-        ChildrenRaw: seq<OrgData.Child>
         Children: seq<Unit>
     }
+
+    type Uits = JsonProvider<"samples/UitsDataSample.json">
+    type EdgeUnit = CsvProvider<"samples/EdgeUnitsSample.csv">
+    type EdgeMember = CsvProvider<"samples/EdgeMembersSample.csv">
+    type Person = CsvProvider<"samples/PeopleSample.csv">
+    type UnitDept = CsvProvider<"samples/UnitDeptSample.csv">
+    type Dept = CsvProvider<"samples/DepartmentSample.csv">
+
+    type CLIArguments =
+        | [<Mandatory>]Connection of connection:string
+        | Uits of uitsJson:string
+        | Edge of unitCsv:string * memberCsv:string
+        | UnitDept of unitDeptCsv:string
+        | Dept of deptCsv:string
+        | People of hrCsv:string
+    with
+        interface IArgParserTemplate with
+            member s.Usage =
+                match s with
+                | Uits _ -> "Import UITS unit data. Requires a path to a json file."
+                | Edge _ -> "Import Edge unit data. Requires a path to a unit CSV file and a member CSV file."
+                | People _ -> "Import People HR data. Requires a path to an HR CSV file."
+                | UnitDept _ -> "Import unit/department relationships. Requires a path to an unit-dept CSV file."
+                | Dept _ -> "Import department names. Requires a path to an dept CSV file."
+                | Connection _ -> "(required) PostgresQL connection string"
