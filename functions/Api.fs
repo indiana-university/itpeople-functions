@@ -148,13 +148,14 @@ module Api =
             jsonResponse req config.CorsHosts status errors
 
     /// OpenAPI SPEC
+    let apiInfo = 
+        Info(
+            Title="IT People API",
+            Version="v1",
+            Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
+            Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
+
     let generateOpenAPISpec () = 
-        let apiInfo = 
-            Info(
-                Title="IT People API",
-                Version="v1",
-                Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
-                Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
         let services = ServiceCollection()
         let assembly = Assembly.GetExecutingAssembly()
         services.AddAzureFunctionsApiProvider(functionAssembly=assembly, routePrefix="")
