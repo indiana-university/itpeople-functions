@@ -15,11 +15,16 @@ open System.Diagnostics
 open System.Net
 open System.Net.Http
 open System.Net.Http.Headers
+open System.Reflection
 open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
 open Microsoft.Extensions.Configuration
+open Microsoft.Extensions.DependencyInjection
 open Serilog.Core
 open Newtonsoft.Json
+
+open Swashbuckle.AspNetCore.Swagger
+open Swashbuckle.AspNetCore.AzureFunctions.Extensions
 
 
 module Api =
@@ -142,4 +147,21 @@ module Api =
             logError log req status errors
             jsonResponse req config.CorsHosts status errors
 
-
+    /// OpenAPI SPEC
+    let generateOpenAPISpec () = 
+        let apiInfo = 
+            Info(
+                Title="IT People API",
+                Version="v1",
+                Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
+                Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
+        let services = ServiceCollection()
+        let assembly = Assembly.GetExecutingAssembly()
+        services.AddAzureFunctionsApiProvider(functionAssembly=assembly, routePrefix="")
+        services
+          .AddSwaggerGen((fun options -> 
+            options.SwaggerDoc(name="v1", info=apiInfo)
+            options.DescribeAllEnumsAsStrings()
+            options.EnableAnnotations()))
+          .BuildServiceProvider(true)
+          .GetSwagger("v1")

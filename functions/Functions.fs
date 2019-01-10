@@ -29,29 +29,10 @@ open Swashbuckle.AspNetCore.AzureFunctions.Extensions
 ///</summary
 module Functions =    
 
-    /// OpenAPI SPEC
-    
-    let apiInfo = 
-        Info(
-            Title="IT People API",
-            Version="v1",
-            Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
-            Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
-
-    let services = ServiceCollection()
-    Assembly.GetExecutingAssembly() |> services.AddAzureFunctionsApiProvider
-    let openApiSpec = 
-        services
-          .AddSwaggerGen((fun options -> 
-            options.SwaggerDoc(name="v1", info=apiInfo)
-            options.DescribeAllEnumsAsStrings()
-            options.EnableAnnotations()))
-          .BuildServiceProvider(true)
-          .GetSwagger("v1")
-
     /// DEPENDENCY RESOLUTION
 
     /// Dependencies are resolved once at startup.
+    let openApiSpec = generateOpenAPISpec()
     let config = getConfiguration()
     let data = getData config
     let log = createLogger config
