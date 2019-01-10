@@ -86,10 +86,10 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "options", Route = "{*url}")>] req) =
         optionsResponse req config
 
-    [<FunctionName("Swagger")>]
+    [<FunctionName("OpenAPI")>]
     [<SwaggerIgnore>]
-    let swagger
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "swagger")>] req) =
+    let openapi
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
         new StringContent(openApiSpec) |> contentResponse req "*" Status.OK
 
     /// (Anonymous) A function that simply returns, "Pong!" 
