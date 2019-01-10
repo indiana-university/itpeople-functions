@@ -20,6 +20,7 @@ open Microsoft.Extensions.DependencyInjection
 
 open Swashbuckle.AspNetCore.Annotations
 open Swashbuckle.AspNetCore.Swagger
+// open Swashbuckle.AspNetCore.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Annotations
 open Swashbuckle.AspNetCore.AzureFunctions.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Extensions
@@ -82,6 +83,7 @@ module Functions =
     /// FUNCTION WORKFLOWS 
 
     [<FunctionName("Options")>]
+    [<SwaggerIgnore>]
     let options
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "options", Route = "{*url}")>] req) =
         optionsResponse req config
