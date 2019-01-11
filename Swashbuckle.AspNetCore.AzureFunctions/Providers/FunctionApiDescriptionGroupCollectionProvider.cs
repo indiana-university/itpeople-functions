@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Options;
+using Swashbuckle.AspNetCore.Annotations;
 using Swashbuckle.AspNetCore.AzureFunctions.Annotations;
 using Swashbuckle.AspNetCore.AzureFunctions.Application;
 
@@ -97,6 +98,7 @@ namespace Swashbuckle.AspNetCore.AzureFunctions.Providers
                 description.SupportedRequestFormats.Add(supportedMediaType);
             }
 
+
             var parameters = GetParametersDescription(methodInfo, route);
             parameters.AddRange(GetOptionalQueryParamaters(methodInfo));
             foreach (var parameter in parameters)
@@ -107,6 +109,19 @@ namespace Swashbuckle.AspNetCore.AzureFunctions.Providers
                     ParameterType = parameter.Type
                 });
                 description.ParameterDescriptions.Add(parameter);
+            }
+
+            foreach (var responseType in methodInfo.GetCustomAttributes<SwaggerResponseAttribute>())
+            {
+                System.Console.WriteLine($"Adding response type for {responseType.StatusCode} {responseType.Type.Name}...");
+
+                var response = new ApiResponseType() 
+                {
+                    StatusCode=responseType.StatusCode,
+                    Type=responseType.Type
+                    
+                };                
+                description.SupportedResponseTypes.Add(response);
             }
 
             return description;

@@ -147,6 +147,8 @@ module Api =
             logError log req status errors
             jsonResponse req config.CorsHosts status errors
 
+    // open Microsoft.OpenApi.Models
+
     /// OpenAPI SPEC
     let apiInfo = 
         Info(
@@ -158,12 +160,12 @@ module Api =
     let generateOpenAPISpec () = 
         let services = ServiceCollection()
         services.AddAzureFunctionsApiProvider(
-            functionAssembly=Assembly.GetExecutingAssembly(),
-            routePrefix="")
+            functionAssembly=Assembly.GetExecutingAssembly())
         services
             .AddSwaggerGen((fun options -> 
                 options.SwaggerDoc(name="v1", info=apiInfo)
                 options.DescribeAllEnumsAsStrings()
-                options.EnableAnnotations()))
+                options.EnableAnnotations()
+            ))
             .BuildServiceProvider(true)
             .GetSwagger("v1")
