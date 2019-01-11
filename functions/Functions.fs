@@ -1,5 +1,5 @@
 // Copyright (C) 2018 The Trustees of Indiana University
-// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-License-Identifier: BSD-3-Clause    
 
 namespace Functions
 
@@ -22,7 +22,6 @@ open Swashbuckle.AspNetCore.Annotations
 open Swashbuckle.AspNetCore.Swagger
 // open Swashbuckle.AspNetCore.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Annotations
-open Swashbuckle.AspNetCore.AzureFunctions.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Extensions
 
 ///<summary>

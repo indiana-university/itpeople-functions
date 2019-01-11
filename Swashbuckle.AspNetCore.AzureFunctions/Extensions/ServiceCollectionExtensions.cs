@@ -43,15 +43,16 @@ namespace Swashbuckle.AspNetCore.AzureFunctions.Extensions
         {
             var requiredService = serviceProvider.GetRequiredService<ISwaggerProvider>();
             var swaggerDocument = requiredService.GetSwagger(documentName);
-
-            using (var streamWriter = new StringWriter())
+            using (var textWriter = new StringWriter())
             {
+                // var jsonWriter = new Microsoft.OpenApi.Writers.OpenApiJsonWriter(textWriter);
+                // swaggerDocument.SerializeAsV2(jsonWriter);
+                // return textWriter.ToString();
+
                 var mvcOptionsAccessor = (IOptions<MvcJsonOptions>)serviceProvider.GetService(typeof(IOptions<MvcJsonOptions>));
                 var serializer = SwaggerSerializerFactory.Create(mvcOptionsAccessor);
-
-                serializer.Serialize(streamWriter, swaggerDocument);
-                var content = streamWriter.ToString();
-                return content;
+                serializer.Serialize(textWriter, swaggerDocument);
+                return textWriter.ToString();
             }
         }
     }

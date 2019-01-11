@@ -157,12 +157,13 @@ module Api =
 
     let generateOpenAPISpec () = 
         let services = ServiceCollection()
-        let assembly = Assembly.GetExecutingAssembly()
-        services.AddAzureFunctionsApiProvider(functionAssembly=assembly, routePrefix="")
+        services.AddAzureFunctionsApiProvider(
+            functionAssembly=Assembly.GetExecutingAssembly(),
+            routePrefix="")
         services
-          .AddSwaggerGen((fun options -> 
-            options.SwaggerDoc(name="v1", info=apiInfo)
-            options.DescribeAllEnumsAsStrings()
-            options.EnableAnnotations()))
-          .BuildServiceProvider(true)
-          .GetSwagger("v1")
+            .AddSwaggerGen((fun options -> 
+                options.SwaggerDoc(name="v1", info=apiInfo)
+                options.DescribeAllEnumsAsStrings()
+                options.EnableAnnotations()))
+            .BuildServiceProvider(true)
+            .GetSwagger("v1")

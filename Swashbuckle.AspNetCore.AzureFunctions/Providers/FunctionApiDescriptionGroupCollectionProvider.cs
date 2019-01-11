@@ -83,11 +83,13 @@ namespace Swashbuckle.AspNetCore.AzureFunctions.Providers
                     ControllerName = functionAttr.Name,
                     DisplayName = functionAttr.Name,
                     ControllerTypeInfo = methodInfo.DeclaringType.GetTypeInfo(),
-                    Parameters = new List<ParameterDescriptor>()
+                    Parameters = new List<ParameterDescriptor>(),
                 },
                 RelativePath = route,
                 HttpMethod = verb.ToUpper(),
             };
+
+            description.ActionDescriptor.RouteValues["controller"] = functionAttr.Name;
 
             var supportedMediaTypes = methodInfo.GetCustomAttributes<SupportedMediaTypeAttribute>().Select(x => new ApiRequestFormat() { MediaType = x.MediaType }).ToList();
             foreach (var supportedMediaType in supportedMediaTypes)
