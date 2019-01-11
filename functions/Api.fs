@@ -157,15 +157,21 @@ module Api =
             Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
             Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
 
+    open System.IO
+
     let generateOpenAPISpec () = 
         let services = ServiceCollection()
-        services.AddAzureFunctionsApiProvider(
-            functionAssembly=Assembly.GetExecutingAssembly())
+        let assembly = Assembly.GetExecutingAssembly()
+        let binFolder = assembly.Location |> Path.GetDirectoryName |> Path.GetDirectoryName
+        let xmlFile = sprintf "%s.xml" (assembly.GetName().Name)
+        let xmlPath = Path.Combine(binFolder, xmlFile)
+        services.AddAzureFunctionsApiProvider(functionAssembly=assembly)
         services
             .AddSwaggerGen((fun options -> 
                 options.SwaggerDoc(name="v1", info=apiInfo)
                 options.DescribeAllEnumsAsStrings()
                 options.EnableAnnotations()
+                options.IncludeXmlComments(xmlPath)
             ))
             .BuildServiceProvider(true)
             .GetSwagger("v1")

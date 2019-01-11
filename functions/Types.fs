@@ -8,6 +8,7 @@ open System.Net
 open Chessie.ErrorHandling
 open Dapper
 open Serilog.Core
+open System.ComponentModel.DataAnnotations
 
 module Types = 
 
@@ -158,7 +159,9 @@ module Types =
       { Id: Id
         NetId: NetId
         Name: Name
+        /// The person's position as defined by HRMS
         Position: string
+        /// The person's physical location (building, room, etc.)
         Location: string
         CampusPhone: string
         CampusEmail: string

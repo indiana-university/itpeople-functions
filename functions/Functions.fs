@@ -23,12 +23,10 @@ open Swashbuckle.AspNetCore.Swagger
 open Swashbuckle.AspNetCore.Annotations
 open Swashbuckle.AspNetCore.AzureFunctions.Annotations
 
-///<summary>
 /// This module defines the bindings and triggers for all functions in the project
-///</summary
 module Functions =    
 
-    /// DEPENDENCY RESOLUTION
+    // DEPENDENCY RESOLUTION
 
     /// Dependencies are resolved once at startup.
     let openApiSpec = generateOpenAPISpec()
@@ -37,7 +35,7 @@ module Functions =
     let log = createLogger config
 
 
-    /// FUNCTION WORKFLOW HELPERS 
+    // FUNCTION WORKFLOW HELPERS 
 
     let addProperty (req:HttpRequestMessage) key value = 
         req.Properties.Add(key, value)
@@ -78,7 +76,7 @@ module Functions =
         with exn -> handle req exn
 
 
-    /// FUNCTION WORKFLOWS 
+    // FUNCTION WORKFLOWS 
 
     [<FunctionName("Options")>]
     [<SwaggerIgnore>]
@@ -160,7 +158,7 @@ module Functions =
 
     [<FunctionName("UnitGetId")>]
     [<SwaggerOperation(Description="Get a unit profile for a given unit 'id'.", Tags=[||])>]
-    [<SwaggerResponse(200, "A single IT unit.", typeof<Unit>)>]
+    [<SwaggerResponse(200, "A single IT unit.", typeof<UnitDto>)>]
     let unitGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>] req, id) =
         let workflow _ = id |> await data.GetUnit
@@ -176,7 +174,7 @@ module Functions =
 
     [<FunctionName("DepartmentGetId")>]
     [<SwaggerOperation(Description="Get a department profile for a given department 'id'.", Tags=[||])>]
-    [<SwaggerResponse(200, "A single department.", typeof<Department>)>]
+    [<SwaggerResponse(200, "A single department.", typeof<DepartmentDto>)>]
     let departmentGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>] req, id) =
         let workflow _ = id |> await data.GetDepartment
