@@ -83,7 +83,7 @@
       "options": {
         "cwd": "${workspaceFolder}/functions/bin/Debug/netcoreapp2.1"
       },
-      "command": "func host start --useHttps --cert ../../../localhost.pfx --password Abcd1234!",
+      "command": "func host start",
       "isBackground": true,
       "presentation": {
         "reveal": "always"
