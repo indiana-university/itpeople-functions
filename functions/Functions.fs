@@ -77,7 +77,6 @@ module Functions =
 
 
     // FUNCTION WORKFLOWS 
-
     [<FunctionName("Options")>]
     [<SwaggerIgnore>]
     let options
@@ -91,14 +90,13 @@ module Functions =
         new StringContent(openApiSpec) |> contentResponse req "*" Status.OK
 
     [<FunctionName("PingGet")>]
-    [<SwaggerOperation(Description="A function that simply returns, 'pong'", Tags=[||])>]
-    [<SwaggerResponse(200, "A pong response.", typeof<string>)>]
+    [<SwaggerIgnore>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req) =
         "pong" |> jsonResponse req "*" Status.OK
 
     [<FunctionName("AuthGet")>]
-    [<SwaggerOperation(Description="Exchanges a UAA OAuth code for an application-scoped JWT", Tags=[||])>]
+    [<SwaggerOperation(Description="Exchanges a UAA OAuth code for an application-scoped JWT", Tags=[|"Authentication"|])>]
     [<SwaggerResponse(200, "Exchanges an OAuth code for a JWT.", typeof<UaaResponse>)>]
     let auth
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth")>] req) =
@@ -123,7 +121,7 @@ module Functions =
         req |> execAnonymousWorkflow workflow
 
     [<FunctionName("UserGetId")>]
-    [<SwaggerOperation(Description="Get a user profile for a given user 'id'", Tags=[||])>]
+    [<SwaggerOperation(Summary="Find a person by ID", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A person profile.", typeof<PersonDto>)>]
     let profileGet
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{id}")>] req, id) =
@@ -131,15 +129,14 @@ module Functions =
         req |> execAuthenticatedWorkflow workflow
 
     [<FunctionName("UserGetMe")>]
-    [<SwaggerOperation(Description="Get a user profile associated with the JWT in the request Authorization header.", Tags=[||])>]
-    [<SwaggerResponse(200, "The profile of the authenticated user.", typeof<PersonDto>)>]
+    [<SwaggerIgnoreAttribute>]
     let profileGetMe
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "me")>] req) = 
         let workflow user = user.UserId |> await data.GetProfile
         req |> execAuthenticatedWorkflow workflow
 
     [<FunctionName("SearchGet")>]
-    [<SwaggerOperation(Description="Get all users, departments, and units that match a 'term' query.", Tags=[||])>]
+    [<SwaggerOperation(Summary="Search people, departments, and units", Tags=[|"Search"|])>]
     [<SwaggerResponse(200, "A search result of people, units, and departments.", typeof<SimpleSearch>)>]
     let searchSimpleGet
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "search")>] req) =
@@ -149,7 +146,7 @@ module Functions =
         req |> execAuthenticatedWorkflow workflow
 
     [<FunctionName("UnitGetAll")>]
-    [<SwaggerOperation(Description="Get all IT units.", Tags=[||])>]
+    [<SwaggerOperation(Summary="List all top-level IT units.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, "All top-level IT units.", typeof<seq<Unit>>)>]
     let unitGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units")>] req) =
@@ -157,7 +154,7 @@ module Functions =
         req |> execAuthenticatedWorkflow workflow
 
     [<FunctionName("UnitGetId")>]
-    [<SwaggerOperation(Description="Get a unit profile for a given unit 'id'.", Tags=[||])>]
+    [<SwaggerOperation(Summary="Find a unit by ID.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, "A single IT unit.", typeof<UnitDto>)>]
     let unitGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>] req, id) =
@@ -165,7 +162,7 @@ module Functions =
         req |> execAuthenticatedWorkflow workflow
             
     [<FunctionName("DepartmentGetAll")>]
-    [<SwaggerOperation(Description="Get all departments.", Tags=[||])>]
+    [<SwaggerOperation(Summary="List all departments.", Tags=[|"Departments"|])>]
     [<SwaggerResponse(200, "All departments.", typeof<seq<Department>>)>]
     let departmentGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments")>] req) =
@@ -173,7 +170,7 @@ module Functions =
         req |> execAuthenticatedWorkflow workflow
 
     [<FunctionName("DepartmentGetId")>]
-    [<SwaggerOperation(Description="Get a department profile for a given department 'id'.", Tags=[||])>]
+    [<SwaggerOperation(Summary="Find a department by ID.", Tags=[|"Departments"|])>]
     [<SwaggerResponse(200, "A single department.", typeof<DepartmentDto>)>]
     let departmentGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>] req, id) =
