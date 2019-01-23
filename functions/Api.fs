@@ -172,6 +172,6 @@ module Api =
                 options.EnableAnnotations()
                 options.TryIncludeFunctionXmlComments(assembly)
             ))
-            .AddSwaggerExamplesFromAssemblyOf<UnitsExample>()
+            .AddSwaggerExamplesFromAssemblyOf<UnitsExample>(Json.JsonSettings)
             .BuildServiceProvider(true)
             .GetSwagger("v1")
