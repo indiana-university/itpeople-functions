@@ -9,6 +9,7 @@ open Api
 open Jwt
 open Util
 open Logging
+open Fakes
 
 open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
@@ -98,13 +99,13 @@ module Functions =
 
     [<FunctionName("AuthGet")>]
     [<SwaggerOperation(Summary="Get OAuth JWT", Description="Exchanges a UAA OAuth code for an application-scoped JWT. The JWT is required to make authenticated requests to this API.", Tags=[|"Authentication"|])>]
-    [<SwaggerResponse(200, Type=typeof<UaaResponse>)>]
+    [<SwaggerResponse(200, Type=typeof<JwtResponse>)>]
     let auth
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth")>] req) =
 
         // workflow partials
         let createUaaTokenRequest = createUaaTokenRequest config
-        let requestTokenFromUaa = postAsync<UaaResponse> config.OAuth2TokenUrl
+        let requestTokenFromUaa = postAsync<JwtResponse> config.OAuth2TokenUrl
         let resolveAppUserId claims = data.TryGetPersonId claims.UserName
         let encodeAppJwt = encodeAppJwt config.JwtSecret (now().AddHours(8.))
 

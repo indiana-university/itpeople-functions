@@ -220,7 +220,7 @@ module Types =
         /// Get a single department by ID
         abstract member GetDepartment: Id -> Async<Result<DepartmentDto,Error>>
 
-    type UaaResponse = {
+    type JwtResponse = {
         access_token: string
     }
 

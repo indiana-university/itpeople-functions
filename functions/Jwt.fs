@@ -60,7 +60,7 @@ module Jwt =
         |> (fun unixTicks -> epoch.AddSeconds(unixTicks))
 
     /// Decode a JWT from the UAA service
-    let decodeUaaJwt (jwt:UaaResponse) = 
+    let decodeUaaJwt (jwt:JwtResponse) = 
         try
             // decode the UAA JWT
             let decoded = 
