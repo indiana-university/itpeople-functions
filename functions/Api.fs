@@ -163,17 +163,14 @@ module Api =
     let generateOpenAPISpec () = 
         let services = ServiceCollection()
         let assembly = Assembly.GetExecutingAssembly()
-        let binFolder = assembly.Location |> Path.GetDirectoryName |> Path.GetDirectoryName
-        let xmlFile = sprintf "%s.xml" (assembly.GetName().Name)
-        let xmlPath = Path.Combine(binFolder, xmlFile)
-        services.AddAzureFunctionsApiProvider(functionAssembly=assembly)
+        services.AddAzureFunctionsApiProvider(functionAssembly=assembly, routePrefix="")
         services
             .AddSwaggerGen((fun (options:Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions) -> 
                 options.SwaggerDoc(name="v1", info=apiInfo)
                 options.ExampleFilters()
                 options.DescribeAllEnumsAsStrings()
                 options.EnableAnnotations()
-                options.IncludeXmlComments(xmlPath)
+                options.TryIncludeFunctionXmlComments(assembly)
             ))
             .AddSwaggerExamplesFromAssemblyOf<UnitsExample>()
             .BuildServiceProvider(true)
