@@ -24,6 +24,7 @@ open Serilog.Core
 open Newtonsoft.Json
 
 open Swashbuckle.AspNetCore.Swagger
+open Swashbuckle.AspNetCore.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Extensions
 
 
@@ -167,11 +168,13 @@ module Api =
         let xmlPath = Path.Combine(binFolder, xmlFile)
         services.AddAzureFunctionsApiProvider(functionAssembly=assembly)
         services
-            .AddSwaggerGen((fun options -> 
+            .AddSwaggerGen((fun (options:Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions) -> 
                 options.SwaggerDoc(name="v1", info=apiInfo)
+                options.ExampleFilters()
                 options.DescribeAllEnumsAsStrings()
                 options.EnableAnnotations()
                 options.IncludeXmlComments(xmlPath)
             ))
+            .AddSwaggerExamplesFromAssemblyOf<UnitsExample>()
             .BuildServiceProvider(true)
             .GetSwagger("v1")

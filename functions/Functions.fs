@@ -21,6 +21,7 @@ open Microsoft.Extensions.DependencyInjection
 open Microsoft.AspNetCore.Mvc
 open Swashbuckle.AspNetCore.Swagger
 open Swashbuckle.AspNetCore.Annotations
+open Swashbuckle.AspNetCore.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Annotations
 
 /// This module defines the bindings and triggers for all functions in the project
@@ -129,7 +130,7 @@ module Functions =
         req |> execAuthenticatedWorkflow workflow
 
     [<FunctionName("UserGetMe")>]
-    [<SwaggerIgnoreAttribute>]
+    [<SwaggerIgnore>]
     let profileGetMe
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "me")>] req) = 
         let workflow user = user.UserId |> await data.GetProfile

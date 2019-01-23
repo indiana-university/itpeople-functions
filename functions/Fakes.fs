@@ -6,6 +6,8 @@ namespace Functions
 open Types
 open Json
 open Chessie.ErrorHandling
+open Swashbuckle.AspNetCore.Filters
+
 
 module Fakes =
 
@@ -157,8 +159,9 @@ module Fakes =
         } |> ok |> async.Return
     }
 
+    let fakeUnits = [parksAndRec; city] |> List.toSeq
     let getFakeUnits () = async {
-        return! [parksAndRec; city] |> List.toSeq |> ok |> async.Return
+        return! fakeUnits |> ok |> async.Return
     }
 
     let getFakeUnit () = async {
@@ -206,3 +209,7 @@ module Fakes =
             member this.GetUnit id = getFakeUnit ()
             member this.GetDepartments () = getFakeDepartments ()
             member this.GetDepartment id = getFakeDepartment ()
+
+    type UnitsExample() =
+        interface IExamplesProvider<seq<Unit>> with
+            member this.GetExamples () = fakeUnits
