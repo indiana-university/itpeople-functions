@@ -9,13 +9,16 @@ namespace Swashbuckle.AspNetCore.Filters
     internal class ResponseExample
     {
         private readonly JsonFormatter jsonFormatter;
+        private readonly JsonSerializerSettings jsonSerializerSettings;
         private readonly SerializerSettingsDuplicator serializerSettingsDuplicator;
 
         public ResponseExample(
             JsonFormatter jsonFormatter,
+            JsonSerializerSettings jsonSerializerSettings,
             SerializerSettingsDuplicator serializerSettingsDuplicator)
         {
             this.jsonFormatter = jsonFormatter;
+            this.jsonSerializerSettings = jsonSerializerSettings;
             this.serializerSettingsDuplicator = serializerSettingsDuplicator;
         }
 
@@ -35,7 +38,7 @@ namespace Swashbuckle.AspNetCore.Filters
 
             if (response.Equals(default(KeyValuePair<string, Response>)) == false && response.Value != null)
             {
-                var serializerSettings = serializerSettingsDuplicator.SerializerSettings(contractResolver, jsonConverter);
+                var serializerSettings = jsonSerializerSettings ?? serializerSettingsDuplicator.SerializerSettings(contractResolver, jsonConverter);
                 response.Value.Examples = jsonFormatter.FormatJson(example, serializerSettings, includeMediaType: true);
             }
         }
