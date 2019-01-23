@@ -118,9 +118,9 @@ namespace Swashbuckle.AspNetCore.AzureFunctions.Providers
                 var response = new ApiResponseType() 
                 {
                     StatusCode=responseType.StatusCode,
-                    Type=responseType.Type
-                    
+                    Type=responseType.Type,
                 };                
+                response.ApiResponseFormats.Add(new ApiResponseFormat(){MediaType="application/json"});
                 description.SupportedResponseTypes.Add(response);
             }
 
