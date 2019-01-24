@@ -15,11 +15,17 @@ open System.Diagnostics
 open System.Net
 open System.Net.Http
 open System.Net.Http.Headers
+open System.Reflection
 open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
 open Microsoft.Extensions.Configuration
+open Microsoft.Extensions.DependencyInjection
 open Serilog.Core
 open Newtonsoft.Json
+
+open Swashbuckle.AspNetCore.Swagger
+open Swashbuckle.AspNetCore.Filters
+open Swashbuckle.AspNetCore.AzureFunctions.Extensions
 
 
 module Api =
@@ -90,21 +96,23 @@ module Api =
 
     /// Given an API function, get a response.  
     let optionsResponse req config  = 
-            let origin = origin req
-            let response = new HttpResponseMessage(Status.OK)
-            addCORSHeader response origin config.CorsHosts
-            response
+        let origin = origin req
+        let response = new HttpResponseMessage(Status.OK)
+        addCORSHeader response origin config.CorsHosts
+        response
 
-    /// Construct an HTTP response with JSON content
-    let jsonResponse req corsHosts status model = 
-        let content = 
-            JsonConvert.SerializeObject(model, Json.JsonSettings)
-            |> (fun s -> new StringContent(s))
+    let contentResponse req corsHosts status content = 
         let response = new HttpResponseMessage(status)
         response.Content <- content
         response.Content.Headers.ContentType <- "application/json" |> MediaTypeHeaderValue;
         addCORSHeader response (origin req) corsHosts
         response
+
+    /// Construct an HTTP response with JSON content
+    let jsonResponse req corsHosts status model = 
+        JsonConvert.SerializeObject(model, Json.JsonSettings)
+        |> (fun s -> new StringContent(s))
+        |> contentResponse req corsHosts status
 
     /// Organize the errors into a status code and a collection of error messages. 
     /// If multiple errors are found, the aggregate status will be that of the 
@@ -140,4 +148,30 @@ module Api =
             logError log req status errors
             jsonResponse req config.CorsHosts status errors
 
+    // open Microsoft.OpenApi.Models
 
+    /// OpenAPI SPEC
+    let apiInfo = 
+        Info(
+            Title="IT People API",
+            Version="v1",
+            Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
+            Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
+
+    open System.IO
+
+    let generateOpenAPISpec () = 
+        let services = ServiceCollection()
+        let assembly = Assembly.GetExecutingAssembly()
+        services.AddAzureFunctionsApiProvider(functionAssembly=assembly, routePrefix="")
+        services
+            .AddSwaggerGen((fun (options:Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions) -> 
+                options.SwaggerDoc(name="v1", info=apiInfo)
+                options.ExampleFilters()
+                options.DescribeAllEnumsAsStrings()
+                options.EnableAnnotations()
+                options.TryIncludeFunctionXmlComments(assembly)
+            ))
+            .AddSwaggerExamplesFromAssemblyOf<UnitsExample>(Json.JsonSettings)
+            .BuildServiceProvider(true)
+            .GetSwagger("v1")

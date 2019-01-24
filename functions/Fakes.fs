@@ -6,8 +6,13 @@ namespace Functions
 open Types
 open Json
 open Chessie.ErrorHandling
+open Swashbuckle.AspNetCore.Filters
+
 
 module Fakes =
+
+    // UaaResponse 
+    let accessToken = { access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxNTE1NTQ0NjQzIiwidXNlcl9pZCI6MSwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfcm9sZSI6ImFkbWluIn0.akuT7-xDFxrev-T9Dv0Wdumx1HK5L2hQAOU51igIjUE" }
 
     // Units
     let city:Unit = {Id=0; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url=""}
@@ -134,75 +139,89 @@ module Fakes =
     let iuware = {Id=1; Name="IUware Tools"; Description=""}
     let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
 
-    let getPersonId () = async {
-        return! (swanson.NetId, swanson.Id) |> ok |> async.Return
-    }
+    let fakePersonId = (swanson.NetId, swanson.Id)
 
-    let getFakeProfile () = async {
-        return! swansonDto |> ok |> async.Return
-    }
+    let fakePerson id = { swansonDto with Id=id }
 
-    let getFakeSimpleSearchByTerm () = async {
-        return! {
-                Users=
-                  [ {Id=swanson.Id; Name=swanson.Name; Description=""}
-                    {Id=knope.Id; Name=knope.Name; Description=""}
-                    {Id=sebastian.Id; Name=sebastian.Name; Description=""} ]
-                Departments=
-                  [ {Id=parksDept.Id; Name=parksDept.Name; Description=""} ]
-                Units=
-                  [ {Id=city.Id; Name=city.Name; Description=""}
-                    {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""}
-                    {Id=fourthFloor.Id; Name=fourthFloor.Name; Description=""} ]
-        } |> ok |> async.Return
-    }
+    let fakeSimpleSearchResult = 
+      { Users=
+          [ {Id=1; Name=swanson.Name; Description=""}
+            {Id=2; Name=knope.Name; Description=""}
+            {Id=3; Name=sebastian.Name; Description=""} ]
+        Departments=
+          [ {Id=1; Name=parksDept.Name; Description=""} ]
+        Units=
+          [ {Id=1; Name=city.Name; Description=""}
+            {Id=2; Name=parksAndRec.Name; Description=""}
+            {Id=3; Name=fourthFloor.Name; Description=""} ] }
 
-    let getFakeUnits () = async {
-        return! [parksAndRec; city] |> List.toSeq |> ok |> async.Return
-    }
+    let fakeUnits = [{parksAndRec with Id=2}; {city with Id=1}] |> List.toSeq
 
-    let getFakeUnit () = async {
-         return! {
-            Id=parksAndRec.Id
-            Name=parksAndRec.Name
-            Description=parksAndRec.Description
-            Url=parksAndRec.Url
-            Members= 
-              [ {Id=swanson.Id; Name=swanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100}
-                {Id=knope.Id; Name=knope.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100}
-                {Id=sebastian.Id; Name=sebastian.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100} ]
-            SupportedDepartments= [ parksDept ]
-            Children= [ fourthFloor ]
-            Parent= Some(city)
-         } |> ok |> async.Return
-    }
+    let fakeUnit id = 
+      { Id=id
+        Name=parksAndRec.Name
+        Description=parksAndRec.Description
+        Url=parksAndRec.Url
+        Members= [ 
+            {Id=1; Name=swanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100}
+            {Id=2; Name=knope.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100}
+            {Id=3; Name=sebastian.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100} 
+        ]
+        SupportedDepartments= [ {parksDept with Id=1} ]
+        Children= [ { fourthFloor with Id=3 } ]
+        Parent= Some(city) }
 
-    let getFakeDepartments () = async {
-        return! [ parksDept ] |> List.toSeq |> ok |> async.Return
-    }
+    let fakeDepartments = [ {parksDept with Id=1} ] |> List.toSeq
 
-    let getFakeDepartment () = async {
-        return! {
-            Id=parksDept.Id
-            Name=parksDept.Name
-            Description=parksDept.Description
-            SupportingUnits=[parksAndRec]
-            Units=[parksAndRec]
-            Members= 
-              [ {Member.Id=swanson.Id; Name=swanson.Name; Description=""}
-                {Member.Id=knope.Id; Name=knope.Name; Description=""}
-                {Member.Id=sebastian.Id; Name=sebastian.Name; Description=""} ]
-        } |> ok |> async.Return 
-    }
+    let fakeDepartment id = 
+      { Id=id
+        Name=parksDept.Name
+        Description=parksDept.Description
+        SupportingUnits=[ { fourthFloor with Id=3} ]
+        Units=[ {parksAndRec with Id=2}]
+        Members= 
+          [ {Member.Id=1; Name=swanson.Name; Description=""}
+            {Member.Id=2; Name=knope.Name; Description=""}
+            {Member.Id=3; Name=sebastian.Name; Description=""} ] }
 
     /// A canned data implementation of IDatabaseRespository (for testing)
 
+    let satisfyWith a = async { return! a |> ok |> async.Return }
+
     type FakesRepository() =
         interface IDataRepository with 
-            member this.TryGetPersonId netId = getPersonId ()
-            member this.GetProfile id = getFakeProfile ()
-            member this.GetSimpleSearchByTerm term = getFakeSimpleSearchByTerm ()
-            member this.GetUnits () = getFakeUnits ()
-            member this.GetUnit id = getFakeUnit ()
-            member this.GetDepartments () = getFakeDepartments ()
-            member this.GetDepartment id = getFakeDepartment ()
+            member this.TryGetPersonId netId = fakePersonId |> satisfyWith
+            member this.GetProfile id = fakePerson id |> satisfyWith
+            member this.GetSimpleSearchByTerm term = fakeSimpleSearchResult |> satisfyWith
+            member this.GetUnits () = fakeUnits |> satisfyWith
+            member this.GetUnit id = fakeUnit id |> satisfyWith
+            member this.GetDepartments () = fakeDepartments |> satisfyWith
+            member this.GetDepartment id = fakeDepartment id |> satisfyWith
+
+    type JwtResponseExample() =
+        interface IExamplesProvider<JwtResponse> with
+            member this.GetExamples() = accessToken
+
+    type UnitExample() =
+        interface IExamplesProvider<UnitDto> with
+            member this.GetExamples () = fakeUnit 1
+
+    type UnitsExample() =
+        interface IExamplesProvider<seq<Unit>> with
+            member this.GetExamples () = fakeUnits
+
+    type DepartmentExample() =
+        interface IExamplesProvider<DepartmentDto> with
+            member this.GetExamples () = fakeDepartment 1
+ 
+    type DepartmentsExample() =
+        interface IExamplesProvider<seq<Department>> with
+            member this.GetExamples () = fakeDepartments
+    
+    type SimpleSearchExample() =
+        interface IExamplesProvider<SimpleSearch> with
+            member this.GetExamples () = fakeSimpleSearchResult
+
+    type PersonExample() =
+        interface IExamplesProvider<PersonDto> with
+            member this.GetExamples () = fakePerson 1

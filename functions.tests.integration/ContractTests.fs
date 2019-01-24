@@ -32,7 +32,7 @@ module ContractTests =
         verifier
             .ServiceProvider("API", functionUrl)
             .HonoursPactWith("Client")
-            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/develop/contracts/itpeople-app-itpeople-functions.json")
+            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/master/contracts/itpeople-app-itpeople-functions.json")
             .Verify()
 
     type Pact(output: ITestOutputHelper)=
