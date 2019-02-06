@@ -142,16 +142,6 @@ module Functions =
         let workflow _ = await data.GetPerson id
         req |> execAuthenticatedWorkflow workflow
 
-    [<FunctionName("SearchGet")>]
-    [<SwaggerOperation(Summary="Search people, departments, and units", Tags=[|"Search"|])>]
-    [<SwaggerResponse(200, Type=typeof<SimpleSearch>)>]
-    let searchSimpleGet
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "search")>] req) =
-        let workflow _ = 
-            req
-            |> queryParam "term"
-            >>= await data.GetSimpleSearchByTerm
-        req |> execAuthenticatedWorkflow workflow
 
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all top-level IT units.", Tags=[|"Units"|])>]
@@ -192,6 +182,9 @@ module Functions =
             deserializeBody<Unit> req
             >>= await (data.UpdateUnit id)
         req |> execAuthenticatedWorkflow workflow
+
+
+
 
     [<FunctionName("DepartmentGetAll")>]
     [<SwaggerOperation(Summary="List all departments.", Tags=[|"Departments"|])>]

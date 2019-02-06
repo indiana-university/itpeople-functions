@@ -200,8 +200,6 @@ module Types =
         abstract member GetPeople: Query option -> Async<Result<Person seq,Error>>
         /// Get a user profile for a given user ID
         abstract member GetPerson: Id -> Async<Result<Person,Error>>
-        /// Get all users, units, and departments matching a given search term
-        abstract member GetSimpleSearchByTerm: string -> Async<Result<SimpleSearch,Error>>
         /// Get a list of all units
         abstract member GetUnits: Query option -> Async<Result<Unit seq,Error>>
         /// Get a single unit by ID

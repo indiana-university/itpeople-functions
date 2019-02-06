@@ -77,18 +77,6 @@ module Fakes =
         HrDepartmentId=parksDept.Id
     }
 
-    let fakeSimpleSearchResult = 
-      { Users=
-          [ { swanson with Id=1 }
-            { knope with Id=2 }
-            { sebastian with Id=3 } ]
-        Departments=
-          [ { parksDept with Id=1 } ]
-        Units=
-          [ { cityOfPawnee with Id=1 }
-            { parksAndRec with Id=2 }
-            { fourthFloor with Id=3 } ] }
-
     /// A canned data implementation of IDatabaseRespository (for testing)
 
     let satisfyWith a = async { return! a |> ok |> async.Return }
@@ -98,7 +86,6 @@ module Fakes =
             member this.TryGetPersonId netId = (swanson.NetId, swanson.Id) |> satisfyWith
             member this.GetPeople query = [ swanson ] |> List.toSeq |> satisfyWith
             member this.GetPerson id = swanson |> satisfyWith
-            member this.GetSimpleSearchByTerm term = fakeSimpleSearchResult |> satisfyWith
             member this.GetUnits query = [ parksAndRec ] |> List.toSeq |> satisfyWith
             member this.GetUnit id = parksAndRec |> satisfyWith
             member this.CreateUnit unit = parksAndRec |> satisfyWith
@@ -126,10 +113,6 @@ module Fakes =
         interface IExamplesProvider<seq<Department>> with
             member this.GetExamples () = [ parksDept ] |> List.toSeq
     
-    type SimpleSearchExample() =
-        interface IExamplesProvider<SimpleSearch> with
-            member this.GetExamples () = fakeSimpleSearchResult
-
     type PersonExample() =
         interface IExamplesProvider<Person> with
             member this.GetExamples () = swanson

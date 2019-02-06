@@ -219,7 +219,6 @@ ORDER BY u.name ASC;
             member this.TryGetPersonId netId = queryPersonByNetId connStr netId
             member this.GetPeople query = async { return! Seq.empty<Person> |> ok |> async.Return }
             member this.GetPerson id = queryUserProfile connStr id
-            member this.GetSimpleSearchByTerm term = querySimpleSearch connStr term
             member this.GetUnits query = queryUnits connStr
             member this.GetUnit id = queryUnit connStr id
             member this.CreateUnit unit = async { return! unit |> ok |> async.Return }
