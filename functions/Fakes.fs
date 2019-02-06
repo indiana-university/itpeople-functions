@@ -79,19 +79,19 @@ module Fakes =
 
     /// A canned data implementation of IDatabaseRespository (for testing)
 
-    let satisfyWith a = async { return! a |> ok |> async.Return }
+    let stub a = async { return! a |> ok |> async.Return }
 
     type FakesRepository() =
         interface IDataRepository with 
-            member this.TryGetPersonId netId = (swanson.NetId, swanson.Id) |> satisfyWith
-            member this.GetPeople query = [ swanson ] |> List.toSeq |> satisfyWith
-            member this.GetPerson id = swanson |> satisfyWith
-            member this.GetUnits query = [ parksAndRec ] |> List.toSeq |> satisfyWith
-            member this.GetUnit id = parksAndRec |> satisfyWith
-            member this.CreateUnit unit = parksAndRec |> satisfyWith
-            member this.UpdateUnit id unit = parksAndRec |> satisfyWith
-            member this.GetDepartments query = [ parksDept ] |> List.toSeq |> satisfyWith
-            member this.GetDepartment id = parksDept |> satisfyWith
+            member this.TryGetPersonId netId = stub (swanson.NetId, swanson.Id)
+            member this.GetPeople query =  stub ([ swanson ] |> List.toSeq)
+            member this.GetPerson id = stub swanson
+            member this.GetUnits query = stub ([ parksAndRec ] |> List.toSeq)
+            member this.GetUnit id = stub parksAndRec
+            member this.CreateUnit unit = stub parksAndRec
+            member this.UpdateUnit id unit = stub parksAndRec
+            member this.GetDepartments query = stub ([ parksDept ] |> List.toSeq)
+            member this.GetDepartment id = stub parksDept
 
     type JwtResponseExample() =
         interface IExamplesProvider<JwtResponse> with

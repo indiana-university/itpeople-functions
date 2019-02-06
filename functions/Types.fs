@@ -213,6 +213,8 @@ module Types =
         /// Get a single department by ID
         abstract member GetDepartment: Id -> Async<Result<Department,Error>>
 
+    let stub a = async { return! a |> ok |> async.Return }
+
     type JwtResponse = {
         /// The OAuth JSON Web Token (JWT) that represents the logged-in user. The JWT must be passed in an HTTP Authentication header in the form: 'Bearer <JWT>'
         access_token: string
