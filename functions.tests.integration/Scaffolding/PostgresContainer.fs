@@ -10,16 +10,16 @@ module PostgresContainer =
     open Npgsql
     open Functions.Database
     open Xunit.Abstractions
+    open Database.Fakes
 
     let result b = if b then "[OK]" else "[ERROR]"
-    let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
     let startServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
     let logsSqlServer = "logs integration_test_db"   
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
 
     /// Get a new postgres connection.
-    let dbConnection () = sqlConnection connectionString
+    let dbConnection () = sqlConnection testConnectionString
     
     /// Attempt to connect to the postgres database.
     let tryConnect () = async {

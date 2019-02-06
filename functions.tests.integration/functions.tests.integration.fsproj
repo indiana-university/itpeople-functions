@@ -8,9 +8,9 @@
       <NoWarn>NU1608</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="PostgresContainer.fs" />
-    <Compile Include="TestFixture.fs" />
-    <Compile Include="TestHost.fs" />
+    <Compile Include="Scaffolding/PostgresContainer.fs" />
+    <Compile Include="Scaffolding/TestFixture.fs" />
+    <Compile Include="Scaffolding/TestHost.fs" />
     <Compile Include="DatabaseTests.fs" />
     <Compile Include="ContractTests.fs" />
   </ItemGroup>
@@ -31,6 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../functions/functions.fsproj" />    
-    <ProjectReference Include="../migrations/migrations.fsproj" />
+    <ProjectReference Include="../functions.tests.stateserver/functions.tests.stateserver.fsproj" />    
+    <ProjectReference Include="../database/database.fsproj" />
   </ItemGroup>
 </Project>
