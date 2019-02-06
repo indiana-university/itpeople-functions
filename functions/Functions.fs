@@ -146,10 +146,10 @@ module Functions =
             |> await data.GetPeople
         req |> execAuthenticatedWorkflow workflow
 
-    [<FunctionName("PeopleGetId")>]
+    [<FunctionName("PeopleGetById")>]
     [<SwaggerOperation(Summary="Find a person by ID", Tags=[|"People"|])>]
     [<SwaggerResponse(200, Type=typeof<Person>)>]
-    let peopleGetId
+    let peopleGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
         let workflow _ = await data.GetPerson personId
         req |> execAuthenticatedWorkflow workflow
@@ -160,6 +160,14 @@ module Functions =
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
         let workflow _ = await data.GetPersonMemberships personId
+        req |> execAuthenticatedWorkflow workflow
+
+    [<FunctionName("PeopleGetMembershipById")>]
+    [<SwaggerOperation(Summary="Find a person's unit membership by ID", Tags=[|"People"|])>]
+    [<SwaggerResponse(200, Type=typeof<UnitMember>)>]
+    let peopleGetMembershipById
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships/{membershipId}")>] req, personId, membershipId) =
+        let workflow _ = await data.GetPersonMembership (personId, membershipId)
         req |> execAuthenticatedWorkflow workflow
 
 

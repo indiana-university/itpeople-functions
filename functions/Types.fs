@@ -50,7 +50,16 @@ module Types =
         /// This person has read-only permissions on this entity
         | Viewer=2
 
+    /// The unique ID of a record
     type Id = int
+    /// The unique ID of a Person record
+    type PersonId = int
+    /// The unique ID of a Unit Membership record
+    type MembershipId = int
+    /// The unique ID of a Unit record
+    type UnitId = int
+    /// The unique ID of a Department record
+    type DepartmentId = int
     type Name = string
     type NetId = string
     type Query = string
@@ -206,10 +215,12 @@ module Types =
         abstract member TryGetPersonId: NetId -> Async<Result<(NetId*Id),Error>>
         /// Get a list of all people
         abstract member GetPeople: Query option -> Async<Result<Person seq,Error>>
-        /// Get a user profile for a given user ID
-        abstract member GetPerson: Id -> Async<Result<Person,Error>>
-        /// Get a user profile for a given user ID
-        abstract member GetPersonMemberships: Id -> Async<Result<UnitMember seq,Error>>
+        /// Get a single person by ID
+        abstract member GetPerson: PersonId -> Async<Result<Person,Error>>
+        /// Get a list of a person's unit memberships
+        abstract member GetPersonMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
+        /// Get a person's unit membership by ID
+        abstract member GetPersonMembership: PersonId * MembershipId -> Async<Result<UnitMember,Error>>
         /// Get a list of all units
         abstract member GetUnits: Query option -> Async<Result<Unit seq,Error>>
         /// Get a single unit by ID

@@ -220,6 +220,7 @@ ORDER BY u.name ASC;
             member this.GetPeople query = stub Seq.empty<Person>
             member this.GetPerson id = queryUserProfile connStr id
             member this.GetPersonMemberships personId = stub Seq.empty<UnitMember>
+            member this.GetPersonMembership (personId, membershipId) = stub (Seq.empty<UnitMember> |> Seq.head)
             member this.GetUnits query = queryUnits connStr
             member this.GetUnit id = queryUnit connStr id
             member this.CreateUnit unit = stub unit

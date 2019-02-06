@@ -99,6 +99,7 @@ module Fakes =
             member this.GetPeople query =  stub ([ swanson ] |> List.toSeq)
             member this.GetPerson id = stub swanson
             member this.GetPersonMemberships personId = stub ([ swansonMembership ] |> List.toSeq)
+            member this.GetPersonMembership (personId, membershipId) = stub swansonMembership
             member this.GetUnits query = stub ([ parksAndRec ] |> List.toSeq)
             member this.GetUnit id = stub parksAndRec
             member this.CreateUnit unit = stub parksAndRec
