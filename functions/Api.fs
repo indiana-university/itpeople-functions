@@ -104,7 +104,8 @@ module Api =
     let contentResponse req corsHosts status content = 
         let response = new HttpResponseMessage(status)
         response.Content <- content
-        response.Content.Headers.ContentType <- "application/json" |> MediaTypeHeaderValue;
+        response.Content.Headers.ContentType <- MediaTypeHeaderValue "application/json"
+        response.Content.Headers.ContentType.CharSet <- "utf-8"
         addCORSHeader response (origin req) corsHosts
         response
 
