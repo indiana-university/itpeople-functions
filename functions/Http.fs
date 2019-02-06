@@ -25,12 +25,18 @@ module Http =
         | ""   -> fail (Status.BadRequest, "Expected a request body but received nothing")
         | _    -> tryDeserialize<'T> Status.BadRequest body 
 
-    /// Attempt to retrieve a parameter of the given name from the query string
-    let getQueryParam paramName (req: HttpRequestMessage) =
+    /// Attempt to retrieve a query parameter of the given name
+    let tryQueryParam paramName (req: HttpRequestMessage) =
         let query = req.RequestUri.Query |> QueryHelpers.ParseQuery
         if query.ContainsKey(paramName)
-        then ok (query.[paramName].ToString())
-        else fail (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName))
+        then query.[paramName].ToString() |> Some
+        else None
+
+    /// Require a query parameter of the given name
+    let queryParam paramName (req: HttpRequestMessage) =
+        match tryQueryParam paramName req with
+        | Some (q) -> ok q
+        | None -> fail (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName))
 
     /// Attempt to post an HTTP request and deserialize the ressponse
     let postAsync<'T> (url:string) (content:HttpContent) = async {

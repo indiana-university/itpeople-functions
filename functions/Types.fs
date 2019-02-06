@@ -35,20 +35,19 @@ module Types =
         CorsHosts: string }
 
     type Role =
+        /// This person has an ancillary relationship to this unit. This can apply to administrative assistants or self-supporting faculty.
         | Related=1
+        /// This person is a regular member of this unit.
         | Member=2
+        /// This person has some delegated authority within this unit. 
         | Sublead=3
+        /// This person has primary responsibility for and authority over this unit. 
         | Leader=4
 
     type Id = int
     type Name = string
     type NetId = string
-
-    [<CLIMutable>]
-    type Entity = 
-      { Id: Id
-        Name: Name
-        Description: Name }
+    type Query = string
 
     [<Flags>]
     type Tools =
@@ -83,40 +82,65 @@ module Types =
         | WebAdminDevEng        = 0b00100000000000000
     
 
+    /// A person doing or supporting IT work
     [<CLIMutable>]
     [<Table("people")>]
     type Person = 
-      { [<Key>][<Column("id")>] Id: Id
+      { /// The unique ID of this person record.
+        [<Key>][<Column("id")>] Id: Id
         [<Column("hash")>] Hash: string
+        /// The net id (username) of this person.
         [<Column("netid")>] NetId: NetId
+        /// The preferred name of this person.
         [<Column("name")>] Name: Name
+        /// The job position of this person as defined by HR. This may be different than the person's title in relation to an IT unit.
         [<Column("position")>] Position: string
+        /// The physical location (building, room) of this person.
         [<Column("location")>] Location: string
+        /// The primary campus with which this person is affiliated.
         [<Column("campus")>] Campus: string
+        /// The campus phone number of this person.
         [<Column("campus_phone")>] CampusPhone: string
+        /// The campus (work) email address of this person.
         [<Column("campus_email")>] CampusEmail: string
+        /// A collection of IT-related skills, expertise, or interests posessed by this person.
         [<Column("expertise")>] Expertise: string
+        /// Administrative notes about this person, visible only to IT Admins.
         [<Column("notes")>] Notes: string
+        /// A URL for a photograph (headshot) of this person.
         [<Column("photo_url")>] PhotoUrl: string
+        /// A collection of IT-related responsibilites of this person.
         [<Column("responsibilities")>] Responsibilities: Responsibilities
+        /// A collection of IT-related tools accessible by this person.
         [<Column("tools")>] Tools: Tools
+        /// The HR department to which this person belongs.
         [<Column("department_id")>] HrDepartmentId: Id }
 
+    /// An academic or administrative department
     [<CLIMutable>]
     [<Table("departments")>]
     type Department = 
-      { [<Key>][<Column("id")>] Id: Id
+      { /// The unique ID of this department record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The name of this department.
         [<Column("name")>] Name: Name
-        [<Column("description")>] Description: Name
-        [<Column("display_units")>] DisplayUnits: bool }
+        /// A description or longer name of this department.
+        [<Column("description")>] Description: Name }
 
+    /// An IT unit
     [<CLIMutable>]
     [<Table("units")>]
     type Unit = 
-      { [<Key>][<Column("id")>] Id: Id
+      { /// The unique ID of this unit record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The name of this unit.
         [<Column("name")>] Name: Name
+        /// A description of this unit.
         [<Column("description")>] Description: Name
-        [<Column("url")>] Url: string }
+        /// A URL for the website of this unit.
+        [<Column("url")>] Url: string
+        /// The unique ID of the parent unit of this unit.
+        [<Column("parent_id")>] ParentId: Id option }
 
     [<CLIMutable>]
     [<Table("unit_relations")>]
@@ -126,76 +150,41 @@ module Types =
 
     [<CLIMutable>]
     [<Table("supported_departments")>]
-    type SupportedDepartment = 
+    type SupportRelationship = 
       { [<Key>][<Required>][<Column("unit_id")>] UnitId: Id
         [<Key>][<Required>][<Column("department_id")>] DepartmentId: Id }
 
     [<CLIMutable>]
     [<Table("unit_members")>]
     type UnitMember = 
-      { [<Key>][<Required>][<Column("unit_id")>] UnitId: int
-        [<Key>][<Required>][<Column("person_id")>] PersonId: int
+      { /// The unique ID of this unit member record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The unique ID of the unit record.
+        [<Required>][<Column("unit_id")>] UnitId: int
+        /// The unique ID of the person record. This can be null if the position is vacant.
+        [<Column("person_id")>] PersonId: int
+        /// The title/position of this membership.
         [<Column("title")>] Title: string
+        /// The role of the person in this membership as part of the unit.
         [<Column("role")>] Role: Role
+        /// The percentage of time allocated to this position by this person (in case of split appointments).
         [<Column("percentage")>] Percentage: int
+        /// The tools that can be used by the person in this position as part of this unit.
         [<Column("tools")>] Tools: Tools
-        [<ReadOnly(true)>][<Column("name")>] Name: string
-        [<ReadOnly(true)>][<Column("photo_url")>] PhotoUrl: string
-        [<ReadOnly(true)>][<Column("description")>] Description: string }
+        /// The person related to this membership.
+        [<ReadOnly(true)>][<Column("person")>] Person: Person option
+        /// The unit related to this membership.
+        [<ReadOnly(true)>][<Column("unit")>] Unit: Unit }
 
     // DOMAIN MODELS
-    type Member = Entity
-    type UnitMembership = 
-      { Id: Id
-        Name: Name
-        Description: string
-        PhotoUrl: string
-        Percentage: int
-        Title: string
-        Role: Role
-        Tools: seq<Tools> }
-    
-    type PersonDto = 
-      { Id: Id
-        NetId: NetId
-        Name: Name
-        /// The person's position as defined by HRMS
-        Position: string
-        /// The person's physical location (building, room, etc.)
-        Location: string
-        CampusPhone: string
-        CampusEmail: string
-        Campus: string
-        Expertise: seq<string>
-        Notes: string
-        PhotoUrl: string
-        Responsibilities: seq<Responsibilities>
-        Tools: seq<Tools>
-        Department: Department
-        UnitMemberships: seq<UnitMembership> }
-
-    type UnitDto = 
-      { Id: Id
-        Name: Name
-        Description: string
-        Url: string
-        Members: seq<UnitMembership>
-        SupportedDepartments: seq<Department>
-        Children: seq<Unit>
-        Parent: Unit option }
-
-    type DepartmentDto = 
-      { Id: Id
-        Name: Name
-        Description: string
-        SupportingUnits: seq<Unit>
-        Units: seq<Unit>
-        Members: seq<Member> }
 
     type SimpleSearch = 
-      { Users: seq<Entity>
-        Departments: seq<Entity>
-        Units: seq<Entity> }
+      { /// A collection of people matching the search term.
+        Users: seq<Person>
+        /// A collection of departments matching the search term.
+        Departments: seq<Department>
+        /// A collection of units matching the search term.
+        Units: seq<Unit> }
     
     type MessageResult = {
         Message: string
@@ -207,20 +196,27 @@ module Types =
     type IDataRepository =
         /// Get a user record for a given net ID (e.g. 'jhoerr')
         abstract member TryGetPersonId: NetId -> Async<Result<(NetId*Id),Error>>
+        /// Get a list of all people
+        abstract member GetPeople: Query option -> Async<Result<Person seq,Error>>
         /// Get a user profile for a given user ID
-        abstract member GetProfile: Id -> Async<Result<PersonDto,Error>>
+        abstract member GetPerson: Id -> Async<Result<Person,Error>>
         /// Get all users, units, and departments matching a given search term
         abstract member GetSimpleSearchByTerm: string -> Async<Result<SimpleSearch,Error>>
         /// Get a list of all units
-        abstract member GetUnits: unit -> Async<Result<Unit seq,Error>>
+        abstract member GetUnits: Query option -> Async<Result<Unit seq,Error>>
         /// Get a single unit by ID
-        abstract member GetUnit: Id -> Async<Result<UnitDto,Error>>
+        abstract member GetUnit: Id -> Async<Result<Unit,Error>>
+        /// Create a unit
+        abstract member CreateUnit: Unit -> Async<Result<Unit,Error>>
+        /// Update a unit
+        abstract member UpdateUnit: Id -> Unit -> Async<Result<Unit,Error>>
         /// Get a list of all departments
-        abstract member GetDepartments: unit -> Async<Result<Department seq,Error>>
+        abstract member GetDepartments: Query option -> Async<Result<Department seq,Error>>
         /// Get a single department by ID
-        abstract member GetDepartment: Id -> Async<Result<DepartmentDto,Error>>
+        abstract member GetDepartment: Id -> Async<Result<Department,Error>>
 
     type JwtResponse = {
+        /// The OAuth JSON Web Token (JWT) that represents the logged-in user. The JWT must be passed in an HTTP Authentication header in the form: 'Bearer <JWT>'
         access_token: string
     }
 

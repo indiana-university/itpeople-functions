@@ -70,39 +70,13 @@ WHERE p.id = @Id;
         try
             use cn = sqlConnection connStr
             let! result = cn.QueryMultipleAsync(query, idParam) |> awaitTask
-            let! user = result.ReadSingleOrDefaultAsync<Person>() |> awaitTask
-            let! units = result.ReadAsync<UnitMember>() |> awaitTask
-            let! department = result.ReadSingleOrDefaultAsync<Department>() |> awaitTask
-            let expertise = if isNull user.Expertise then [""] else (user.Expertise.Split("|") |> Array.toList) 
-            let responsibilities = user.Responsibilities |> mapFlagsToSeq
-            let tools = user.Tools |> mapFlagsToSeq
-            let unitMemberships = units |> Seq.map (fun m -> 
-              { Id=m.UnitId 
-                Name=m.Name
-                Description=m.Description
-                Title=m.Title
-                Role=m.Role
-                Percentage=m.Percentage
-                PhotoUrl=m.PhotoUrl
-                Tools=m.Tools |> mapFlagsToSeq
-              })
-            return ok {
-                PersonDto.Id=user.Id
-                NetId=user.NetId
-                Name=user.Name
-                Position=user.Position
-                Location=user.Location
-                Campus=user.Campus
-                CampusEmail=user.CampusEmail
-                CampusPhone=user.CampusPhone
-                Expertise=expertise
-                Notes=user.Notes
-                PhotoUrl=user.PhotoUrl
-                Responsibilities=responsibilities
-                Tools=tools
-                Department=department
-                UnitMemberships=unitMemberships
-            }
+            let! person = result.ReadSingleOrDefaultAsync<Person>() |> awaitTask
+            // let! units = result.ReadAsync<UnitMember>() |> awaitTask
+            // let! department = result.ReadSingleOrDefaultAsync<Department>() |> awaitTask
+            let expertise = if isNull person.Expertise then [""] else (person.Expertise.Split("|") |> Array.toList) 
+            let responsibilities = person.Responsibilities |> mapFlagsToSeq
+            let tools = person.Tools |> mapFlagsToSeq
+            return ok person
         with exn -> return dbFail "queryPersonProfile" exn
 
     }
@@ -121,9 +95,9 @@ SELECT id, name, netid AS description FROM people WHERE name ILIKE @Term OR neti
         try
             use cn = sqlConnection connStr
             let! result = cn.QueryMultipleAsync(query, likeParam) |> awaitTask
-            let! units = result.ReadAsync<Entity>() |> awaitTask
-            let! depts = result.ReadAsync<Entity>() |> awaitTask
-            let! people = result.ReadAsync<Entity>() |> awaitTask
+            let! units = result.ReadAsync<Unit>() |> awaitTask
+            let! depts = result.ReadAsync<Department>() |> awaitTask
+            let! people = result.ReadAsync<Person>() |> awaitTask
             return ok { Users=people; Units=units; Departments=depts }
         with exn -> return dbFail "querySimpleSearch" exn
     }
@@ -175,30 +149,21 @@ ORDER BY up.name ASC;
             use cn = sqlConnection connStr
             let! result = cn.QueryMultipleAsync(query, idParam) |> awaitTask
             let! unit = result.ReadSingleOrDefaultAsync<Unit>() |> awaitTask
-            let! members = result.ReadAsync<UnitMember>() |> awaitTask
-            let! supportedDepartments = result.ReadAsync<Department>() |> awaitTask
-            let! parent = result.ReadSingleOrDefaultAsync<Unit>() |> awaitTask
-            let! children = result.ReadAsync<Unit>() |> awaitTask
-            let memberships = members |> Seq.map (fun m -> 
-              { Id=m.PersonId 
-                Name=m.Name
-                Description=m.Description
-                Title=m.Title
-                Role=m.Role
-                Percentage=m.Percentage
-                PhotoUrl=m.PhotoUrl
-                Tools=m.Tools |> mapFlagsToSeq
-              })
-            return ok {
-                Id=unit.Id
-                Name=unit.Name
-                Description=unit.Description
-                Url=unit.Url
-                Members=memberships
-                SupportedDepartments=supportedDepartments
-                Children=children
-                Parent=Some(parent)
-            }
+            // let! members = result.ReadAsync<UnitMember>() |> awaitTask
+            // let! supportedDepartments = result.ReadAsync<Department>() |> awaitTask
+            // let! parent = result.ReadSingleOrDefaultAsync<Unit>() |> awaitTask
+            // let! children = result.ReadAsync<Unit>() |> awaitTask
+            // let memberships = members |> Seq.map (fun m -> 
+            //   { Id=m.PersonId 
+            //     Name=m.Name
+            //     Description=m.Description
+            //     Title=m.Title
+            //     Role=m.Role
+            //     Percentage=m.Percentage
+            //     PhotoUrl=m.PhotoUrl
+            //     Tools=m.Tools |> mapFlagsToSeq
+            //   })
+            return ok unit
         with exn -> return dbFail "queryUnit" exn
     }
 
@@ -238,16 +203,10 @@ ORDER BY u.name ASC;
             use cn = sqlConnection connStr
             let! result = cn.QueryMultipleAsync(query, idParam) |> awaitTask
             let! dept = result.ReadSingleOrDefaultAsync<Department>() |> awaitTask
-            let! members = result.ReadAsync<Entity>() |> awaitTask
-            let! unitsInDepartment = result.ReadAsync<Unit>() |> awaitTask
-            let! unitsSupportingDept = result.ReadAsync<Unit>() |> awaitTask
-            return ok 
-              { Id=dept.Id
-                Name=dept.Name
-                Description=dept.Description
-                Units = unitsInDepartment
-                Members = members
-                SupportingUnits=unitsSupportingDept }
+            // let! members = result.ReadAsync<MiniPerson>() |> awaitTask
+            // let! unitsInDepartment = result.ReadAsync<Unit>() |> awaitTask
+            // let! unitsSupportingDept = result.ReadAsync<Unit>() |> awaitTask
+            return ok dept
         with exn -> return dbFail "queryDepartment" exn
 
     }
@@ -258,9 +217,12 @@ ORDER BY u.name ASC;
 
         interface IDataRepository with 
             member this.TryGetPersonId netId = queryPersonByNetId connStr netId
-            member this.GetProfile id = queryUserProfile connStr id
+            member this.GetPeople query = async { return! Seq.empty<Person> |> ok |> async.Return }
+            member this.GetPerson id = queryUserProfile connStr id
             member this.GetSimpleSearchByTerm term = querySimpleSearch connStr term
-            member this.GetUnits () = queryUnits connStr
+            member this.GetUnits query = queryUnits connStr
             member this.GetUnit id = queryUnit connStr id
-            member this.GetDepartments () = queryDepartments connStr 
+            member this.CreateUnit unit = async { return! unit |> ok |> async.Return }
+            member this.UpdateUnit id unit = async { return! unit |> ok |> async.Return }
+            member this.GetDepartments query = queryDepartments connStr 
             member this.GetDepartment id = queryDepartment connStr id
