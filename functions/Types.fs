@@ -44,6 +44,12 @@ module Types =
         /// This person has primary responsibility for and authority over this unit. 
         | Leader=4
 
+    type Permissions =
+        /// This person has read/write permissions on this entity
+        | Owner=1
+        /// This person has read-only permissions on this entity
+        | Viewer=2
+
     type Id = int
     type Name = string
     type NetId = string
@@ -167,6 +173,8 @@ module Types =
         [<Column("title")>] Title: string
         /// The role of the person in this membership as part of the unit.
         [<Column("role")>] Role: Role
+        /// The permissions of the person in this membership as part of the unit.
+        [<Column("permissions")>] Permissions: Permissions
         /// The percentage of time allocated to this position by this person (in case of split appointments).
         [<Column("percentage")>] Percentage: int
         /// The tools that can be used by the person in this position as part of this unit.
@@ -200,6 +208,8 @@ module Types =
         abstract member GetPeople: Query option -> Async<Result<Person seq,Error>>
         /// Get a user profile for a given user ID
         abstract member GetPerson: Id -> Async<Result<Person,Error>>
+        /// Get a user profile for a given user ID
+        abstract member GetPersonMemberships: Id -> Async<Result<UnitMember seq,Error>>
         /// Get a list of all units
         abstract member GetUnits: Query option -> Async<Result<Unit seq,Error>>
         /// Get a single unit by ID
@@ -208,6 +218,8 @@ module Types =
         abstract member CreateUnit: Unit -> Async<Result<Unit,Error>>
         /// Update a unit
         abstract member UpdateUnit: Id -> Unit -> Async<Result<Unit,Error>>
+        /// Delete a unit
+        abstract member DeleteUnit: Id -> Async<Result<unit,Error>>
         /// Get a list of all departments
         abstract member GetDepartments: Query option -> Async<Result<Department seq,Error>>
         /// Get a single department by ID

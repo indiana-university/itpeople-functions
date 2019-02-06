@@ -48,9 +48,9 @@ module Fakes =
         sebastianId <- db.Insert<Person>({sebastian with HrDepartmentId=parksDeptId}).GetValueOrDefault()
         // unit membership
 
-        let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=swansonId; Role=Role.Leader; Title="Director"; Tools=Tools.AccountMgt; Percentage=100; Person=Some(swanson); Unit=parksAndRec})
-        let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=knopeId; Role=Role.Sublead; Title="Deputy Director"; Tools=Tools.None; Percentage=100; Person=Some(knope); Unit=parksAndRec})
-        let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=sebastianId; Role=Role.Member; Title="Mascot"; Tools=Tools.None; Percentage=100; Person=Some(sebastian); Unit=parksAndRec})
+        let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=swansonId; Role=Role.Leader; Permissions=Permissions.Owner; Title="Director"; Tools=Tools.AccountMgt; Percentage=100; Person=Some(swanson); Unit=parksAndRec})
+        let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=knopeId; Role=Role.Sublead; Permissions=Permissions.Viewer; Title="Deputy Director"; Tools=Tools.None; Percentage=100; Person=Some(knope); Unit=parksAndRec})
+        let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=sebastianId; Role=Role.Member; Permissions=Permissions.Viewer; Title="Mascot"; Tools=Tools.None; Percentage=100; Person=Some(sebastian); Unit=parksAndRec})
         // unit relationsips
         let _ = db.Insert<UnitRelation>({ChildUnitId=parksAndRecId; ParentUnitId=cityId})
         let _ = db.Insert<UnitRelation>({ChildUnitId=fourthFloorId; ParentUnitId=parksAndRecId})

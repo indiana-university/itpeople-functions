@@ -219,9 +219,11 @@ ORDER BY u.name ASC;
             member this.TryGetPersonId netId = queryPersonByNetId connStr netId
             member this.GetPeople query = stub Seq.empty<Person>
             member this.GetPerson id = queryUserProfile connStr id
+            member this.GetPersonMemberships personId = stub Seq.empty<UnitMember>
             member this.GetUnits query = queryUnits connStr
             member this.GetUnit id = queryUnit connStr id
             member this.CreateUnit unit = stub unit
             member this.UpdateUnit id unit = stub unit
+            member this.DeleteUnit id = stub ()
             member this.GetDepartments query = queryDepartments connStr 
             member this.GetDepartment id = queryDepartment connStr id

@@ -97,6 +97,12 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req) =
         "pong" |> jsonResponse req "*" Status.OK
 
+
+
+    // *****************
+    // ** Authentication
+    // *****************
+
     [<FunctionName("AuthGet")>]
     [<SwaggerOperation(Summary="Get OAuth JWT", Description="Exchanges a UAA OAuth code for an application-scoped JWT. The JWT is required to make authenticated requests to this API.", Tags=[|"Authentication"|])>]
     [<SwaggerResponse(200, Type=typeof<JwtResponse>)>]
@@ -122,6 +128,12 @@ module Functions =
 
         req |> execAnonymousWorkflow workflow
 
+
+
+    // *****************
+    // ** People
+    // *****************
+
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="List all people", Tags=[|"People"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Person>>)>]
@@ -138,10 +150,22 @@ module Functions =
     [<SwaggerOperation(Summary="Find a person by ID", Tags=[|"People"|])>]
     [<SwaggerResponse(200, Type=typeof<Person>)>]
     let peopleGetId
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{id}")>] req, id) =
-        let workflow _ = await data.GetPerson id
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
+        let workflow _ = await data.GetPerson personId
         req |> execAuthenticatedWorkflow workflow
 
+    [<FunctionName("PeopleGetAllMemberships")>]
+    [<SwaggerOperation(Summary="Find a person's unit memberships", Tags=[|"People"|])>]
+    [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
+    let peopleGetAllMemberships
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
+        let workflow _ = await data.GetPersonMemberships personId
+        req |> execAuthenticatedWorkflow workflow
+
+
+    // *****************
+    // ** Units
+    // *****************
 
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all top-level IT units.", Tags=[|"Units"|])>]
@@ -183,8 +207,21 @@ module Functions =
             >>= await (data.UpdateUnit id)
         req |> execAuthenticatedWorkflow workflow
 
+    [<FunctionName("UnitDelete")>]
+    [<SwaggerOperation(Summary="Delete a unit.", Tags=[|"Units"|])>]
+    [<SwaggerResponse(204)>]
+    let unitDelete
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{id}")>] req, id) =
+        let workflow user = 
+            deserializeBody<Unit> req
+            >>= await (data.UpdateUnit id)
+        req |> execAuthenticatedWorkflow workflow
 
 
+
+    // *****************
+    // ** Departments
+    // *****************
 
     [<FunctionName("DepartmentGetAll")>]
     [<SwaggerOperation(Summary="List all departments.", Tags=[|"Departments"|])>]

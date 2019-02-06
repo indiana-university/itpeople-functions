@@ -77,19 +77,33 @@ module Fakes =
         HrDepartmentId=parksDept.Id
     }
 
+    let swansonMembership:UnitMember = {
+        Id=0
+        UnitId=0
+        PersonId=0
+        Unit=parksAndRec
+        Person=Some(swanson)
+        Title="Director"
+        Role=Role.Leader
+        Permissions=Permissions.Owner
+        Percentage=100
+        Tools=Tools.SuperPass
+    }
+
     /// A canned data implementation of IDatabaseRespository (for testing)
 
-    let stub a = async { return! a |> ok |> async.Return }
 
     type FakesRepository() =
         interface IDataRepository with 
             member this.TryGetPersonId netId = stub (swanson.NetId, swanson.Id)
             member this.GetPeople query =  stub ([ swanson ] |> List.toSeq)
             member this.GetPerson id = stub swanson
+            member this.GetPersonMemberships personId = stub ([ swansonMembership ] |> List.toSeq)
             member this.GetUnits query = stub ([ parksAndRec ] |> List.toSeq)
             member this.GetUnit id = stub parksAndRec
             member this.CreateUnit unit = stub parksAndRec
             member this.UpdateUnit id unit = stub parksAndRec
+            member this.DeleteUnit id = stub ()
             member this.GetDepartments query = stub ([ parksDept ] |> List.toSeq)
             member this.GetDepartment id = stub parksDept
 
@@ -116,3 +130,15 @@ module Fakes =
     type PersonExample() =
         interface IExamplesProvider<Person> with
             member this.GetExamples () = swanson
+    
+    type PeopleExample() =
+        interface IExamplesProvider<seq<Person>> with
+            member this.GetExamples () = [ swanson; knope ] |> List.toSeq
+
+    type PersonMembershipsExample() =
+        interface IExamplesProvider<seq<UnitMember>> with
+            member this.GetExamples () = [ swansonMembership ] |> List.toSeq
+
+    type PersonMembershipExample() =
+        interface IExamplesProvider<UnitMember> with
+            member this.GetExamples () = swansonMembership
