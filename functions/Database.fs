@@ -229,3 +229,4 @@ ORDER BY u.name ASC;
             member this.GetDepartments query = queryDepartments connStr 
             member this.GetDepartment id = queryDepartment connStr id
             member this.GetDepartmentMemberUnits id = stub Seq.empty<Unit>
+            member this.GetDepartmentSupportingUnits id = stub Seq.empty<Unit>

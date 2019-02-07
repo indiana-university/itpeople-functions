@@ -210,6 +210,8 @@ module Types =
     type FetchById<'T> = Id -> AsyncResult<'T,Error>
     type FetchAll<'T> = unit -> AsyncResult<'T,Error>
 
+    type NoContent = unit
+
     type IDataRepository =
         /// Get a user record for a given net ID (e.g. 'jhoerr')
         abstract member TryGetPersonId: NetId -> Async<Result<(NetId*Id),Error>>
@@ -235,9 +237,12 @@ module Types =
         abstract member GetDepartments: Query option -> Async<Result<Department seq,Error>>
         /// Get a single department by ID
         abstract member GetDepartment: DepartmentId -> Async<Result<Department,Error>>
-        /// Get a list of a department's constituent units
+        /// Get a list of a department's member units
         abstract member GetDepartmentMemberUnits: DepartmentId -> Async<Result<Unit seq,Error>>
-
+        /// Get a list of a department's supporting units        
+        abstract member GetDepartmentSupportingUnits: DepartmentId -> Async<Result<Unit seq,Error>>
+  
+  
     let stub a = async { return! a |> ok |> async.Return }
 
     type JwtResponse = {

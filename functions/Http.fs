@@ -14,8 +14,9 @@ module Http =
     open Microsoft.AspNetCore.WebUtilities
 
     let client = new HttpClient()
+
     let tryDeserialize<'T> status str =
-        tryf status (fun () -> str |> JsonConvert.DeserializeObject<'T>)
+        tryf status (fun () -> JsonConvert.DeserializeObject<'T>(str, Functions.Json.JsonSettings))
 
     /// Attempt to deserialize the request body as an object of the given type.
     let deserializeBody<'T> (req:HttpRequestMessage) = 
