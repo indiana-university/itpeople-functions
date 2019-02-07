@@ -107,6 +107,7 @@ module Fakes =
             member this.DeleteUnit id = stub ()
             member this.GetDepartments query = stub ([ parksDept ] |> List.toSeq)
             member this.GetDepartment id = stub parksDept
+            member this.GetDepartmentMemberUnits id = stub ([ parksAndRec ] |> List.toSeq)
 
     type JwtResponseExample() =
         interface IExamplesProvider<JwtResponse> with

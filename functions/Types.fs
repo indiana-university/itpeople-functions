@@ -234,7 +234,9 @@ module Types =
         /// Get a list of all departments
         abstract member GetDepartments: Query option -> Async<Result<Department seq,Error>>
         /// Get a single department by ID
-        abstract member GetDepartment: Id -> Async<Result<Department,Error>>
+        abstract member GetDepartment: DepartmentId -> Async<Result<Department,Error>>
+        /// Get a list of a department's constituent units
+        abstract member GetDepartmentMemberUnits: DepartmentId -> Async<Result<Unit seq,Error>>
 
     let stub a = async { return! a |> ok |> async.Return }
 

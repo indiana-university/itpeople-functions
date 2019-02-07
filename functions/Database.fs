@@ -228,3 +228,4 @@ ORDER BY u.name ASC;
             member this.DeleteUnit id = stub ()
             member this.GetDepartments query = queryDepartments connStr 
             member this.GetDepartment id = queryDepartment connStr id
+            member this.GetDepartmentMemberUnits id = stub Seq.empty<Unit>

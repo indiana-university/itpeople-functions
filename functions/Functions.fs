@@ -171,6 +171,7 @@ module Functions =
         req |> execAuthenticatedWorkflow workflow
 
 
+
     // *****************
     // ** Units
     // *****************
@@ -250,3 +251,13 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>] req, id) =
         let workflow _ = await data.GetDepartment id
         req |> execAuthenticatedWorkflow workflow
+
+    // [<FunctionName("DepartmentGetAllConstituentUnits")>]
+    // [<SwaggerOperation(Summary="List a department's member units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
+    // [<SwaggerResponse(200, Type=typeof<seq<Department>>)>]
+    // [<OptionalQueryParameter("q", typeof<string>)>]
+    // let departmentGetConstituentUnits
+    //     ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments")>] req, id) =
+    //     let workflow _ = await data.GetDepartmentMemberUnits id
+    //     req |> execAuthenticatedWorkflow workflow
+
