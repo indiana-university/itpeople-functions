@@ -11,6 +11,7 @@ module Fakes =
     
     open Functions.Types    
     open Functions.Fakes
+    open Functions.Database
     open Migration
 
     let testConnectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
@@ -26,6 +27,7 @@ module Fakes =
 
     let resetDatabaseWithTestFakes () = 
         
+
         let mutable parksAndRecId = 0
         let mutable cityId = 0
         let mutable fourthFloorId = 0
@@ -34,12 +36,16 @@ module Fakes =
         let mutable knopeId = 0
         let mutable sebastianId = 0
 
+        Functions.Database.init() 
+
         clearAndMigrate ()
+
         use db = new NpgsqlConnection(testConnectionString)
-        // units
-        parksAndRecId <- db.Insert<Unit>(parksAndRec).GetValueOrDefault()
-        cityId <- db.Insert<Unit>(cityOfPawnee).GetValueOrDefault()
-        fourthFloorId <- db.Insert<Unit>(fourthFloor).GetValueOrDefault()
+
+           // units
+        cityId <- db.Execute(insertUnitSql, cityOfPawnee) // db.Insert<Unit>(cityOfPawnee).GetValueOrDefault()
+        parksAndRecId <- db.Execute(insertUnitSql, {parksAndRec with ParentId=Some(cityId)})
+        fourthFloorId <- db.Execute(insertUnitSql, {fourthFloor with ParentId=Some(cityId)})
         // departments
         parksDeptId <- db.Insert<Department>(parksDept).GetValueOrDefault()
         // people
@@ -51,9 +57,6 @@ module Fakes =
         let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=swansonId; Role=Role.Leader; Permissions=Permissions.Owner; Title="Director"; Tools=Tools.AccountMgt; Percentage=100; Person=Some(swanson); Unit=parksAndRec})
         let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=knopeId; Role=Role.Sublead; Permissions=Permissions.Viewer; Title="Deputy Director"; Tools=Tools.None; Percentage=100; Person=Some(knope); Unit=parksAndRec})
         let _ = db.Insert<UnitMember>({Id=0; UnitId=parksAndRecId; PersonId=sebastianId; Role=Role.Member; Permissions=Permissions.Viewer; Title="Mascot"; Tools=Tools.None; Percentage=100; Person=Some(sebastian); Unit=parksAndRec})
-        // unit relationsips
-        let _ = db.Insert<UnitRelation>({ChildUnitId=parksAndRecId; ParentUnitId=cityId})
-        let _ = db.Insert<UnitRelation>({ChildUnitId=fourthFloorId; ParentUnitId=parksAndRecId})
         // support relationship
         let _ = db.Insert<SupportRelationship>({Id=0; DepartmentId=parksDeptId; UnitId=parksAndRecId; Department=parksDept; Unit=parksAndRec})
         ()

@@ -44,6 +44,8 @@ module ContractTests =
             .Verify()
 
     type Pact(output: ITestOutputHelper)=
+        inherit DatabaseIntegrationTestBase()
+
         let output = output
 
         [<Fact>]
@@ -57,7 +59,7 @@ module ContractTests =
 
             try            
                 // These config settings are needed for the tests
-                Environment.SetEnvironmentVariable("UseFakeData", "true")
+                Environment.SetEnvironmentVariable("UseFakeData", "false")
                 Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
                 Environment.SetEnvironmentVariable("DbConnectionString", testConnectionString)
                 // These config settings aren't needed for the tests, but the config expects them

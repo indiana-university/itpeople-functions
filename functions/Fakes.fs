@@ -103,7 +103,7 @@ module Fakes =
 
     type FakesRepository() =
         interface IDataRepository with 
-            member this.TryGetPersonId netId = stub (swanson.NetId, swanson.Id)
+            member this.TryGetPersonId netId = stub (swanson.NetId, Some(swanson.Id))
             member this.GetPeople query =  stub ([ swanson ] |> List.toSeq)
             member this.GetPerson id = stub swanson
             member this.GetPersonMemberships personId = stub ([ swansonMembership ] |> List.toSeq)

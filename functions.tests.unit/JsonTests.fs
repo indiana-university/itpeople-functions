@@ -16,13 +16,14 @@ module JsonTests =
 
     [<Fact>]
     let ``Deserialize record with Option type`` () =
-        let expected = Ok({
+        let expected = 
+          Ok({
             Id= 0
             Name= "name"
             Description= "description"
             ParentId= Some(1)
             Url= "url"
-        },[])
+          }, [])
         let actual = tryDeserialize Status.BadRequest """{
           "id": 0,
           "name": "name",

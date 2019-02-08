@@ -164,7 +164,7 @@ module Types =
         [<Key>][<Required>][<Column("parent_id")>] ParentUnitId: Id }
 
     [<CLIMutable>]
-    [<Table("supported_departments")>]
+    [<Table("support_relationships")>]
     /// This relationship describes which IT Unit provides IT-related support for a given department.
     type SupportRelationship = 
       { /// The unique ID of this unit record.
@@ -224,7 +224,7 @@ module Types =
 
     type IDataRepository =
         /// Get a user record for a given net ID (e.g. 'jhoerr')
-        abstract member TryGetPersonId: NetId -> Async<Result<(NetId*Id),Error>>
+        abstract member TryGetPersonId: NetId -> Async<Result<NetId * Id option,Error>>
         /// Get a list of all people
         abstract member GetPeople: Query option -> Async<Result<Person seq,Error>>
         /// Get a single person by ID
