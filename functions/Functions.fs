@@ -164,10 +164,10 @@ module Functions =
 
     [<FunctionName("PeopleGetMembershipById")>]
     [<SwaggerOperation(Summary="Find a person's unit membership by ID", Tags=[|"People"|])>]
-    [<SwaggerResponse(200, Type=typeof<UnitMember>)>]
+    [<SwaggerResponse(200, Type=typeof<Unit>)>]
     let peopleGetMembershipById
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships/{membershipId}")>] req, personId, membershipId) =
-        let workflow _ = await data.GetPersonMembership (personId, membershipId)
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships/{membershipId}")>] req, personId:PersonId, membershipId) =
+        let workflow _ = await data.GetMembership membershipId
         req |> authenticate workflow Status.OK
 
 
@@ -192,13 +192,30 @@ module Functions =
     [<SwaggerOperation(Summary="Find a unit by ID.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<Unit>)>]
     let unitGetId
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{id}")>] req, id) =
-        let workflow _ = await data.GetUnit id
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}")>] req, unitId) =
+        let workflow _ = await data.GetUnit unitId
         req |> authenticate workflow Status.OK
             
+    [<FunctionName("UnitGetAllMembers")>]
+    [<SwaggerOperation(Summary="Get all unit members", Tags=[|"Units"|])>]
+    [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
+    let unitGetAllMembers
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
+        let workflow _ = await data.GetUnitMembers unitId
+        req |> authenticate workflow Status.OK
+
+    [<FunctionName("UnitGetMember")>]
+    [<SwaggerOperation(Summary="Get a unit member", Tags=[|"Units"|])>]
+    [<SwaggerResponse(200, Type=typeof<UnitMember>)>]
+    let unitGetMember
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members/{membershipId}")>] req, unitId:UnitId, membershipId) =
+        let workflow _ = await data.GetMembership membershipId
+        req |> authenticate workflow Status.OK
+
+
     [<FunctionName("UnitPost")>]
     [<SwaggerOperation(Summary="Create a unit.", Tags=[|"Units"|])>]
-    [<SwaggerResponse(200, Type=typeof<Unit>)>]
+    [<SwaggerResponse(201, Type=typeof<Unit>)>]
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow user = 
@@ -210,19 +227,21 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<Unit>)>]
     let unitPut
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{id}")>] req, id) =
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow user = 
             deserializeBody<Unit> req
-            >>= await (data.UpdateUnit id)
+            >>= await (data.UpdateUnit unitId)
         req |> authenticate workflow Status.OK
 
     [<FunctionName("UnitDelete")>]
     [<SwaggerOperation(Summary="Delete a unit.", Tags=[|"Units"|])>]
     [<SwaggerResponse(204)>]
     let unitDelete
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{id}")>] req, id) =
-        let workflow _ = await data.DeleteUnit id
-        req |> authenticate workflow Status.NoContent
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req:HttpRequestMessage, unitId) =
+        let workflow _ = await data.DeleteUnit unitId
+        ()
+        //req |> authenticate workflow Status.NoContent
+
 
 
     // *****************
@@ -245,23 +264,23 @@ module Functions =
     [<SwaggerOperation(Summary="Find a department by ID.", Tags=[|"Departments"|])>]
     [<SwaggerResponse(200, Type=typeof<Department>)>]
     let departmentGetId
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{id}")>] req, id) =
-        let workflow _ = await data.GetDepartment id
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}")>] req, departmentId) =
+        let workflow _ = await data.GetDepartment departmentId
         req |> authenticate workflow Status.OK
 
     [<FunctionName("DepartmentGetAllMemberUnits")>]
     [<SwaggerOperation(Summary="List a department's member units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
     let departmentGetMemberUnits
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{id}/memberUnits")>] req, id) =
-        let workflow _ = await data.GetDepartmentMemberUnits id
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/memberUnits")>] req, departmentId) =
+        let workflow _ = await data.GetDepartmentMemberUnits departmentId
         req |> authenticate workflow Status.OK
 
     [<FunctionName("DepartmentGetAllSupportingUnits")>]
     [<SwaggerOperation(Summary="List a department's member units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
     let departmentGetSupportingUnits
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{id}/supportingUnits")>] req, id) =
-        let workflow _ = await data.GetDepartmentSupportingUnits id
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
+        let workflow _ = await data.GetDepartmentSupportingUnits departmentId
         req |> authenticate workflow Status.OK
 

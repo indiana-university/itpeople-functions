@@ -113,8 +113,6 @@ namespace Swashbuckle.AspNetCore.AzureFunctions.Providers
 
             foreach (var responseType in methodInfo.GetCustomAttributes<SwaggerResponseAttribute>())
             {
-                System.Console.WriteLine($"Adding response type for {responseType.StatusCode} {responseType.Type.Name}...");
-
                 var response = new ApiResponseType() 
                 {
                     StatusCode=responseType.StatusCode,

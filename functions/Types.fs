@@ -221,12 +221,14 @@ module Types =
         abstract member GetPerson: PersonId -> Async<Result<Person,Error>>
         /// Get a list of a person's unit memberships
         abstract member GetPersonMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
-        /// Get a person's unit membership by ID
-        abstract member GetPersonMembership: PersonId * MembershipId -> Async<Result<UnitMember,Error>>
         /// Get a list of all units
         abstract member GetUnits: Query option -> Async<Result<Unit seq,Error>>
         /// Get a single unit by ID
         abstract member GetUnit: Id -> Async<Result<Unit,Error>>
+        /// Get a unit's members by unit ID        
+        abstract member GetUnitMembers: Id -> Async<Result<UnitMember seq,Error>>
+        /// Get a membership by ID        
+        abstract member GetMembership: Id -> Async<Result<UnitMember,Error>>
         /// Create a unit
         abstract member CreateUnit: Unit -> Async<Result<Unit,Error>>
         /// Update a unit
