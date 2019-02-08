@@ -90,6 +90,14 @@ module Fakes =
         Tools=Tools.SuperPass
     }
 
+    let supportRelationship:SupportRelationship = {
+        Id=0
+        UnitId=0
+        DepartmentId=0
+        Unit=parksAndRec
+        Department=parksDept
+    }
+
     /// A canned data implementation of IDatabaseRespository (for testing)
 
 
@@ -102,14 +110,25 @@ module Fakes =
             member this.GetUnits query = stub ([ parksAndRec ] |> List.toSeq)
             member this.GetUnit id = stub parksAndRec
             member this.GetUnitMembers id = stub ([ swansonMembership ] |> List.toSeq) 
+            member this.GetUnitChildren id = stub ([ fourthFloor ] |> List.toSeq) 
+            member this.GetUnitSupportedDepartments id = stub ([ supportRelationship ] |> List.toSeq) 
             member this.GetMembership id = stub swansonMembership 
+            member this.GetMemberships () = stub ([ swansonMembership ] |> List.toSeq) 
+            member this.CreateMembership membership = stub membership
+            member this.UpdateMembership id membership = stub membership
+            member this.DeleteMembership id = stub ()
             member this.CreateUnit unit = stub parksAndRec
             member this.UpdateUnit id unit = stub parksAndRec
             member this.DeleteUnit id = stub ()
             member this.GetDepartments query = stub ([ parksDept ] |> List.toSeq)
             member this.GetDepartment id = stub parksDept
             member this.GetDepartmentMemberUnits id = stub ([ parksAndRec ] |> List.toSeq)
-            member this.GetDepartmentSupportingUnits id = stub ([ parksAndRec ] |> List.toSeq)
+            member this.GetDepartmentSupportingUnits id = stub ([ supportRelationship ] |> List.toSeq)
+            member this.GetSupportRelationships () = stub ([ supportRelationship ] |> List.toSeq) 
+            member this.GetSupportRelationship id = stub supportRelationship
+            member this.CreateSupportRelationship supportRelationship = stub supportRelationship
+            member this.UpdateSupportRelationship id supportRelationship = stub supportRelationship
+            member this.DeleteSupportRelationship id = stub ()
            
 
     type JwtResponseExample() =

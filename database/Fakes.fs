@@ -55,5 +55,5 @@ module Fakes =
         let _ = db.Insert<UnitRelation>({ChildUnitId=parksAndRecId; ParentUnitId=cityId})
         let _ = db.Insert<UnitRelation>({ChildUnitId=fourthFloorId; ParentUnitId=parksAndRecId})
         // support relationship
-        let _ = db.Insert<SupportRelationship>({DepartmentId=parksDeptId; UnitId=parksAndRecId})
+        let _ = db.Insert<SupportRelationship>({Id=0; DepartmentId=parksDeptId; UnitId=parksAndRecId; Department=parksDept; Unit=parksAndRec})
         ()
