@@ -53,9 +53,9 @@ module ContractTests =
             let mutable functionServer = None
             let mutable stateServer = None
 
-            System.Reflection.Assembly.GetEntryAssembly().Location
-            |> System.IO.Path.GetDirectoryName
-            |> printfn "Executing in: %s"
+            // System.Reflection.Assembly.GetEntryAssembly().Location
+            // |> System.IO.Path.GetDirectoryName
+            // |> printfn "Executing in: %s"
 
             try            
                 // These config settings are needed for the tests

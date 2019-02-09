@@ -15,16 +15,16 @@ module Fakes =
     let accessToken = { access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxNTE1NTQ0NjQzIiwidXNlcl9pZCI6MSwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfcm9sZSI6ImFkbWluIn0.akuT7-xDFxrev-T9Dv0Wdumx1HK5L2hQAOU51igIjUE" }
 
     // Units
-    let cityOfPawnee:Unit = {Id=0; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url=""; ParentId=None}
-    let parksAndRec:Unit = {Id=0; Name="Parks and Rec"; Description="Parks and Recreation"; Url=""; ParentId=Some(cityOfPawnee.Id)}
-    let fourthFloor:Unit = {Id=0; Name="Fourth Floor"; Description="It's spooky up there!"; Url=""; ParentId=Some(cityOfPawnee.Id)}
+    let cityOfPawnee:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url=""; ParentId=None}
+    let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url=""; ParentId=Some(cityOfPawnee.Id)}
+    let fourthFloor:Unit = {Id=3; Name="Fourth Floor"; Description="It's spooky up there!"; Url=""; ParentId=Some(cityOfPawnee.Id)}
 
     // Departments
-    let parksDept:Department = {Id=0; Name="PA-PARKS"; Description="Parks and Recreation Department" }
+    let parksDept:Department = {Id=1; Name="PA-PARKS"; Description="Parks and Recreation Department" }
     
     // People
     let swanson:Person = {
-        Id=0
+        Id=1
         Hash="hash"
         NetId="rswanso"
         Name="Swanson, Ron"
@@ -42,7 +42,7 @@ module Fakes =
     }
 
     let knope:Person = {
-        Id=0
+        Id=2
         Hash="hash"
         NetId="lknope"
         Name="Knope, Lesie Park"
@@ -60,7 +60,7 @@ module Fakes =
     }
 
     let sebastian:Person = {
-        Id=0
+        Id=3
         Hash="hash"
         NetId="lsebastian"
         Name="Sebastian, L'il"
@@ -78,9 +78,9 @@ module Fakes =
     }
 
     let swansonMembership:UnitMember = {
-        Id=0
-        UnitId=0
-        PersonId=0
+        Id=1
+        UnitId=parksAndRec.Id
+        PersonId=swanson.Id
         Unit=parksAndRec
         Person=Some(swanson)
         Title="Director"
@@ -91,9 +91,9 @@ module Fakes =
     }
 
     let supportRelationship:SupportRelationship = {
-        Id=0
-        UnitId=0
-        DepartmentId=0
+        Id=1
+        UnitId=parksAndRec.Id
+        DepartmentId=parksDept.Id
         Unit=parksAndRec
         Department=parksDept
     }

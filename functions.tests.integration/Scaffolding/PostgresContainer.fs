@@ -18,13 +18,10 @@ module PostgresContainer =
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
 
-    /// Get a new postgres connection.
-    let dbConnection () = sqlConnection testConnectionString
-    
     /// Attempt to connect to the postgres database.
     let tryConnect () = async {
         try
-            use conn = dbConnection ()
+            use conn = new NpgsqlConnection(testConnectionString)
             do! conn.OpenAsync() |> Async.AwaitTask
             return None
         with 

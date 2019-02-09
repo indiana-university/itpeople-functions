@@ -11,27 +11,27 @@ open Dapper
 open Npgsql
 open Newtonsoft.Json
 
-
-type OptionHandler<'T> () =
-    inherit SqlMapper.TypeHandler<option<'T>> ()
-
-    override __.SetValue (param, value) =
-        let valueOrNull =
-            match value with
-            | Some x -> box x
-            | None   -> null
-
-        param.Value <- valueOrNull
-
-    override __.Parse value =
-        if 
-            System.Object.ReferenceEquals(value, null) || 
-            value = box System.DBNull.Value
-        then None
-        else Some (value :?> 'T)
-
 module OptionHandler =
-    
+
+    type OptionHandler<'T> () =
+        inherit SqlMapper.TypeHandler<option<'T>> ()
+
+        override __.SetValue (param, value) =
+            let valueOrNull =
+                match value with
+                | Some x -> box x
+                | None   -> null
+
+            param.Value <- valueOrNull
+
+        override __.Parse value =
+            if 
+                System.Object.ReferenceEquals(value, null) || 
+                value = box System.DBNull.Value
+            then None
+            else Some (value :?> 'T)
+
+
     let RegisterTypes () =
         SqlMapper.AddTypeHandler (OptionHandler<Id>())
         SqlMapper.AddTypeHandler (OptionHandler<UnitId>())
@@ -54,19 +54,14 @@ module OptionHandler =
         SqlMapper.AddTypeHandler (OptionHandler<string>())
         SqlMapper.AddTypeHandler (OptionHandler<obj>())
 
-module Database =
+
+module QueryHelpers = 
 
     type IdFilter = { Id: Id }
     type NetIdFilter = { NetId: NetId }
     type SimpleSearchQuery = { Term: string }
 
-
-    let init() = 
-        SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
-        Dapper.DefaultTypeMap.MatchNamesWithUnderscores <- true
-        OptionHandler.RegisterTypes()
-
-    let private like (term:string)  = 
+    let like (term:string)  = 
         term.Replace("[", "[[]").Replace("%", "[%]") 
         |> sprintf "%%%s%%"
 
@@ -77,7 +72,8 @@ module Database =
         let msg = sprintf "Database error on %s %s: %s" operation resource exn.Message
         fail (Status.InternalServerError, msg)
 
-    let private queryAll'<'T> connStr (query:string) description = async {
+    /// Query all items from the database
+    let queryAll<'T> connStr (query:string) = async {
         try
             use cn = sqlConnection connStr
             let! result = cn.QueryAsync<'T>(query) |> awaitTask
@@ -85,8 +81,16 @@ module Database =
         with exn -> return dbFail "query all" (typedefof<'T>.Name) exn
     }
 
+    /// Query all items from the database matching some parameter
+    let queryAll'<'T> connStr (query:string) param = async {
+        try
+            use cn = sqlConnection connStr
+            let! result = cn.QueryAsync<'T>(query, param) |> awaitTask
+            return ok result
+        with exn -> return dbFail "query all" (typedefof<'T>.Name) exn
+    }
 
-    let private queryOne<'T> connStr query parameters = async {
+    let queryOne<'T> connStr query parameters = async {
         try
             use cn = sqlConnection connStr
             let! result = cn.QueryAsync<'T>(query, parameters) |> awaitTask
@@ -98,7 +102,7 @@ module Database =
         with exn -> return dbFail "query one" (typedefof<'T>.Name) exn
     }
 
-    let private queryExactlyOne<'T> connStr query parameters = async {
+    let queryExactlyOne<'T> connStr query parameters = async {
         try
             use cn = sqlConnection connStr
             let! result = cn.QueryAsync<'T>(query, parameters) |> awaitTask
@@ -110,7 +114,7 @@ module Database =
         with exn -> return dbFail "query one" (typedefof<'T>.Name) exn
     }
 
-    let private insert<'T> connStr query (record:'T) (map:int -> 'T) = async {
+    let insert<'T> connStr query (record:'T) (map:int -> 'T) = async {
         try
             use db = sqlConnection connStr
             let! id = db.ExecuteAsync(query, record) |> awaitTask
@@ -118,7 +122,7 @@ module Database =
         with exn -> return dbFail "insert " (typedefof<'T>.Name) exn
     }
 
-    let private update<'T> connStr query (record:'T) = async {
+    let update<'T> connStr query (record:'T) = async {
         try
             use db = sqlConnection connStr
             let! _ = db.ExecuteAsync(query, record) |> awaitTask
@@ -126,13 +130,23 @@ module Database =
         with exn -> return dbFail "update" (typedefof<'T>.Name) exn
     }
 
-    let private delete<'T> connStr query (id:Id) = async {
+    let delete<'T> connStr query (id:Id) = async {
         try
             use db = sqlConnection connStr
             let! _ = db.ExecuteAsync(query, {Id=id}) |> awaitTask
             return ok ()
         with exn -> return dbFail "delete" (typedefof<'T>.Name) exn
     }
+
+module Database =
+
+    open QueryHelpers
+
+    let init() = 
+        SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
+        Dapper.DefaultTypeMap.MatchNamesWithUnderscores <- true
+        OptionHandler.RegisterTypes()
+
 
     // **************
     // Authentication
@@ -155,7 +169,7 @@ module Database =
 
     let queryUnitsSql = """SELECT * FROM units"""
     let queryUnits connStr = async {
-        return! queryAll'<Unit> connStr queryUnitsSql "queryUnits"
+        return! queryAll<Unit> connStr queryUnitsSql
     }
 
     let queryUnitSql = """SELECT * FROM units WHERE id=@Id LIMIT 1"""
@@ -178,11 +192,52 @@ module Database =
         return! update<Unit> connStr updateUnitSql (mapUnit unit id)
     }
 
-    let deleteUnitSql = """
-        DELETE units
-        WHERE id=@Id"""
+    let deleteUnitSql = """DELETE FROM units WHERE id=@Id"""
     let deleteUnit connStr id = async {
-        return! delete<Unit> connStr updateUnitSql id
+        return! delete<Unit> connStr deleteUnitSql id
+    }
+
+    let queryUnitChildrenSql = """SELECT * FROM units WHERE parent_id=@Id"""
+    let queryUnitChildren connStr id = async {
+        return! queryAll'<Unit> connStr queryUnitChildrenSql {Id=id}
+    }
+
+    let queryUnitMembersSql = """
+        SELECT * FROM unit_members
+        WHERE unit_id = @Id"""
+    let queryUnitMemberPeopleSql = """
+        SELECT p.* FROM unit_members m
+        LEFT JOIN people p on p.id = m.person_id
+        WHERE m.unit_id = @Id"""
+    let queryUnitMembers connStr id = async {
+        try
+            use cn = sqlConnection connStr
+            let! members = cn.QueryAsync<UnitMember>(queryUnitMembersSql, {Id=id}) |> awaitTask
+            let! people = cn.QueryAsync<Person>(queryUnitMemberPeopleSql, {Id=id}) |> awaitTask
+            let associateWithPerson m = 
+                let p = people |> Seq.tryFind (fun p -> p.Id = m.PersonId)
+                { m with Person=p }
+            return members |> Seq.map associateWithPerson |> ok
+        with exn -> return dbFail "query all" "unit members" exn
+    }
+
+    let queryUnitSupportRelationshipSql = """
+        SELECT * FROM support_relationships
+        WHERE unit_id = @Id"""
+    let queryUnitSupportRelationshipDepartmentSql = """
+        SELECT d.* FROM support_relationships s
+        JOIN departments d on d.id = s.department_id
+        WHERE s.unit_id = @Id"""
+    let queryUnitSupportedDepartments connStr id = async {
+        try
+            use cn = sqlConnection connStr
+            let! relations = cn.QueryAsync<SupportRelationship>(queryUnitSupportRelationshipSql, {Id=id}) |> awaitTask
+            let! departments = cn.QueryAsync<Department>(queryUnitSupportRelationshipDepartmentSql, {Id=id}) |> awaitTask
+            let associateWithDepartment (s:SupportRelationship) = 
+                let d = departments |> Seq.find (fun d -> d.Id = s.DepartmentId)
+                { s with Department=d }
+            return relations |> Seq.map associateWithDepartment |> ok
+        with exn -> return dbFail "query all" "unit supported departments" exn
     }
 
     // ***********
@@ -193,7 +248,7 @@ module Database =
 
     let queryDepartmentsSql = """SELECT * FROM departments"""
     let queryDepartments connStr = async {
-        return! queryAll'<Department> connStr queryDepartmentsSql "queryDepartments"
+        return! queryAll<Department> connStr queryDepartmentsSql
     }
 
     let queryDepartmentSql = """SELECT * FROM Departments WHERE id=@Id LIMIT 1"""
@@ -216,82 +271,142 @@ module Database =
         return! update<Department> connStr updateUnitSql (mapDepartment department id)
     }
 
+    let queryDeptSupportRelationshipSql = """
+        SELECT * FROM support_relationships
+        WHERE department_id = @Id"""
+    let queryDeptSupportRelationshipUnitsSql = """
+        SELECT u.* FROM support_relationships s
+        JOIN units u on u.id = s.unit_id
+        WHERE s.department_id = @Id"""
+    let queryDeptSupportingUnits connStr id = async {
+        try
+            use cn = sqlConnection connStr
+            let! relations = cn.QueryAsync<SupportRelationship>(queryDeptSupportRelationshipSql, {Id=id}) |> awaitTask
+            let! units = cn.QueryAsync<Unit>(queryDeptSupportRelationshipUnitsSql, {Id=id}) |> awaitTask
+            let associateWithUnit (s:SupportRelationship) = 
+                let u = units |> Seq.find (fun u -> u.Id = s.UnitId)
+                { s with Unit=u }
+            return relations |> Seq.map associateWithUnit |> ok
+        with exn -> return dbFail "query all" "unit supported departments" exn
+    }
 
-//     /// Get the profile for a given user ID
-//     let queryUserProfile connStr id = async {
-//         let idParam = {Id=id}
-//         let query = """
-// -- The person
-// SELECT * FROM people WHERE id = @Id;
-// -- Units to which this person belongs
-// SELECT m.unit_id AS unit_id, m.person_id AS person_id, m.title, m.role, m.percentage, m.tools, u.name, p.photo_url, u.description
-// FROM unit_members m
-// JOIN units u ON u.id = m.unit_id
-// JOIN people p on p.id = m.person_id
-// WHERE m.person_id = @Id
-// ORDER BY m.Role DESC, u.Name ASC;
-// -- The person's HR department
-// SELECT d.* FROM people p
-// JOIN departments d ON d.id = p.department_id
-// WHERE p.id = @Id;
-// """
-//         try
-//             use cn = sqlConnection connStr
-//             let! result = cn.QueryMultipleAsync(query, idParam) |> awaitTask
-//             let! person = result.ReadSingleOrDefaultAsync<Person>() |> awaitTask
-//             // let! units = result.ReadAsync<UnitMember>() |> awaitTask
-//             // let! department = result.ReadSingleOrDefaultAsync<Department>() |> awaitTask
-//             let expertise = if isNull person.Expertise then [""] else (person.Expertise.Split("|") |> Array.toList) 
-//             let responsibilities = person.Responsibilities |> mapFlagsToSeq
-//             let tools = person.Tools |> mapFlagsToSeq
-//             return ok person
-//         with exn -> return dbFail "" "queryPersonProfile" exn
+    let queryDeptMemberUnitsSql = """
+        SELECT DISTINCT ON (u.id) u.* FROM units     u
+        JOIN unit_members m ON m.unit_id = u.id
+        JOIN people p on p.id = m.person_id
+        WHERE p.department_id = @Id"""
+    let queryDeptMemberUnits connStr id = async {
+        return! queryAll'<Unit> connStr queryDeptMemberUnitsSql {Id=id}
+    }
 
-//     }
 
-//     /// Get a list of all departments
-//     let queryDepartments connStr = async {
-//         return! queryAll'<Department> connStr "SELECT * from departments" "queryAllDepartments"
-//     }
+    // ***********
+    // People
+    // ***********
 
-//     /// Get a single department by ID
-//     let queryDepartment connStr id = async {
-//         let idParam = {Id=id}
-//         let query = """
-// -- The department
-// SELECT * FROM departments WHERE id = @Id;
-// -- The people in this department
-// SELECT p.id, p.name, p.netid as description 
-// FROM people p
-// WHERE p.department_id = @Id
-// ORDER BY p.name ASC;
-// -- The units in this department
-// SELECT u.id, u.name, u.description, u.url
-// FROM units u
-// JOIN unit_members m on u.id = m.unit_Id
-// JOIN people p on p.Id = m.person_id
-// WHERE p.department_id = @Id 
-// GROUP BY u.id, u.name, u.description
-// ORDER BY u.name ASC;
-// -- The units supporting this department
-// SELECT u.id, u.name, u.description, u.url
-// FROM units u
-// JOIN supported_departments sd on u.id = sd.unit_id
-// WHERE sd.department_id = @Id 
-// GROUP BY u.id, u.name, u.description
-// ORDER BY u.name ASC;
-// """
-//         try
-//             use cn = sqlConnection connStr
-//             let! result = cn.QueryMultipleAsync(query, idParam) |> awaitTask
-//             let! dept = result.ReadSingleOrDefaultAsync<Department>() |> awaitTask
-//             // let! members = result.ReadAsync<MiniPerson>() |> awaitTask
-//             // let! unitsInDepartment = result.ReadAsync<Unit>() |> awaitTask
-//             // let! unitsSupportingDept = result.ReadAsync<Unit>() |> awaitTask
-//             return ok dept
-//         with exn -> return dbFail "" "queryDepartment" exn
+    let queryPeopleSql = """SELECT * FROM people"""
+    let queryPeople connStr = async {
+        return! queryAll<Person> connStr queryPeopleSql
+    }
 
-//     }
+    let queryPersonSql = """SELECT * FROM people WHERE id=@Id LIMIT 1"""
+    let queryPerson connStr id = async {
+        return! queryExactlyOne<Person> connStr queryPersonSql {Id=id}
+    }
+
+    let queryPersonMembershipsSql = """
+        SELECT * FROM unit_members
+        WHERE person_id = @Id"""
+    let queryPersonMembershipUnitsSql = """
+        SELECT u.* FROM unit_members m
+        JOIN units u on u.id = m.unit_id
+        WHERE m.person_id = @Id"""
+    let queryPersonMemberships connStr id = async {
+        try
+            use cn = sqlConnection connStr
+            let! members = cn.QueryAsync<UnitMember>(queryPersonMembershipsSql, {Id=id}) |> awaitTask
+            let! units = cn.QueryAsync<Unit>(queryPersonMembershipUnitsSql, {Id=id}) |> awaitTask
+            let associateWithUnit m = 
+                let u = units |> Seq.find (fun u -> u.Id = m.UnitId)
+                { m with Unit=u }
+            return members |> Seq.map associateWithUnit |> ok
+        with exn -> return dbFail "query all" "person memberships" exn
+    }
+
+    // ***********
+    // Memberships
+    // ***********
+
+    let mapUnitMember (unitMember:UnitMember) id = {unitMember with Id=id}
+
+    let queryMembershipsSql = """SELECT * FROM unit_members"""
+    let queryMemberships connStr = async {
+        return! queryAll<UnitMember> connStr queryMembershipsSql
+    }
+
+    let queryMembershipSql = """SELECT * FROM unit_members WHERE id=@Id LIMIT 1"""
+    let queryMembership connStr id = async {
+        return! queryExactlyOne<UnitMember> connStr queryMembershipSql {Id=id}
+    }
+
+    let insertMembershipSql = """
+        INSERT INTO unit_members(unit_id, person_id, title, role, permissions, percentage, tools)
+        VALUES (@UnitId, @PersonId, @Title, @Role, @Permissions, @Percentage, @Tools)"""
+    let insertMembership connStr unitMember = async {
+        return! insert<UnitMember> connStr insertMembershipSql unitMember (mapUnitMember unitMember)
+    }
+
+    let updateMembershipSql = """
+        UPDATE unit_members
+        SET unit_id=@UnitId, person_id=@PersonId, title=@Title, 
+            role=@Role, permissions=@Permissions, percentage=@Percentage, tools=@Tools
+        WHERE id=@Id"""
+    let updateMembership connStr id unitMember = async {
+        return! update<UnitMember> connStr updateMembershipSql (mapUnitMember unitMember id)
+    }
+
+    let deleteMembershipSql = """DELETE FROM unit_members WHERE id=@Id"""
+    let deleteMembership connStr id = async {
+        return! delete<UnitMember> connStr deleteMembershipSql id
+    }
+
+
+    // *********************
+    // Support Relationships
+    // *********************
+
+    let mapSupportRelationship (supportRelationship:SupportRelationship) id = {supportRelationship with Id=id}
+
+    let querySupportRelationshipsSql = """SELECT * FROM support_relationships"""
+    let querySupportRelationships connStr = async {
+        return! queryAll<SupportRelationship> connStr querySupportRelationshipsSql
+    }
+
+    let querySupportRelationshipSql = """SELECT * FROM support_relationships WHERE id=@Id LIMIT 1"""
+    let querySupportRelationship connStr id = async {
+        return! queryExactlyOne<SupportRelationship> connStr querySupportRelationshipSql {Id=id}
+    }
+
+    let insertSupportRelationshipSql = """
+        INSERT INTO support_relationships(unit_id, department_id)
+        VALUES (@UnitId, @DepartmentId)"""
+    let insertSupportRelationship connStr supportRelationship = async {
+        return! insert<SupportRelationship> connStr insertSupportRelationshipSql supportRelationship (mapSupportRelationship supportRelationship)
+    }
+
+    let updateSupportRelationshipSql = """
+        UPDATE support_relationships
+        SET unit_id=@UnitId, department_id=@DepartmentId
+        WHERE id=@Id"""
+    let updateSupportRelationship connStr id supportRelationship = async {
+        return! update<SupportRelationship> connStr updateSupportRelationshipSql (mapSupportRelationship supportRelationship id)
+    }
+
+    let deleteSupportRelationshipSql = """DELETE FROM support_relationships WHERE id=@Id"""
+    let deleteSupportRelationship connStr id = async {
+        return! delete<SupportRelationship> connStr deleteSupportRelationshipSql id
+    }
+    
 
     /// A SQL Database implementation of IDatabaseRespository
     type DatabaseRepository(connectionString:string) =
@@ -301,32 +416,32 @@ module Database =
         interface IDataRepository with 
             member this.TryGetPersonId netId = queryPersonByNetId connStr netId
             
-            member this.GetPeople query = stub Seq.empty<Person>
-            member this.GetPerson id = stub (Seq.empty<Person> |> Seq.head)
-            member this.GetPersonMemberships personId = stub Seq.empty<UnitMember>
+            member this.GetPeople query = queryPeople connStr
+            member this.GetPerson id = queryPerson connStr id
+            member this.GetPersonMemberships personId = queryPersonMemberships connStr personId
             
             member this.GetUnits query = queryUnits connStr
             member this.GetUnit id = queryUnit connStr id
-            member this.GetUnitMembers id = stub Seq.empty<UnitMember>
-            member this.GetUnitSupportedDepartments id = stub Seq.empty<SupportRelationship>
-            member this.GetUnitChildren id = stub Seq.empty<Unit>
             member this.CreateUnit unit = insertUnit connStr unit
             member this.UpdateUnit id unit = updateUnit connStr id unit
             member this.DeleteUnit id = deleteUnit connStr id
+            member this.GetUnitChildren id = queryUnitChildren connStr id
+            member this.GetUnitMembers id = queryUnitMembers connStr id
+            member this.GetUnitSupportedDepartments id = queryUnitSupportedDepartments connStr id
             
             member this.GetDepartments query = queryDepartments connStr
             member this.GetDepartment id = queryDepartment connStr id
-            member this.GetDepartmentMemberUnits id = stub Seq.empty<Unit>
-            member this.GetDepartmentSupportingUnits id = stub Seq.empty<SupportRelationship>
+            member this.GetDepartmentMemberUnits id = queryDeptMemberUnits connStr id
+            member this.GetDepartmentSupportingUnits id = queryDeptSupportingUnits connStr id
 
-            member this.GetMembership id = stub (Seq.empty<UnitMember> |> Seq.head)
-            member this.GetMemberships () = stub Seq.empty<UnitMember> 
-            member this.CreateMembership membership = stub membership
-            member this.UpdateMembership id membership = stub membership
-            member this.DeleteMembership id = stub ()
+            member this.GetMemberships () = queryMemberships connStr 
+            member this.GetMembership id = queryMembership connStr id
+            member this.CreateMembership membership = insertMembership connStr membership
+            member this.UpdateMembership id membership = updateMembership connStr id membership
+            member this.DeleteMembership id = deleteMembership connStr id
             
-            member this.GetSupportRelationships () = stub Seq.empty<SupportRelationship> 
-            member this.GetSupportRelationship id = stub (Seq.empty<SupportRelationship> |> Seq.head)
-            member this.CreateSupportRelationship supportRelationship = stub supportRelationship
-            member this.UpdateSupportRelationship id supportRelationship = stub supportRelationship
-            member this.DeleteSupportRelationship id = stub ()
+            member this.GetSupportRelationships () = querySupportRelationships connStr 
+            member this.GetSupportRelationship id = querySupportRelationship connStr id
+            member this.CreateSupportRelationship supportRelationship = insertSupportRelationship connStr supportRelationship
+            member this.UpdateSupportRelationship id supportRelationship = updateSupportRelationship connStr id supportRelationship
+            member this.DeleteSupportRelationship id = deleteMembership connStr id
