@@ -63,6 +63,9 @@ module QueryHelpers =
 
     let like (term:string) = sprintf "%%%s%%" term
 
+    let isDefault<'T when 'T:equality> result = 
+        result = Unchecked.defaultof<'T>
+
     let sqlConnection connectionString =
         new NpgsqlConnection(connectionString)
 
@@ -88,12 +91,12 @@ module QueryHelpers =
         with exn -> return dbFail "query all" (typedefof<'T>.Name) exn
     }
 
-    let queryOne<'T when 'T:equality> connStr id = async {
+    let queryExactlyOne<'T when 'T:equality> connStr id = async {
         try
             use cn = sqlConnection connStr
             let! result = cn.GetAsync<'T>(id) |> awaitTask
-            if (result = Unchecked.defaultof<'T>)
-            then return fail (Status.NotFound, (sprintf "No resource found with ID %d." id))
+            if (result |> isDefault<'T>)
+            then return fail (Status.NotFound, (sprintf "No %s found with ID %d." typedefof<'T>.Name id))
             else return ok result
         with exn -> return dbFail "query one" (typedefof<'T>.Name) exn
     }
@@ -160,7 +163,7 @@ module Database =
     }
 
     let queryUnit connStr id = async {
-        return! queryOne<Unit> connStr id
+        return! queryExactlyOne<Unit> connStr id
     }
 
     let insertUnit connStr unit = async {
@@ -239,7 +242,7 @@ module Database =
     }
 
     let queryDepartment connStr id = async {
-        return! queryOne<Department> connStr id
+        return! queryExactlyOne<Department> connStr id
     }
 
     let insertDepartment connStr department = async {
@@ -292,7 +295,7 @@ module Database =
     }
 
     let queryPerson connStr id = async {
-        return! queryOne<Person> connStr id
+        return! queryExactlyOne<Person> connStr id
     }
 
     let queryPersonMembershipsSql = """
@@ -326,7 +329,7 @@ module Database =
     }
 
     let queryMembership connStr id = async {
-        return! queryOne<UnitMember> connStr id
+        return! queryExactlyOne<UnitMember> connStr id
     }
 
     let insertMembership connStr unitMember = async {
@@ -355,7 +358,7 @@ module Database =
     }
 
     let querySupportRelationship connStr id = async {
-        return! queryOne<SupportRelationship> connStr id
+        return! queryExactlyOne<SupportRelationship> connStr id
     }
 
     let insertSupportRelationship connStr supportRelationship = async {
