@@ -33,16 +33,29 @@ module DatabaseTests=
     type UnitsDto(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
         let repo = DatabaseRepository(testConnectionString) :> IDataRepository
-        let actual = (repo.GetUnits None) |> awaitAndUnpack
 
-        // [<Fact>]
+        [<Fact>]
         member __.``Units have non-zero IDs`` () =
+            let actual = (repo.GetUnits None) |> awaitAndUnpack
             Assert.True(actual |> Seq.forall (fun a -> a.Id <> 0))
 
-        // [<Fact>]
-        member __.``Units should only return top-level units`` () = 
-            let actual = actual |> Seq.map (fun f -> f.Name) |> Seq.sort
-            let expected = [cityOfPawnee.Name]
+        [<Fact>]
+        member __.``Should return all units`` () = 
+            let actual = 
+                (repo.GetUnits None) 
+                |> awaitAndUnpack 
+                |> Seq.map (fun f -> f.Name) 
+                |> Seq.sort
+            let expected = [cityOfPawnee.Name; fourthFloor.Name; parksAndRec.Name;]
+            Assert.Equal(expected, actual)
+
+        [<Fact>]
+        member __.``Should search`` () = 
+            let actual = 
+                repo.GetUnits (Some("Fourth"))
+                |> awaitAndUnpack 
+                |> Seq.map (fun f -> f.Name) 
+            let expected = [fourthFloor.Name]
             Assert.Equal(expected, actual)
 
     type UnitDto(output: ITestOutputHelper)=

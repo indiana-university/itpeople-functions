@@ -61,9 +61,7 @@ module QueryHelpers =
     type NetIdFilter = { NetId: NetId }
     type SearchFilter = { Query: string }
 
-    let like (term:string)  = 
-        term.Replace("[", "[[]").Replace("%", "[%]") 
-        |> sprintf "%%%s%%"
+    let like (term:string) = sprintf "%%%s%%" term
 
     let sqlConnection connectionString =
         new NpgsqlConnection(connectionString)
@@ -168,7 +166,7 @@ module Database =
     let mapUnit (unit:Unit) id = {unit with Id=id}
 
     let queryUnitsSql = """SELECT * FROM units"""
-    let queryUnitsSearchSql = queryUnitsSql + """ WHERE name LIKE @Query OR description LIKE @Query"""
+    let queryUnitsSearchSql = queryUnitsSql + """ WHERE name ILIKE @Query OR description ILIKE @Query"""
     let queryUnits connStr query = async {
         return! match query with 
                 | None -> queryAll<Unit> connStr queryUnitsSql
@@ -250,7 +248,7 @@ module Database =
     let mapDepartment (department:Department) id = {department with Id=id}
 
     let queryDepartmentsSql = """SELECT * FROM departments"""
-    let queryDepartmentsSearchSql = queryDepartmentsSql + """ WHERE name LIKE @Query OR description LIKE @Query"""
+    let queryDepartmentsSearchSql = queryDepartmentsSql + """ WHERE name ILIKE @Query OR description ILIKE @Query"""
     let queryDepartments connStr query = async {
         return! match query with 
                 | None -> queryAll<Department> connStr queryDepartmentsSql
@@ -311,7 +309,7 @@ module Database =
     // ***********
 
     let queryPeopleSql = """SELECT * FROM people"""
-    let queryPeopleSearchSql = queryPeopleSql + """ WHERE name LIKE @Query OR description LIKE @Query"""
+    let queryPeopleSearchSql = queryPeopleSql + """ WHERE name ILIKE @Query OR description ILIKE @Query"""
     let queryPeople connStr query = async {
         return! match query with
                 | None -> queryAll<Person> connStr queryPeopleSql
