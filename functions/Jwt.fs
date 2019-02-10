@@ -47,7 +47,7 @@ module Jwt =
                     .ExpirationTime(expiration)
                     .AddClaim(UserNameClaim, netId)
             if (userId.IsSome)
-            then builder.AddClaim(UserIdClaim, userId.Value.ToString()) |> ignore
+            then builder.AddClaim(UserIdClaim, userId.Value) |> ignore
             let jwt = builder.Build()
             { access_token = builder.Build() }
         tryf' Status.InternalServerError "Failed to create access token" fn
