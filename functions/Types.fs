@@ -205,14 +205,6 @@ module Types =
 
     // DOMAIN MODELS
 
-    type SimpleSearch = 
-      { /// A collection of people matching the search term.
-        Users: seq<Person>
-        /// A collection of departments matching the search term.
-        Departments: seq<Department>
-        /// A collection of units matching the search term.
-        Units: seq<Unit> }
-    
     type MessageResult = {
         Message: string
     }

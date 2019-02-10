@@ -59,7 +59,7 @@ module QueryHelpers =
 
     type IdFilter = { Id: Id }
     type NetIdFilter = { NetId: NetId }
-    type SimpleSearchQuery = { Term: string }
+    type SearchFilter = { Query: string }
 
     let like (term:string)  = 
         term.Replace("[", "[[]").Replace("%", "[%]") 
@@ -82,7 +82,7 @@ module QueryHelpers =
     }
 
     /// Query all items from the database matching some parameter
-    let queryAll'<'T> connStr (query:string) param = async {
+    let queryAll'<'T> connStr (query:string) (param:obj) = async {
         try
             use cn = sqlConnection connStr
             let! result = cn.QueryAsync<'T>(query, param) |> awaitTask
@@ -168,8 +168,11 @@ module Database =
     let mapUnit (unit:Unit) id = {unit with Id=id}
 
     let queryUnitsSql = """SELECT * FROM units"""
-    let queryUnits connStr = async {
-        return! queryAll<Unit> connStr queryUnitsSql
+    let queryUnitsSearchSql = queryUnitsSql + """ WHERE name LIKE @Query OR description LIKE @Query"""
+    let queryUnits connStr query = async {
+        return! match query with 
+                | None -> queryAll<Unit> connStr queryUnitsSql
+                | Some(q) -> queryAll'<Unit> connStr queryUnitsSearchSql {Query=like q}
     }
 
     let queryUnitSql = """SELECT * FROM units WHERE id=@Id LIMIT 1"""
@@ -247,8 +250,11 @@ module Database =
     let mapDepartment (department:Department) id = {department with Id=id}
 
     let queryDepartmentsSql = """SELECT * FROM departments"""
-    let queryDepartments connStr = async {
-        return! queryAll<Department> connStr queryDepartmentsSql
+    let queryDepartmentsSearchSql = queryDepartmentsSql + """ WHERE name LIKE @Query OR description LIKE @Query"""
+    let queryDepartments connStr query = async {
+        return! match query with 
+                | None -> queryAll<Department> connStr queryDepartmentsSql
+                | Some(q) -> queryAll'<Department> connStr queryDepartmentsSearchSql {Query=like q}
     }
 
     let queryDepartmentSql = """SELECT * FROM Departments WHERE id=@Id LIMIT 1"""
@@ -305,8 +311,11 @@ module Database =
     // ***********
 
     let queryPeopleSql = """SELECT * FROM people"""
-    let queryPeople connStr = async {
-        return! queryAll<Person> connStr queryPeopleSql
+    let queryPeopleSearchSql = queryPeopleSql + """ WHERE name LIKE @Query OR description LIKE @Query"""
+    let queryPeople connStr query = async {
+        return! match query with
+                | None -> queryAll<Person> connStr queryPeopleSql
+                | Some(q) -> queryAll'<Person> connStr queryPeopleSearchSql {Query=like q}
     }
 
     let queryPersonSql = """SELECT * FROM people WHERE id=@Id LIMIT 1"""
@@ -416,11 +425,11 @@ module Database =
         interface IDataRepository with 
             member this.TryGetPersonId netId = queryPersonByNetId connStr netId
             
-            member this.GetPeople query = queryPeople connStr
+            member this.GetPeople query = queryPeople connStr query
             member this.GetPerson id = queryPerson connStr id
             member this.GetPersonMemberships personId = queryPersonMemberships connStr personId
             
-            member this.GetUnits query = queryUnits connStr
+            member this.GetUnits query = queryUnits connStr query
             member this.GetUnit id = queryUnit connStr id
             member this.CreateUnit unit = insertUnit connStr unit
             member this.UpdateUnit id unit = updateUnit connStr id unit
@@ -429,7 +438,7 @@ module Database =
             member this.GetUnitMembers id = queryUnitMembers connStr id
             member this.GetUnitSupportedDepartments id = queryUnitSupportedDepartments connStr id
             
-            member this.GetDepartments query = queryDepartments connStr
+            member this.GetDepartments query = queryDepartments connStr query
             member this.GetDepartment id = queryDepartment connStr id
             member this.GetDepartmentMemberUnits id = queryDeptMemberUnits connStr id
             member this.GetDepartmentSupportingUnits id = queryDeptSupportingUnits connStr id
