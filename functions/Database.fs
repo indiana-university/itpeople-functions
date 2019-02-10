@@ -88,42 +88,28 @@ module QueryHelpers =
         with exn -> return dbFail "query all" (typedefof<'T>.Name) exn
     }
 
-    let queryOne<'T> connStr query parameters = async {
+    let queryOne<'T when 'T:equality> connStr id = async {
         try
             use cn = sqlConnection connStr
-            let! result = cn.QueryAsync<'T>(query, parameters) |> awaitTask
-            return 
-                match result |> Seq.length with 
-                | 1 -> result |> Seq.head |> Some |> ok
-                | 0 -> fail (Status.NotFound, sprintf "No resource found matching query %A." parameters)
-                | _ -> fail (Status.BadRequest, sprintf "More than one resource found matching query %A." parameters)
+            let! result = cn.GetAsync<'T>(id) |> awaitTask
+            if (result = Unchecked.defaultof<'T>)
+            then return fail (Status.NotFound, (sprintf "No resource found with ID %d." id))
+            else return ok result
         with exn -> return dbFail "query one" (typedefof<'T>.Name) exn
     }
 
-    let queryExactlyOne<'T> connStr query parameters = async {
-        try
-            use cn = sqlConnection connStr
-            let! result = cn.QueryAsync<'T>(query, parameters) |> awaitTask
-            return 
-                match result |> Seq.length with 
-                | 1 -> result |> Seq.head |> ok
-                | 0 -> fail (Status.NotFound, sprintf "No resource found matching query %A." parameters)
-                | _ -> fail (Status.BadRequest, sprintf "More than one resource found matching query %A." parameters)
-        with exn -> return dbFail "query one" (typedefof<'T>.Name) exn
-    }
-
-    let insert<'T> connStr query (record:'T) (map:int -> 'T) = async {
+    let insert<'T> connStr (record:'T) (map:int -> 'T) = async {
         try
             use db = sqlConnection connStr
-            let! id = db.ExecuteAsync(query, record) |> awaitTask
-            return id |> map |> ok
+            let! inserted = db.InsertAsync<'T>(record) |> awaitTask
+            return inserted.GetValueOrDefault() |> map |> ok
         with exn -> return dbFail "insert " (typedefof<'T>.Name) exn
     }
 
-    let update<'T> connStr query (record:'T) = async {
+    let update<'T> connStr (record:'T) = async {
         try
             use db = sqlConnection connStr
-            let! _ = db.ExecuteAsync(query, record) |> awaitTask
+            let! _ = db.UpdateAsync<'T>(record) |> awaitTask
             return ok record
         with exn -> return dbFail "update" (typedefof<'T>.Name) exn
     }
@@ -173,27 +159,22 @@ module Database =
                 | Some(q) -> queryAll'<Unit> connStr queryUnitsSearchSql {Query=like q}
     }
 
-    let queryUnitSql = """SELECT * FROM units WHERE id=@Id LIMIT 1"""
     let queryUnit connStr id = async {
-        return! queryExactlyOne<Unit> connStr queryUnitSql {Id=id}
+        return! queryOne<Unit> connStr id
     }
 
-    let insertUnitSql = """
-        INSERT INTO units(name, description, url, parent_id)
-        VALUES (@Name, @Description, @Url, @ParentId)"""
     let insertUnit connStr unit = async {
-        return! insert<Unit> connStr insertUnitSql unit (mapUnit unit)
+        return! insert<Unit> connStr unit (mapUnit unit)
     }
 
-    let updateUnitSql = """
-        UPDATE units
-        SET name=@Name, description=@Description, url=@Url, parent_id=@ParentId
-        WHERE id=@Id"""
     let updateUnit connStr id unit = async {
-        return! update<Unit> connStr updateUnitSql (mapUnit unit id)
+        return! update<Unit> connStr (mapUnit unit id)
     }
 
-    let deleteUnitSql = """DELETE FROM units WHERE id=@Id"""
+    let deleteUnitSql = """
+        DELETE FROM unit_members WHERE unit_id=@Id;
+        DELETE FROM support_relationships WHERE unit_id=@Id;
+        DELETE FROM units WHERE id=@Id"""
     let deleteUnit connStr id = async {
         return! delete<Unit> connStr deleteUnitSql id
     }
@@ -213,11 +194,12 @@ module Database =
     let queryUnitMembers connStr id = async {
         try
             use cn = sqlConnection connStr
+            let! unit = cn.GetAsync<Unit>(id) |> awaitTask
             let! members = cn.QueryAsync<UnitMember>(queryUnitMembersSql, {Id=id}) |> awaitTask
             let! people = cn.QueryAsync<Person>(queryUnitMemberPeopleSql, {Id=id}) |> awaitTask
             let associateWithPerson m = 
                 let p = people |> Seq.tryFind (fun p -> p.Id = m.PersonId)
-                { m with Person=p }
+                { m with Person=p; Unit=unit }
             return members |> Seq.map associateWithPerson |> ok
         with exn -> return dbFail "query all" "unit members" exn
     }
@@ -232,11 +214,12 @@ module Database =
     let queryUnitSupportedDepartments connStr id = async {
         try
             use cn = sqlConnection connStr
+            let! unit = cn.GetAsync<Unit>(id) |> awaitTask
             let! relations = cn.QueryAsync<SupportRelationship>(queryUnitSupportRelationshipSql, {Id=id}) |> awaitTask
             let! departments = cn.QueryAsync<Department>(queryUnitSupportRelationshipDepartmentSql, {Id=id}) |> awaitTask
             let associateWithDepartment (s:SupportRelationship) = 
                 let d = departments |> Seq.find (fun d -> d.Id = s.DepartmentId)
-                { s with Department=d }
+                { s with Department=d; Unit=unit }
             return relations |> Seq.map associateWithDepartment |> ok
         with exn -> return dbFail "query all" "unit supported departments" exn
     }
@@ -255,24 +238,16 @@ module Database =
                 | Some(q) -> queryAll'<Department> connStr queryDepartmentsSearchSql {Query=like q}
     }
 
-    let queryDepartmentSql = """SELECT * FROM Departments WHERE id=@Id LIMIT 1"""
     let queryDepartment connStr id = async {
-        return! queryExactlyOne<Department> connStr queryDepartmentSql {Id=id}
+        return! queryOne<Department> connStr id
     }
 
-    let insertDepartmentSql = """
-        INSERT INTO departments(name, description)
-        VALUES (@Name, @Description)"""
     let insertDepartment connStr department = async {
-        return! insert<Department> connStr insertDepartmentSql department (mapDepartment department)
+        return! insert<Department> connStr department (mapDepartment department)
     }
 
-    let updateDepartmentSql = """
-        UPDATE departments
-        SET name=@Name, description=@Description
-        WHERE id=@Id"""
     let updateDepartment connStr id department = async {
-        return! update<Department> connStr updateUnitSql (mapDepartment department id)
+        return! update<Department> connStr (mapDepartment department id)
     }
 
     let queryDeptSupportRelationshipSql = """
@@ -316,9 +291,8 @@ module Database =
                 | Some(q) -> queryAll'<Person> connStr queryPeopleSearchSql {Query=like q}
     }
 
-    let queryPersonSql = """SELECT * FROM people WHERE id=@Id LIMIT 1"""
     let queryPerson connStr id = async {
-        return! queryExactlyOne<Person> connStr queryPersonSql {Id=id}
+        return! queryOne<Person> connStr id
     }
 
     let queryPersonMembershipsSql = """
@@ -351,25 +325,16 @@ module Database =
         return! queryAll<UnitMember> connStr queryMembershipsSql
     }
 
-    let queryMembershipSql = """SELECT * FROM unit_members WHERE id=@Id LIMIT 1"""
     let queryMembership connStr id = async {
-        return! queryExactlyOne<UnitMember> connStr queryMembershipSql {Id=id}
+        return! queryOne<UnitMember> connStr id
     }
 
-    let insertMembershipSql = """
-        INSERT INTO unit_members(unit_id, person_id, title, role, permissions, percentage, tools)
-        VALUES (@UnitId, @PersonId, @Title, @Role, @Permissions, @Percentage, @Tools)"""
     let insertMembership connStr unitMember = async {
-        return! insert<UnitMember> connStr insertMembershipSql unitMember (mapUnitMember unitMember)
+        return! insert<UnitMember> connStr unitMember (mapUnitMember unitMember)
     }
 
-    let updateMembershipSql = """
-        UPDATE unit_members
-        SET unit_id=@UnitId, person_id=@PersonId, title=@Title, 
-            role=@Role, permissions=@Permissions, percentage=@Percentage, tools=@Tools
-        WHERE id=@Id"""
     let updateMembership connStr id unitMember = async {
-        return! update<UnitMember> connStr updateMembershipSql (mapUnitMember unitMember id)
+        return! update<UnitMember> connStr (mapUnitMember unitMember id)
     }
 
     let deleteMembershipSql = """DELETE FROM unit_members WHERE id=@Id"""
@@ -389,24 +354,16 @@ module Database =
         return! queryAll<SupportRelationship> connStr querySupportRelationshipsSql
     }
 
-    let querySupportRelationshipSql = """SELECT * FROM support_relationships WHERE id=@Id LIMIT 1"""
     let querySupportRelationship connStr id = async {
-        return! queryExactlyOne<SupportRelationship> connStr querySupportRelationshipSql {Id=id}
+        return! queryOne<SupportRelationship> connStr id
     }
 
-    let insertSupportRelationshipSql = """
-        INSERT INTO support_relationships(unit_id, department_id)
-        VALUES (@UnitId, @DepartmentId)"""
     let insertSupportRelationship connStr supportRelationship = async {
-        return! insert<SupportRelationship> connStr insertSupportRelationshipSql supportRelationship (mapSupportRelationship supportRelationship)
+        return! insert<SupportRelationship> connStr supportRelationship (mapSupportRelationship supportRelationship)
     }
 
-    let updateSupportRelationshipSql = """
-        UPDATE support_relationships
-        SET unit_id=@UnitId, department_id=@DepartmentId
-        WHERE id=@Id"""
     let updateSupportRelationship connStr id supportRelationship = async {
-        return! update<SupportRelationship> connStr updateSupportRelationshipSql (mapSupportRelationship supportRelationship id)
+        return! update<SupportRelationship> connStr (mapSupportRelationship supportRelationship id)
     }
 
     let deleteSupportRelationshipSql = """DELETE FROM support_relationships WHERE id=@Id"""

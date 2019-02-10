@@ -38,7 +38,7 @@ module Fakes =
         PhotoUrl="http://flavorwire.files.wordpress.com/2011/11/ron-swanson.jpg"
         Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership
-        HrDepartmentId=parksDept.Id
+        DepartmentId=parksDept.Id
     }
 
     let knope:Person = {
@@ -56,7 +56,7 @@ module Fakes =
         PhotoUrl="https://en.wikipedia.org/wiki/Leslie_Knope#/media/File:Leslie_Knope_(played_by_Amy_Poehler).png"
         Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
-        HrDepartmentId=parksDept.Id
+        DepartmentId=parksDept.Id
     }
 
     let sebastian:Person = {
@@ -74,7 +74,7 @@ module Fakes =
         PhotoUrl="https://sasquatchbrewery.com/wp-content/uploads/2018/06/lil.jpg"
         Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.UserExperience
-        HrDepartmentId=parksDept.Id
+        DepartmentId=parksDept.Id
     }
 
     let swansonMembership:UnitMember = {
@@ -90,11 +90,37 @@ module Fakes =
         Tools=Tools.SuperPass
     }
 
+    let knopeMembership = {
+        Id=2
+        UnitId=parksAndRec.Id
+        PersonId=knope.Id
+        Role=Role.Sublead
+        Permissions=Permissions.Viewer
+        Title="Deputy Director"
+        Tools=Tools.None
+        Percentage=100
+        Person=Some(knope)
+        Unit=parksAndRec
+    }
+
+    let sebastianMembership = {
+        Id=3
+        UnitId=parksAndRec.Id
+        PersonId=sebastian.Id
+        Role=Role.Member
+        Permissions=Permissions.Viewer
+        Title="Mascot"
+        Tools=Tools.None
+        Percentage=100
+        Person=Some(sebastian)
+        Unit=parksAndRec
+    }
+
     let supportRelationship:SupportRelationship = {
         Id=1
-        UnitId=parksAndRec.Id
+        UnitId=cityOfPawnee.Id
         DepartmentId=parksDept.Id
-        Unit=parksAndRec
+        Unit=cityOfPawnee
         Department=parksDept
     }
 

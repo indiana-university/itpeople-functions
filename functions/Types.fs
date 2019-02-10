@@ -129,7 +129,7 @@ module Types =
         /// A collection of IT-related tools accessible by this person.
         [<Column("tools")>] Tools: Tools
         /// The HR department to which this person belongs.
-        [<Column("department_id")>] HrDepartmentId: Id }
+        [<Column("department_id")>] DepartmentId: Id }
 
     /// An academic or administrative department
     [<CLIMutable>]
@@ -155,7 +155,7 @@ module Types =
         /// A URL for the website of this unit.
         [<Column("url")>] Url: string
         /// The unique ID of the parent unit of this unit.
-        [<Column("parent_id")>] ParentId: Id option }
+        [<Column("parent_id")>][<Editable(true)>] ParentId: Id option }
 
     [<CLIMutable>]
     [<Table("unit_relations")>]

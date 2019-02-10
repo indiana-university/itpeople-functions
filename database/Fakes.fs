@@ -16,46 +16,33 @@ module Fakes =
 
     let testConnectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
 
-    /// Clear the database and migrate it to the latest schema
-    let clearAndMigrate () = 
+    let resetDatabaseWithTestFakes () = 
+        
+        Functions.Database.init() 
+
         use db = new NpgsqlConnection(testConnectionString)
+        
+        /// Clear the database and migrate it to the latest schema
         let migrator = db |> migrator
         migrator.Load()
         migrator.MigrateTo(int64 0)
         migrator.MigrateToLatest()
-
-
-    let resetDatabaseWithTestFakes () = 
         
-
-        let mutable parksAndRecId = 0
-        let mutable cityId = 0
-        let mutable fourthFloorId = 0
-        let mutable parksDeptId = 0
-        let mutable swansonId = 0
-        let mutable knopeId = 0
-        let mutable sebastianId = 0
-
-        Functions.Database.init() 
-
-        clearAndMigrate ()
-
-        use db = new NpgsqlConnection(testConnectionString)
-
-           // units
-        cityId <- db.Execute(insertUnitSql, cityOfPawnee) // db.Insert<Unit>(cityOfPawnee).GetValueOrDefault()
-        parksAndRecId <- db.Execute(insertUnitSql, {parksAndRec with ParentId=Some(cityId)})
-        fourthFloorId <- db.Execute(insertUnitSql, {fourthFloor with ParentId=Some(cityId)})
         // departments
-        parksDeptId <- db.Insert<Department>(parksDept).GetValueOrDefault()
+        db.Insert<Department>(parksDept) |> ignore 
+        // units
+        db.Insert<Unit>(cityOfPawnee) |> ignore // db.Insert<Unit>(cityOfPawnee) |> ignore
+        db.Insert<Unit>(parksAndRec) |> ignore
+        db.Insert<Unit>(fourthFloor) |> ignore
         // people
-        swansonId <- db.Insert<Person>({swanson with HrDepartmentId=parksDeptId}).GetValueOrDefault()
-        knopeId <- db.Insert<Person>({knope with HrDepartmentId=parksDeptId}).GetValueOrDefault()
-        sebastianId <- db.Insert<Person>({sebastian with HrDepartmentId=parksDeptId}).GetValueOrDefault()
+        db.Insert<Person>(swanson) |> ignore
+        db.Insert<Person>(knope) |> ignore
+        db.Insert<Person>(sebastian) |> ignore
         // unit membership
-        let _ = db.Insert<UnitMember>({Id=1; UnitId=parksAndRecId; PersonId=swansonId; Role=Role.Leader; Permissions=Permissions.Owner; Title="Director"; Tools=Tools.AccountMgt; Percentage=100; Person=Some(swanson); Unit=parksAndRec})
-        let _ = db.Insert<UnitMember>({Id=2; UnitId=parksAndRecId; PersonId=knopeId; Role=Role.Sublead; Permissions=Permissions.Viewer; Title="Deputy Director"; Tools=Tools.None; Percentage=100; Person=Some(knope); Unit=parksAndRec})
-        let _ = db.Insert<UnitMember>({Id=3; UnitId=parksAndRecId; PersonId=sebastianId; Role=Role.Member; Permissions=Permissions.Viewer; Title="Mascot"; Tools=Tools.None; Percentage=100; Person=Some(sebastian); Unit=parksAndRec})
+        db.Insert<UnitMember>(swansonMembership) |> ignore
+        db.Insert<UnitMember>(knopeMembership) |> ignore
+        db.Insert<UnitMember>(sebastianMembership) |> ignore
         // support relationship
-        let _ = db.Insert<SupportRelationship>({Id=1; DepartmentId=parksDeptId; UnitId=parksAndRecId; Department=parksDept; Unit=parksAndRec})
+        db.Insert<SupportRelationship>(supportRelationship) |> ignore
+        
         ()
