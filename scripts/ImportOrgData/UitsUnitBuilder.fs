@@ -86,12 +86,12 @@ module UitsUnitBuilder =
     let private projectMember (m:Uits.Member) = 
         let username = 
             match m.Vacant with
-            | Some(v) -> if v then "vacant" else m.Username
+            | Some(v) -> if v then null else m.Username
             | None -> m.Username
         { Name = username
           Title = m.Title
           Role = m.Role 
-          Percentage = 0 }
+          Percentage = 100 }
 
     /// Map a JsonProvider 'Root' to a domain Unit
     let private projectUitsUnit (u:Uits.Root) =

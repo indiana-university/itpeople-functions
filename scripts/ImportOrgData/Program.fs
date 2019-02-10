@@ -59,6 +59,8 @@ module Program =
             let args = parser.Parse argv
             let connection = args.GetResult(Connection)
 
+            clearDatabase connection
+
             tryImportDepartments args connection
             tryImportPeople args connection
             tryImportUITSUnits args connection
