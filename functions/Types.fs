@@ -158,12 +158,6 @@ module Types =
         [<Column("parent_id")>][<Editable(true)>] ParentId: Id option }
 
     [<CLIMutable>]
-    [<Table("unit_relations")>]
-    type UnitRelation = 
-      { [<Key>][<Required>][<Column("child_id")>] ChildUnitId: Id
-        [<Key>][<Required>][<Column("parent_id")>] ParentUnitId: Id }
-
-    [<CLIMutable>]
     [<Table("support_relationships")>]
     /// This relationship describes which IT Unit provides IT-related support for a given department.
     type SupportRelationship = 
