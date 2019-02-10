@@ -14,8 +14,6 @@
     <Compile Include="Migration.fs" />
     <Compile Include="Fakes.fs" />
     <Compile Include="Migrations/01_CreateBaseTables.fs" />
-    <Compile Include="Migrations/02_CreateLogTable.fs" />
-    <Compile Include="Migrations/03_AddColumnsToLogTable.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

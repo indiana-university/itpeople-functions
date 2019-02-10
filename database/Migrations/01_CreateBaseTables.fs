@@ -64,10 +64,26 @@ type CreateBaseTables() =
       PRIMARY KEY (id)
     );
 
+    CREATE TABLE logs
+    (
+      timestamp timestamp without time zone,
+      level character varying(50) COLLATE pg_catalog."default",
+      elapsed integer,
+      status integer,
+      method text COLLATE pg_catalog."default",
+      function text COLLATE pg_catalog."default",
+      parameters text COLLATE pg_catalog."default",
+      query text COLLATE pg_catalog."default",
+      detail text COLLATE pg_catalog."default",
+      exception text COLLATE pg_catalog."default",
+      ip_address text COLLATE pg_catalog."default",
+      netid text COLLATE pg_catalog."default"
+    );
     """)
 
   override __.Down() =
     base.Execute("""
+    DROP TABLE IF EXISTS logs CASCADE;
     DROP TABLE IF EXISTS unit_members CASCADE;
     DROP TABLE IF EXISTS support_relationships CASCADE;
     DROP TABLE IF EXISTS units CASCADE;
