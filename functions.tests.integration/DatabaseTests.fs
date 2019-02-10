@@ -42,13 +42,11 @@ module DatabaseTests=
             Assert.True(actual |> Seq.forall (fun a -> a.Id <> 0))
 
         [<Fact>]
-        member __.``Get all`` () = 
+        member __.``Get all top-level units`` () = 
             let actual = repo.GetUnits None |> awaitAndUnpack
 
-            actual |> Seq.length |> should equal 3
+            actual |> Seq.length |> should equal 1
             actual |> should contain cityOfPawnee
-            actual |> should contain parksAndRec
-            actual |> should contain fourthFloor
 
         [<Fact>]
         member __.``Get one`` () = 

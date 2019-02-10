@@ -154,8 +154,12 @@ module Database =
 
     let mapUnit (unit:Unit) id = {unit with Id=id}
 
-    let queryUnitsSql = """SELECT * FROM units"""
-    let queryUnitsSearchSql = queryUnitsSql + """ WHERE name ILIKE @Query OR description ILIKE @Query"""
+    let queryUnitsSql = """
+        SELECT * FROM units 
+        WHERE parent_id IS NULL"""
+    let queryUnitsSearchSql = """
+        SELECT * FROM units 
+        WHERE name ILIKE @Query OR description ILIKE @Query"""
     let queryUnits connStr query = async {
         return! match query with 
                 | None -> queryAll<Unit> connStr queryUnitsSql
