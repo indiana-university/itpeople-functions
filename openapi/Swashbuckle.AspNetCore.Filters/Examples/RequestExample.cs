@@ -11,13 +11,16 @@ namespace Swashbuckle.AspNetCore.Filters
     internal class RequestExample
     {
         private readonly JsonFormatter jsonFormatter;
+        private readonly JsonSerializerSettings jsonSerializerSettings;
         private readonly SerializerSettingsDuplicator serializerSettingsDuplicator;
 
         public RequestExample(
             JsonFormatter jsonFormatter,
+            JsonSerializerSettings jsonSerializerSettings,
             SerializerSettingsDuplicator serializerSettingsDuplicator)
         {
             this.jsonFormatter = jsonFormatter;
+            this.jsonSerializerSettings = jsonSerializerSettings;
             this.serializerSettingsDuplicator = serializerSettingsDuplicator;
         }
 
@@ -41,23 +44,33 @@ namespace Swashbuckle.AspNetCore.Filters
 
             if (bodyParameter == null)
             {
-                return; // The type in their [SwaggerRequestExample(typeof(requestType), ...] is not passed to their controller action method
+                bodyParameter = new BodyParameter(){
+                    In="body",
+                    Name="body",
+                    Schema=schema,
+                    Description="foo",
+                };
+                // return; // The type in their [SwaggerRequestExample(typeof(requestType), ...] is not passed to their controller action method
             }
 
-            var serializerSettings = serializerSettingsDuplicator.SerializerSettings(contractResolver, jsonConverter);
+            operation.Consumes.Add("application/json");
+            operation.Parameters.Add(bodyParameter);
 
+            var serializerSettings = this.jsonSerializerSettings ?? serializerSettingsDuplicator.SerializerSettings(contractResolver, jsonConverter);
             var formattedExample = jsonFormatter.FormatJson(example, serializerSettings, includeMediaType: false);
-
             string name = SchemaDefinitionName(requestType, schema);
 
+            Console.Out.WriteLine($"   SchemaDefinitionName: {name}");
             if (string.IsNullOrEmpty(name))
             {
+
                 return;
             }
 
             // set the example on the object in the schema registry (this is what swagger-ui will display)
             if (schemaRegistry.Definitions.ContainsKey(name))
             {
+                Console.Out.WriteLine($"   Registry contains key");
                 var definitionToUpdate = schemaRegistry.Definitions[name];
                 if (definitionToUpdate.Example == null)
                 {
@@ -66,6 +79,7 @@ namespace Swashbuckle.AspNetCore.Filters
             }
             else
             {
+                Console.Out.WriteLine($"   Registry does not contain key");
                 bodyParameter.Schema.Example = formattedExample; // set example on the request paths/parameters/schema/example property
             }
         }

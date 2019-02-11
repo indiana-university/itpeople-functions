@@ -166,14 +166,21 @@ module Types =
       { /// The unique ID of this unit record.
         [<Key>][<Column("id")>] Id: Id
         /// The unique ID of the unit in this relationship
-        [<Required>][<Column("unit_id")>] UnitId: Id
+        [<Column("unit_id")>] UnitId: Id
         /// The unique ID of the department in this relationship
-        [<Required>][<Column("department_id")>] DepartmentId: Id 
+        [<Column("department_id")>] DepartmentId: Id 
         /// The department in this relationship.
         [<ReadOnly(true)>][<Column("person")>] Department: Department
         /// The unit in this relationship.
         [<ReadOnly(true)>][<Column("unit")>] Unit: Unit }
 
+    type SupportRelationshipRequest = 
+      {
+        /// The unique ID of the unit in this relationship
+        UnitId: Id
+        /// The unique ID of the department in this relationship
+        DepartmentId: Id 
+      }
 
     [<CLIMutable>]
     [<Table("unit_members")>]
@@ -181,9 +188,9 @@ module Types =
       { /// The unique ID of this unit member record.
         [<Key>][<Column("id")>] Id: Id
         /// The unique ID of the unit record.
-        [<Required>][<Column("unit_id")>] UnitId: int
+        [<Column("unit_id")>] UnitId: Id
         /// The unique ID of the person record. This can be null if the position is vacant.
-        [<Column("person_id")>] PersonId: int
+        [<Column("person_id")>] PersonId: Id option
         /// The title/position of this membership.
         [<Column("title")>] Title: string
         /// The role of the person in this membership as part of the unit.
@@ -198,6 +205,22 @@ module Types =
         [<ReadOnly(true)>][<Column("person")>] Person: Person option
         /// The unit related to this membership.
         [<ReadOnly(true)>][<Column("unit")>] Unit: Unit }
+
+    type UnitMemberRequest = 
+      { /// The unique ID of the unit record.
+        UnitId: int
+        /// The unique ID of the person record. This can be null if the position is vacant.
+        PersonId: int option
+        /// The title/position of this membership.
+        Title: string
+        /// The role of the person in this membership as part of the unit.
+        Role: Role
+        /// The permissions of the person in this membership as part of the unit.
+        Permissions: Permissions
+        /// The percentage of time allocated to this position by this person (in case of split appointments).
+        Percentage: int
+        /// The tools that can be used by the person in this position as part of this unit.
+        Tools: Tools }
 
     // DOMAIN MODELS
 

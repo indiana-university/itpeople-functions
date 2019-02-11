@@ -77,10 +77,20 @@ module Fakes =
         DepartmentId=parksDept.Id
     }
 
+    let knopeMembershipRequest:UnitMemberRequest = {
+        UnitId=parksAndRec.Id
+        PersonId=Some(knope.Id)
+        Role=Role.Sublead
+        Permissions=Permissions.Viewer
+        Title="Deputy Director"
+        Tools=Tools.None
+        Percentage=100
+    }
+
     let swansonMembership:UnitMember = {
         Id=1
         UnitId=parksAndRec.Id
-        PersonId=swanson.Id
+        PersonId=Some(swanson.Id)
         Unit=parksAndRec
         Person=Some(swanson)
         Title="Director"
@@ -93,7 +103,7 @@ module Fakes =
     let knopeMembership = {
         Id=2
         UnitId=parksAndRec.Id
-        PersonId=knope.Id
+        PersonId=Some(knope.Id)
         Role=Role.Sublead
         Permissions=Permissions.Viewer
         Title="Deputy Director"
@@ -106,7 +116,7 @@ module Fakes =
     let sebastianMembership = {
         Id=3
         UnitId=parksAndRec.Id
-        PersonId=sebastian.Id
+        PersonId=Some(sebastian.Id)
         Role=Role.Member
         Permissions=Permissions.Viewer
         Title="Mascot"
@@ -114,6 +124,11 @@ module Fakes =
         Percentage=100
         Person=Some(sebastian)
         Unit=parksAndRec
+    }
+
+    let supportRelationshipRequest:SupportRelationshipRequest = {
+        UnitId=cityOfPawnee.Id
+        DepartmentId=parksDept.Id
     }
 
     let supportRelationship:SupportRelationship = {
@@ -157,38 +172,22 @@ module Fakes =
             member this.DeleteSupportRelationship id = stub ()
            
 
-    type JwtResponseExample() =
-        interface IExamplesProvider<JwtResponse> with
-            member this.GetExamples() = accessToken
+    type ApiEndpointExample<'T>(example:'T) = 
+        let ex = example;
+        interface IExamplesProvider with
+            member this.GetExamples () = ex :> obj
+        interface IExamplesProvider<'T> with
+            member this.GetExamples () = ex
 
-    type UnitExample() =
-        interface IExamplesProvider<Unit> with
-            member this.GetExamples () = parksAndRec
-
-    type UnitsExample() =
-        interface IExamplesProvider<seq<Unit>> with
-            member this.GetExamples () = [ parksAndRec ] |> List.toSeq
-
-    type DepartmentExample() =
-        interface IExamplesProvider<Department> with
-            member this.GetExamples () = parksDept
- 
-    type DepartmentsExample() =
-        interface IExamplesProvider<seq<Department>> with
-            member this.GetExamples () = [ parksDept ] |> List.toSeq
-    
-    type PersonExample() =
-        interface IExamplesProvider<Person> with
-            member this.GetExamples () = swanson
-    
-    type PeopleExample() =
-        interface IExamplesProvider<seq<Person>> with
-            member this.GetExamples () = [ swanson; knope ] |> List.toSeq
-
-    type PersonMembershipsExample() =
-        interface IExamplesProvider<seq<UnitMember>> with
-            member this.GetExamples () = [ swansonMembership ] |> List.toSeq
-
-    type PersonMembershipExample() =
-        interface IExamplesProvider<UnitMember> with
-            member this.GetExamples () = swansonMembership
+    type JwtResponseExample () = inherit ApiEndpointExample<JwtResponse>(accessToken)
+    type UnitsExample() = inherit ApiEndpointExample<Unit seq>([parksAndRec])
+    type UnitExample() = inherit ApiEndpointExample<Unit>(parksAndRec)
+    type DepartmentsExample() = inherit ApiEndpointExample<Department seq>([parksDept])
+    type DepartmentExample() = inherit ApiEndpointExample<Department>(parksDept)
+    type PeopleExample() = inherit ApiEndpointExample<Person seq>([swanson; knope; sebastian])
+    type PersonExample() = inherit ApiEndpointExample<Person>(knope)
+    type MembershipRequestExample() = inherit ApiEndpointExample<UnitMemberRequest>(knopeMembershipRequest)
+    type MembershipResponseExample() = inherit ApiEndpointExample<UnitMember>(swansonMembership)
+    type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
+    type SupportRelationshipResponseExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
+    type SupportRelationshipsResponseExample() = inherit ApiEndpointExample<SupportRelationship seq>([supportRelationship])

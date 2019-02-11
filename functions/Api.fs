@@ -179,11 +179,12 @@ module Api =
         services
             .AddSwaggerGen((fun (options:Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions) -> 
                 options.SwaggerDoc(name="v1", info=apiInfo)
-                options.ExampleFilters()
                 options.DescribeAllEnumsAsStrings()
                 options.EnableAnnotations()
+                options.ExampleFilters()
                 options.TryIncludeFunctionXmlComments(assembly)
             ))
-            .AddSwaggerExamplesFromAssemblyOf<UnitsExample>(Json.JsonSettings)
+            .AddSwaggerExamplesFromAssemblyOf<UnitExample>(Json.JsonSettings)
+            .AddSwaggerExamples(Json.JsonSettings)
             .BuildServiceProvider(true)
             .GetSwagger("v1")

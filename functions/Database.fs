@@ -204,9 +204,12 @@ module Database =
             let! unit = cn.GetAsync<Unit>(id) |> awaitTask
             let! members = cn.QueryAsync<UnitMember>(queryUnitMembersSql, {Id=id}) |> awaitTask
             let! people = cn.QueryAsync<Person>(queryUnitMemberPeopleSql, {Id=id}) |> awaitTask
-            let associateWithPerson m = 
-                let p = people |> Seq.tryFind (fun p -> p.Id = m.PersonId)
-                { m with Person=p; Unit=unit }
+            let associateWithPerson (m:UnitMember) = 
+                let person =
+                    match m.PersonId with
+                    | Some(personId) -> people |> Seq.tryFind (fun p -> p.Id = personId)
+                    | None -> None
+                { m with Unit=unit; Person=person }
             return members |> Seq.map associateWithPerson |> ok
         with exn -> return dbFail "query all" "unit members" exn
     }
@@ -314,7 +317,7 @@ module Database =
             use cn = sqlConnection connStr
             let! members = cn.QueryAsync<UnitMember>(queryPersonMembershipsSql, {Id=id}) |> awaitTask
             let! units = cn.QueryAsync<Unit>(queryPersonMembershipUnitsSql, {Id=id}) |> awaitTask
-            let associateWithUnit m = 
+            let associateWithUnit (m:UnitMember) = 
                 let u = units |> Seq.find (fun u -> u.Id = m.UnitId)
                 { m with Unit=u }
             return members |> Seq.map associateWithUnit |> ok
