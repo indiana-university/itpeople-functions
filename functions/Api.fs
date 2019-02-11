@@ -85,6 +85,16 @@ module Api =
                 res.Headers.Add("Access-Control-Allow-Credentials", "true")
             else ()
 
+    let addPermissionsHeader (res:HttpResponseMessage) (auth: UserPermissions list option) =
+        match auth with
+        | Some(methods) ->
+            let values = 
+                methods 
+                |> List.map (fun a -> a.ToString())
+                |> String.concat ", "
+            res.Headers.Add("X-User-Permissions", values)
+        | None -> ()
+
     let origin (req:HttpRequestMessage) =
         if req.Headers.Contains("origin")
         then req.Headers.GetValues("origin") |> Seq.head
@@ -101,19 +111,20 @@ module Api =
         addCORSHeader response origin config.CorsHosts
         response
 
-    let contentResponse req corsHosts status content = 
+    let contentResponse req corsHosts status auth content = 
         let response = new HttpResponseMessage(status)
         response.Content <- content
         response.Content.Headers.ContentType <- MediaTypeHeaderValue "application/json"
         response.Content.Headers.ContentType.CharSet <- "utf-8"
         addCORSHeader response (origin req) corsHosts
+        addPermissionsHeader response auth
         response
 
     /// Construct an HTTP response with JSON content
-    let jsonResponse req corsHosts status model = 
+    let jsonResponse req corsHosts status model auth = 
         JsonConvert.SerializeObject(model, Json.JsonSettings)
         |> (fun s -> new StringContent(s))
-        |> contentResponse req corsHosts status
+        |> contentResponse req corsHosts status auth
 
     /// Organize the errors into a status code and a collection of error messages. 
     /// If multiple errors are found, the aggregate status will be that of the 
@@ -141,13 +152,13 @@ module Api =
     /// JSON error message with an appropriate status code.
     let createResponse req config log status result = 
         match result with
-        | Ok(body, _) ->
+        | Ok((body,auth), _) ->
             logSuccess log req status
-            jsonResponse req config.CorsHosts status body
-        | Bad(msgs) -> 
+            jsonResponse req config.CorsHosts status body (Some(auth))
+        | Bad((msgs:Error list)) -> 
             let (status, errors) = failure (msgs)
             logError log req status errors
-            jsonResponse req config.CorsHosts status errors
+            jsonResponse req config.CorsHosts status errors None
 
     // open Microsoft.OpenApi.Models
 

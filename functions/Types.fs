@@ -24,6 +24,8 @@ module Types =
     type ErrorModel = 
       { errors: array<string> }
 
+    type UserPermissions = GET | POST | PUT | DELETE
+
     type AppConfig = 
       { OAuth2ClientId: string
         OAuth2ClientSecret: string

@@ -111,9 +111,9 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Delete`` () = 
-            let _ = repo.DeleteUnit 2 |> awaitAndUnpack
+            let _ = repo.DeleteUnit fourthFloor.Id |> awaitAndUnpack
             
-            let actual = repo.GetUnit 2 |> await
+            let actual = repo.GetUnit fourthFloor.Id |> await
             match actual with 
             | Bad([(status, msg)]) -> status |> should equal Status.NotFound
             | _ -> System.Exception("Should have failed") |> raise
