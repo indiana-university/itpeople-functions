@@ -83,6 +83,7 @@ module Api =
                 res.Headers.Add("Access-Control-Allow-Origin", value=origin)
                 res.Headers.Add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization")
                 res.Headers.Add("Access-Control-Allow-Credentials", "true")
+                res.Headers.Add("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, HEAD")
             else ()
 
     let addPermissionsHeader (res:HttpResponseMessage) (auth: UserPermissions list option) =
