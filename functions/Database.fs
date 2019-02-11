@@ -291,7 +291,7 @@ module Database =
     // ***********
 
     let queryPeopleSql = """SELECT * FROM people"""
-    let queryPeopleSearchSql = queryPeopleSql + """ WHERE name ILIKE @Query OR description ILIKE @Query"""
+    let queryPeopleSearchSql = queryPeopleSql + """ WHERE name ILIKE @Query OR netid ILIKE @Query"""
     let queryPeople connStr query = async {
         return! match query with
                 | None -> queryAll<Person> connStr queryPeopleSql
