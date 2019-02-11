@@ -76,6 +76,23 @@ module Functions =
             |> createResponse req config log successStatus
         with exn -> handle req exn
 
+    let authorize (user:JwtClaims) =
+        let authd = [ "jhoerr"; "kendjone"; "jerussel"; "brrund"; "mattzink"; "johndoe" ]
+        if authd |> List.exists (fun u -> u = user.UserName)
+        then ok user
+        else fail (Status.Forbidden, "You are not authorized to modify this resource.")
+
+    /// Execute a workflow for an authenticated user and return a response.
+    let authorizeWrite workflow successStatus req =
+        try
+            req
+            |> timestamp
+            |> authenticateRequest config
+            >>= recordAuthenticatedUser req
+            >>= authorize
+            >>= workflow
+            |> createResponse req config log successStatus
+        with exn -> handle req exn
 
     // FUNCTION WORKFLOWS 
     [<FunctionName("Options")>]
@@ -194,20 +211,20 @@ module Functions =
     [<SwaggerResponse(201, Type=typeof<Unit>)>]
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
-        let workflow user = 
+        let workflow _ =
             deserializeBody<Unit> req
             >>= await data.CreateUnit
-        req |> authenticate workflow Status.Created
+        req |> authorizeWrite workflow Status.Created
 
     [<FunctionName("UnitPut")>]
     [<SwaggerOperation(Summary="Update a unit.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<Unit>)>]
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
-        let workflow user = 
+        let workflow _ = 
             deserializeBody<Unit> req
             >>= await (data.UpdateUnit unitId)
-        req |> authenticate workflow Status.OK
+        req |> authorizeWrite workflow Status.OK
 
     [<FunctionName("UnitDelete")>]
     [<SwaggerOperation(Summary="Delete a unit.", Tags=[|"Units"|])>]
@@ -215,7 +232,7 @@ module Functions =
     let unitDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow _ = await data.DeleteUnit unitId
-        req |> authenticate workflow Status.NoContent
+        req |> authorizeWrite workflow Status.NoContent
 
     [<FunctionName("UnitGetAllMembers")>]
     [<SwaggerOperation(Summary="Get all unit members", Tags=[|"Units"|])>]
@@ -289,7 +306,7 @@ module Functions =
             deserializeBody<UnitMember> req
             >>= validateUnitMembershipRequest
             >>= await data.CreateMembership
-        req |> authenticate workflow Status.Created
+        req |> authorizeWrite workflow Status.Created
 
     [<FunctionName("PutMembership")>]
     [<SwaggerOperation(Summary="Update a unit member.", Tags=[|"Unit Memberships"|])>]
@@ -300,7 +317,7 @@ module Functions =
             deserializeBody<UnitMember> req
             >>= validateUnitMembershipRequest
             >>= await (data.UpdateMembership membershipId)
-        req |> authenticate workflow Status.OK
+        req |> authorizeWrite workflow Status.OK
   
     [<FunctionName("DeleteMembership")>]
     [<SwaggerOperation(Summary="Delete a unit member.", Tags=[|"Unit Memberships"|])>]
@@ -308,7 +325,7 @@ module Functions =
     let unitDeleteMember
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow _ = await data.DeleteMembership membershipId
-        req |> authenticate workflow Status.NoContent
+        req |> authorizeWrite workflow Status.NoContent
 
 
     // *****************
@@ -380,7 +397,7 @@ module Functions =
         let workflow _ = 
             deserializeBody<SupportRelationship> req
             >>= await data.CreateSupportRelationship 
-        req |> authenticate workflow Status.Created
+        req |> authorizeWrite workflow Status.Created
 
     [<FunctionName("SupportRelationshipsUpdate")>]
     [<SwaggerOperation(Summary="Update a unit-department support relationship", Tags=[|"Support Relationships"|])>]
@@ -390,7 +407,7 @@ module Functions =
         let workflow _ = 
             deserializeBody<SupportRelationship> req
             >>= await (data.UpdateSupportRelationship relationshipId)
-        req |> authenticate workflow Status.OK
+        req |> authorizeWrite workflow Status.OK
 
     [<FunctionName("SupportRelationshipsDelete")>]
     [<SwaggerOperation(Summary="Delete a unit-department support relationship", Tags=[|"Support Relationships"|])>]
@@ -398,4 +415,4 @@ module Functions =
     let supportRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow _ = await data.DeleteSupportRelationship relationshipId
-        req |> authenticate workflow Status.NoContent
+        req |> authorizeWrite workflow Status.NoContent
