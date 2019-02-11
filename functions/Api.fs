@@ -92,6 +92,7 @@ module Api =
                 methods 
                 |> List.map (fun a -> a.ToString())
                 |> String.concat ", "
+            res.Headers.Add("Access-Control-Expose-Headers", "X-User-Permissions")
             res.Headers.Add("X-User-Permissions", values)
         | None -> ()
 
