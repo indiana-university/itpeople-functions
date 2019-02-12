@@ -99,6 +99,16 @@ module Types =
         | UserExperience        = 0b00010000000000000
         | WebAdminDevEng        = 0b00100000000000000
     
+    /// An academic or administrative department
+    [<CLIMutable>]
+    [<Table("departments")>]
+    type Department = 
+      { /// The unique ID of this department record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The name of this department.
+        [<Column("name")>] Name: Name
+        /// A description or longer name of this department.
+        [<Column("description")>] Description: Name }
 
     /// A person doing or supporting IT work
     [<CLIMutable>]
@@ -132,18 +142,9 @@ module Types =
         /// A collection of IT-related tools accessible by this person.
         [<Column("tools")>] Tools: Tools
         /// The HR department to which this person belongs.
-        [<Column("department_id")>] DepartmentId: Id }
-
-    /// An academic or administrative department
-    [<CLIMutable>]
-    [<Table("departments")>]
-    type Department = 
-      { /// The unique ID of this department record.
-        [<Key>][<Column("id")>] Id: Id
-        /// The name of this department.
-        [<Column("name")>] Name: Name
-        /// A description or longer name of this department.
-        [<Column("description")>] Description: Name }
+        [<Column("department_id")>] DepartmentId: Id
+        /// The department in this relationship.
+        [<ReadOnly(true)>] Department: Department }
 
     /// An IT unit
     [<CLIMutable>]

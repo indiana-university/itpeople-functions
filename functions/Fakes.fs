@@ -39,6 +39,7 @@ module Fakes =
         Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership
         DepartmentId=parksDept.Id
+        Department=parksDept
     }
 
     let knope:Person = {
@@ -57,24 +58,26 @@ module Fakes =
         Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
         DepartmentId=parksDept.Id
+        Department=parksDept
     }
 
-    let sebastian:Person = {
+    let wyatt:Person = {
         Id=3
         Hash="hash"
-        NetId="lsebastian"
-        Name="Sebastian, L'il"
-        Position="Mascot and Guiding Light"
+        NetId="bwyatt"
+        Name="Wyatt, Ben"
+        Position="Auditor"
         Location=""
         Campus=""
         CampusPhone=""
-        CampusEmail="lknope@pawnee.in.us"
-        Expertise="Hay; Being Small"
+        CampusEmail="bwyatt@pawnee.in.us"
+        Expertise="Board Games; Comic Books"
         Notes=""
         PhotoUrl="https://sasquatchbrewery.com/wp-content/uploads/2018/06/lil.jpg"
         Tools = Tools.ItProMail ||| Tools.ItProWeb
-        Responsibilities = Responsibilities.UserExperience
+        Responsibilities = Responsibilities.ItProjectMgt
         DepartmentId=parksDept.Id
+        Department=parksDept
     }
 
     let knopeMembershipRequest:UnitMemberRequest = {
@@ -113,17 +116,30 @@ module Fakes =
         Unit=parksAndRec
     }
 
-    let sebastianMembership = {
+    let parksAndRecVacancy = {
         Id=3
         UnitId=parksAndRec.Id
-        PersonId=Some(sebastian.Id)
+        PersonId=None
         Role=Role.Member
         Permissions=Permissions.Viewer
-        Title="Mascot"
+        Title="Assistant to the Manager"
         Tools=Tools.None
         Percentage=100
-        Person=Some(sebastian)
+        Person=None
         Unit=parksAndRec
+    }
+
+    let wyattMembership:UnitMember = {
+        Id=4
+        UnitId=cityOfPawnee.Id
+        PersonId=Some(wyatt.Id)
+        Unit=cityOfPawnee
+        Person=Some(wyatt)
+        Title="Auditor"
+        Role=Role.Leader
+        Permissions=Permissions.Owner
+        Percentage=100
+        Tools=Tools.SuperPass
     }
 
     let supportRelationshipRequest:SupportRelationshipRequest = {
@@ -180,14 +196,14 @@ module Fakes =
             member this.GetExamples () = ex
 
     type JwtResponseExample () = inherit ApiEndpointExample<JwtResponse>(accessToken)
-    type UnitsExample() = inherit ApiEndpointExample<Unit seq>([parksAndRec])
+    type UnitsExample() = inherit ApiEndpointExample<seq<Unit>>([parksAndRec])
     type UnitExample() = inherit ApiEndpointExample<Unit>(parksAndRec)
-    type DepartmentsExample() = inherit ApiEndpointExample<Department seq>([parksDept])
+    type DepartmentsExample() = inherit ApiEndpointExample<seq<Department>>([parksDept])
     type DepartmentExample() = inherit ApiEndpointExample<Department>(parksDept)
-    type PeopleExample() = inherit ApiEndpointExample<Person seq>([swanson; knope; sebastian])
+    type PeopleExample() = inherit ApiEndpointExample<seq<Person>>([swanson; knope; wyatt])
     type PersonExample() = inherit ApiEndpointExample<Person>(knope)
     type MembershipRequestExample() = inherit ApiEndpointExample<UnitMemberRequest>(knopeMembershipRequest)
     type MembershipResponseExample() = inherit ApiEndpointExample<UnitMember>(swansonMembership)
     type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
     type SupportRelationshipResponseExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
-    type SupportRelationshipsResponseExample() = inherit ApiEndpointExample<SupportRelationship seq>([supportRelationship])
+    type SupportRelationshipsResponseExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])

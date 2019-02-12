@@ -60,15 +60,16 @@ module DatabaseTests=
 
             actual |> Seq.length |> should equal 1
             actual |> should contain fourthFloor
-
+        
         [<Fact>]
         member __.``Get members`` () = 
             let actual = repo.GetUnitMembers parksAndRec.Id |> awaitAndUnpack
 
             actual |> Seq.length |> should equal 3
-            actual |> should contain swansonMembership
-            actual |> should contain knopeMembership
-            actual |> should contain sebastianMembership
+            let ids = actual |> Seq.map (fun a -> a.Id)
+            ids |> should contain swansonMembership.Id
+            ids |> should contain knopeMembership.Id
+            ids |> should contain parksAndRecVacancy.Id
 
         [<Fact>]
         member __.``Get children`` () = 

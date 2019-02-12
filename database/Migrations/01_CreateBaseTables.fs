@@ -55,7 +55,7 @@ type CreateBaseTables() =
     CREATE TABLE unit_members (
       id SERIAL NOT NULL,
       unit_id INTEGER NOT NULL REFERENCES units(id),
-      person_id INTEGER NOT NULL REFERENCES people(id),
+      person_id INTEGER NULL REFERENCES people(id),
       title TEXT NULL,
       role INTEGER NOT NULL DEFAULT 2,          -- default: member
       percentage INTEGER NOT NULL DEFAULT 100,  -- default: 100%
