@@ -261,8 +261,8 @@ module Database =
         return! insertMultimap connStr unitMember multimapMembership
     }
 
-    let updateMembership connStr id unitMember = async {
-        return! updateMultimap<UnitMember> connStr id {unitMember with Id=id} multimapMembership
+    let updateMembership connStr (unitMember:UnitMember) = async {
+        return! updateMultimap<UnitMember> connStr unitMember.Id unitMember multimapMembership
     }
 
     let deleteMembership connStr id = async {

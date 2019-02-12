@@ -285,7 +285,7 @@ module Types =
         /// Create a unit membership
         Create: UnitMember -> Async<Result<UnitMember,Error>>
         /// Update a unit membership
-        Update: Id -> UnitMember -> Async<Result<UnitMember,Error>>
+        Update: UnitMember -> Async<Result<UnitMember,Error>>
         /// Delete a unit membership
         Delete: Id -> Async<Result<unit,Error>>
     }

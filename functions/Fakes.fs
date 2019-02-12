@@ -186,7 +186,7 @@ module Fakes =
         Get = fun id -> stub swansonMembership 
         GetAll = fun () -> stub ([ swansonMembership ] |> List.toSeq) 
         Create = fun membership -> stub membership
-        Update = fun id membership -> stub membership
+        Update = fun membership -> stub membership
         Delete = fun id -> stub ()
     }
 
