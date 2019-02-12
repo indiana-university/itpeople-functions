@@ -63,7 +63,7 @@ module DatabaseTests=
         
         [<Fact>]
         member __.``Get members`` () = 
-            let actual = repo.Units.GetMembers parksAndRec.Id |> awaitAndUnpack
+            let actual = repo.Units.GetMembers parksAndRec |> awaitAndUnpack
 
             actual |> Seq.length |> should equal 3
             let ids = actual |> Seq.map (fun a -> a.Id)
@@ -73,7 +73,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Get children`` () = 
-            let actual = repo.Units.GetChildren cityOfPawnee.Id |> awaitAndUnpack
+            let actual = repo.Units.GetChildren cityOfPawnee |> awaitAndUnpack
 
             actual |> Seq.length |> should equal 2
             actual |> should contain parksAndRec
@@ -81,7 +81,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Get supported departments`` () = 
-            let actual = repo.Units.GetSupportedDepartments cityOfPawnee.Id |> awaitAndUnpack
+            let actual = repo.Units.GetSupportedDepartments cityOfPawnee |> awaitAndUnpack
 
             Seq.length actual |> should equal 1
             actual |> should contain supportRelationship

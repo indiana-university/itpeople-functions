@@ -98,18 +98,6 @@ module Functions =
         then ok (a, [GET; POST; PUT; DELETE])
         else ok (a, [GET])
 
-    /// Execute a workflow that authenticates and authorizes the user for modifying the selected resource.
-    let authorizeWrite workflow successStatus req =
-        try
-            req
-            |> timestamp
-            |> authenticateRequest config
-            >>= recordAuthenticatedUser req
-            >>= authorize
-            >>= workflow
-            |> createResponse req config log successStatus
-        with exn -> handle req exn
-
     // VALIDATION 
 
     let validateExistsAndPassThrough id model lookup = async {
@@ -126,22 +114,10 @@ module Functions =
             | Ok(value,_) -> ok value
             | Bad(msgs) -> Bad msgs
     }
-
-    let validateUnitExists id model= validateExistsAndPassThrough id model data.Units.Get
     let validatePersonExists id = validateExistsAndPassThrough id id data.People.Get
-    let validatePersonExists' id model  = validateExistsAndPassThrough id model data.People.Get
+    let findUnit id = validateExistsAndReturn id data.Units.Get
     let findMembership id = validateExistsAndReturn id data.Memberships.Get
     let findSupportRelationship id = validateExistsAndReturn id data.SupportRelationships.Get
-    let validateMembershipRecordExists (m:UnitMember) = validateExistsAndPassThrough m.Id m data.Memberships.Get
-    let validateMembershipUnitExists (m:UnitMember) = validateExistsAndPassThrough m.UnitId m data.Units.Get 
-    let validateMembershipPersonExists (m:UnitMember) = 
-        match m.PersonId with 
-        | Some(id) -> validatePersonExists' id m
-        | None -> ok m |> async.Return
-    let validateUnitParentExists (u:Unit) = 
-        match u.ParentId with 
-        | Some(id) -> validateUnitExists id u
-        | None -> ok u |> async.Return
 
 
     // FUNCTION WORKFLOWS 
@@ -242,6 +218,22 @@ module Functions =
     // ** Units
     // *****************
 
+    let validateUnitExists (model:Unit) = 
+        validateExistsAndPassThrough model.Id model data.Units.Get
+    let validateUnitExists' id model = 
+        validateExistsAndPassThrough id model data.Units.Get
+    let validateUnitParentExists (u:Unit) = 
+        match u.ParentId with 
+        | Some(id) -> validateUnitExists' id u
+        | None -> ok u |> async.Return
+    let authorizeUnitModification' user (model:Unit) = 
+        if (model.Id = 0 && model.ParentId.IsNone)
+        then 
+            if isAdmin user
+            then ok model
+            else fail(Status.Forbidden, "Please contact IT Community Partnerships (talk2uits@iu.edu) to create a top-level IT unit.")
+        else authorizeUnitModification user model model.Id
+
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all top-level IT units.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
@@ -271,9 +263,11 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow user =
             deserializeBody<Unit> req
+            >>= authorizeUnitModification' user
+            >>= await validateUnitParentExists
             >>= await data.Units.Create
             >>= determineUserPermissions user
-        req |> authorizeWrite workflow Status.Created
+        req |> authenticate workflow Status.Created
 
     [<FunctionName("UnitPut")>]
     [<SwaggerOperation(Summary="Update a unit.", Tags=[|"Units"|])>]
@@ -283,28 +277,33 @@ module Functions =
         let workflow user = 
             deserializeBody<Unit> req
             >>= fun model -> ok { model with Id=unitId } 
+            >>= await validateUnitExists
             >>= await validateUnitParentExists
+            >>= authorizeUnitModification' user
             >>= await data.Units.Update
             >>= determineUserPermissions user
-        req |> authorizeWrite workflow Status.OK
+        req |> authenticate workflow Status.OK
 
     [<FunctionName("UnitDelete")>]
     [<SwaggerOperation(Summary="Delete a unit.", Tags=[|"Units"|])>]
     [<SwaggerResponse(204)>]
     let unitDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
-        let workflow user = 
-            await data.Units.Delete unitId
+        let workflow user =
+            await findUnit unitId
+            >>= authorizeUnitModification' user
+            >>= await data.Units.Delete
             >>= determineUserPermissions user
-        req |> authorizeWrite workflow Status.NoContent
+        req |> authenticate workflow Status.NoContent
 
     [<FunctionName("UnitGetAllMembers")>]
     [<SwaggerOperation(Summary="Get all unit members", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
     let unitGetAllMembers
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
-        let workflow user = 
-            await data.Units.GetMembers unitId
+        let workflow user =
+            await findUnit unitId
+            >>= await data.Units.GetMembers
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -314,7 +313,8 @@ module Functions =
     let unitGetAllSupportedDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/supportedDepartments")>] req, unitId) =
         let workflow user = 
-            await data.Units.GetSupportedDepartments unitId
+            await findUnit unitId
+            >>= await data.Units.GetSupportedDepartments
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -324,7 +324,8 @@ module Functions =
     let unitGetAllChildren
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/children")>] req, unitId) =
         let workflow user = 
-            await data.Units.GetChildren unitId
+            await findUnit unitId
+            >>= await data.Units.GetChildren
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -332,6 +333,16 @@ module Functions =
     // *******************
     // ** Unit Memberships
     // *******************
+
+    let validateMembershipRecordExists (m:UnitMember) = 
+        validateExistsAndPassThrough m.Id m data.Memberships.Get
+    let validateMembershipUnitExists (m:UnitMember) = 
+        validateExistsAndPassThrough m.UnitId m data.Units.Get 
+    let validateMembershipPersonExists (m:UnitMember) = 
+        match m.PersonId with 
+        | Some(id) -> validateExistsAndPassThrough id m data.People.Get
+        | None -> ok m |> async.Return
+
 
     let authorizeMemberUnitModification user (model:UnitMember) = 
         authorizeUnitModification user model model.UnitId 
@@ -356,7 +367,6 @@ module Functions =
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
-
     [<FunctionName("MemberCreate")>]
     [<SwaggerOperation(Summary="Create a unit member.", Tags=[|"Unit Memberships"|])>]
     [<SwaggerResponse(201, Type=typeof<UnitMember>)>]
@@ -369,7 +379,7 @@ module Functions =
             >>= authorizeMemberUnitModification user
             >>= await data.Memberships.Create
             >>= determineUserPermissions user
-        req |> authorizeWrite workflow Status.Created
+        req |> authenticate workflow Status.Created
 
     [<FunctionName("MemberUpdate")>]
     [<SwaggerOperation(Summary="Update a unit member.", Tags=[|"Unit Memberships"|])>]
@@ -486,7 +496,7 @@ module Functions =
             >>= authorizeSupportUnitModification user
             >>= await data.SupportRelationships.Create          
             >>= determineUserPermissions user
-        req |> authorizeWrite workflow Status.Created
+        req |> authenticate workflow Status.Created
 
     [<FunctionName("SupportRelationshipsUpdate")>]
     [<SwaggerOperation(Summary="Update a unit-department support relationship", Tags=[|"Support Relationships"|])>]
@@ -500,7 +510,7 @@ module Functions =
             >>= authorizeSupportUnitModification user
             >>= await data.SupportRelationships.Update
             >>= determineUserPermissions user
-        req |> authorizeWrite workflow Status.OK
+        req |> authenticate workflow Status.OK
 
     [<FunctionName("SupportRelationshipsDelete")>]
     [<SwaggerOperation(Summary="Delete a unit-department support relationship", Tags=[|"Support Relationships"|])>]
@@ -512,4 +522,4 @@ module Functions =
             >>= authorizeSupportUnitModification user
             >>= await data.SupportRelationships.Delete
             >>= determineUserPermissions user
-        req |> authorizeWrite workflow Status.NoContent
+        req |> authenticate workflow Status.NoContent

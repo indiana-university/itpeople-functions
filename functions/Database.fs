@@ -119,7 +119,7 @@ module QueryHelpers =
             use cn = sqlConnection connStr
             let! result = cn.GetAsync<'T>(id) |> awaitTask
             if isDefault<'T> result
-            then return fail(Status.NotFound, "No resource found with with that ID.")
+            then return fail(Status.NotFound, sprintf "No %s was found with that ID %d." (typedefof<'T>.Name) id)
             else return result |> ok
         with 
         | exn -> return dbFail "fetch one" (typedefof<'T>.Name) exn   
@@ -130,7 +130,7 @@ module QueryHelpers =
             use cn = sqlConnection connStr
             let! result = cn.QueryFirstOrDefaultAsync<'T>(sql, parameters) |> awaitTask
             if isDefault<'T> result
-            then return fail(Status.NotFound, "No resource found with with that ID.")
+            then return fail(Status.NotFound, sprintf "No %s was found with those parameters." (typedefof<'T>.Name))
             else return result |> ok
         with 
         | exn -> return dbFail "fetch one" (typedefof<'T>.Name) exn   
@@ -141,7 +141,7 @@ module QueryHelpers =
             use cn = sqlConnection connStr
             let! result = cn |> getById id|> awaitTask
             if Seq.isEmpty result
-            then return fail(Status.NotFound, "No resource found with with that ID.")
+            then return fail(Status.NotFound, sprintf "No %s was found with that ID %d." (typedefof<'T>.Name) id)
             else return result |> Seq.head |> ok
         with 
         | exn -> return dbFail "fetch one" (typedefof<'T>.Name) exn   
@@ -304,8 +304,6 @@ module Database =
     // Units
     // **********
 
-    let mapUnit (unit:Unit) id = {unit with Id=id}
-
     let queryUnits connStr query = async {
         return! 
             match query with 
@@ -333,24 +331,22 @@ module Database =
         return! execute connStr deleteUnitSql {Id=unit.Id}    
     }
 
-    let queryUnitChildren connStr id = async {
-        return! fetchAll''<Unit> connStr "WHERE parent_id=@Id" (Some({Id=id}:>obj))
+    let queryUnitChildren connStr (unit:Unit) = async {
+        return! fetchAll''<Unit> connStr "WHERE parent_id=@Id" (Some({Id=unit.Id}:>obj))
     }
 
-    let queryUnitMembers connStr id = async {
-        return! fetchAllMultimap connStr (multimapMemberships' "WHERE u.id=@Id" {Id=id})
+    let queryUnitMembers connStr (unit:Unit) = async {
+        return! fetchAllMultimap connStr (multimapMemberships' "WHERE u.id=@Id" {Id=unit.Id})
     }
 
-    let queryUnitSupportedDepartments connStr id = async {
-        return! fetchAllMultimap connStr (multimapRelations' "WHERE u.id=@Id" {Id=id})
+    let queryUnitSupportedDepartments connStr (unit:Unit) = async {
+        return! fetchAllMultimap connStr (multimapRelations' "WHERE u.id=@Id" {Id=unit.Id})
     }
 
 
     // ***********
     // Departments
     // ***********
-
-    let mapDepartment (department:Department) id = {department with Id=id}
 
     let queryDepartments connStr query = async {
         return! 
@@ -383,8 +379,6 @@ module Database =
     let queryDeptMemberUnits connStr id = async {
         return! fetchAll'<Unit> connStr queryDeptMemberUnitsSql {Id=id}
     }
-
-
 
 
     // ***********

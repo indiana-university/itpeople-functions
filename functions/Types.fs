@@ -253,11 +253,11 @@ module Types =
         /// Get a single unit by ID
         Get: Id -> Async<Result<Unit,Error>>
         /// Get a unit's members by unit ID        
-        GetMembers: Id -> Async<Result<UnitMember seq,Error>>
+        GetMembers: Unit -> Async<Result<UnitMember seq,Error>>
         /// Get a unit's supported departments by unit ID        
-        GetSupportedDepartments: Id -> Async<Result<SupportRelationship seq,Error>>
+        GetSupportedDepartments: Unit -> Async<Result<SupportRelationship seq,Error>>
         // Get a unit's child units by parent unit Id
-        GetChildren: Id -> Async<Result<Unit seq,Error>>
+        GetChildren: Unit -> Async<Result<Unit seq,Error>>
         /// Create a unit
         Create: Unit -> Async<Result<Unit,Error>>
         /// Update a unit
