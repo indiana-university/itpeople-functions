@@ -9,6 +9,7 @@ open Chessie.ErrorHandling
 open Dapper
 open Serilog.Core
 open System.ComponentModel.DataAnnotations
+open Dapper
 
 module Types = 
 
@@ -160,8 +161,8 @@ module Types =
         [<Column("parent_id")>][<Editable(true)>] ParentId: Id option }
 
     [<CLIMutable>]
-    [<Table("support_relationships")>]
     /// This relationship describes which IT Unit provides IT-related support for a given department.
+    [<Table("support_relationships")>]
     type SupportRelationship = 
       { /// The unique ID of this unit record.
         [<Key>][<Column("id")>] Id: Id
@@ -170,13 +171,14 @@ module Types =
         /// The unique ID of the department in this relationship
         [<Column("department_id")>] DepartmentId: Id 
         /// The department in this relationship.
-        [<ReadOnly(true)>][<Column("person")>] Department: Department
+        [<ReadOnly(true)>] Department: Department
         /// The unit in this relationship.
-        [<ReadOnly(true)>][<Column("unit")>] Unit: Unit }
+        [<ReadOnly(true)>] Unit: Unit
+      }
 
+    [<CLIMutable>]
     type SupportRelationshipRequest = 
-      {
-        /// The unique ID of the unit in this relationship
+      { /// The unique ID of the unit in this relationship
         UnitId: Id
         /// The unique ID of the department in this relationship
         DepartmentId: Id 
@@ -190,7 +192,7 @@ module Types =
         /// The unique ID of the unit record.
         [<Column("unit_id")>] UnitId: Id
         /// The unique ID of the person record. This can be null if the position is vacant.
-        [<Column("person_id")>] PersonId: Id option
+        [<Column("person_id")>][<Editable(true)>] PersonId: Id option
         /// The title/position of this membership.
         [<Column("title")>] Title: string
         /// The role of the person in this membership as part of the unit.
