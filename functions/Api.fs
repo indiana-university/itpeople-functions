@@ -66,8 +66,10 @@ module Api =
 
     let getData config =
         if config.UseFakes
-        then FakesRepository() :> IDataRepository
-        else DatabaseRepository(config.DbConnectionString) :> IDataRepository
+        then FakesRepository
+        else
+            Functions.Database.init()
+            DatabaseRepository(config.DbConnectionString)
 
     ///
     /// CORS

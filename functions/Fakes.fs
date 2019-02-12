@@ -157,36 +157,54 @@ module Fakes =
 
     /// A canned data implementation of IDatabaseRespository (for testing)
 
+    let FakePeople = {
+        TryGetId = fun netId -> stub (swanson.NetId, Some(swanson.Id))
+        GetAll = fun query -> stub ([ swanson ] |> List.toSeq)
+        Get = fun id -> stub swanson
+        GetMemberships = fun personId -> stub ([ swansonMembership ] |> List.toSeq)
+    }
 
-    type FakesRepository() =
-        interface IDataRepository with 
-            member this.TryGetPersonId netId = stub (swanson.NetId, Some(swanson.Id))
-            member this.GetPeople query =  stub ([ swanson ] |> List.toSeq)
-            member this.GetPerson id = stub swanson
-            member this.GetPersonMemberships personId = stub ([ swansonMembership ] |> List.toSeq)
-            member this.GetUnits query = stub ([ parksAndRec ] |> List.toSeq)
-            member this.GetUnit id = stub parksAndRec
-            member this.GetUnitMembers id = stub ([ swansonMembership ] |> List.toSeq) 
-            member this.GetUnitChildren id = stub ([ fourthFloor ] |> List.toSeq) 
-            member this.GetUnitSupportedDepartments id = stub ([ supportRelationship ] |> List.toSeq) 
-            member this.GetMembership id = stub swansonMembership 
-            member this.GetMemberships () = stub ([ swansonMembership ] |> List.toSeq) 
-            member this.CreateMembership membership = stub membership
-            member this.UpdateMembership id membership = stub membership
-            member this.DeleteMembership id = stub ()
-            member this.CreateUnit unit = stub parksAndRec
-            member this.UpdateUnit id unit = stub parksAndRec
-            member this.DeleteUnit id = stub ()
-            member this.GetDepartments query = stub ([ parksDept ] |> List.toSeq)
-            member this.GetDepartment id = stub parksDept
-            member this.GetDepartmentMemberUnits id = stub ([ parksAndRec ] |> List.toSeq)
-            member this.GetDepartmentSupportingUnits id = stub ([ supportRelationship ] |> List.toSeq)
-            member this.GetSupportRelationships () = stub ([ supportRelationship ] |> List.toSeq) 
-            member this.GetSupportRelationship id = stub supportRelationship
-            member this.CreateSupportRelationship supportRelationship = stub supportRelationship
-            member this.UpdateSupportRelationship id supportRelationship = stub supportRelationship
-            member this.DeleteSupportRelationship id = stub ()
-           
+    let FakeUnits = {
+        GetAll = fun query -> stub ([ parksAndRec ] |> List.toSeq)
+        Get = fun id -> stub parksAndRec
+        GetMembers = fun id -> stub ([ swansonMembership ] |> List.toSeq) 
+        GetChildren = fun id -> stub ([ fourthFloor ] |> List.toSeq) 
+        GetSupportedDepartments = fun id -> stub ([ supportRelationship ] |> List.toSeq) 
+        Create = fun unit -> stub parksAndRec
+        Update = fun id unit -> stub parksAndRec
+        Delete = fun id -> stub ()
+    }
+
+    let FakeDepartments = {
+        GetAll = fun query -> stub ([ parksDept ] |> List.toSeq)
+        Get = fun id -> stub parksDept
+        GetMemberUnits = fun id -> stub ([ parksAndRec ] |> List.toSeq)
+        GetSupportingUnits = fun id -> stub ([ supportRelationship ] |> List.toSeq)
+    }
+
+    let FakeMembershipRepository : MembershipRepository = {
+        Get = fun id -> stub swansonMembership 
+        GetAll = fun () -> stub ([ swansonMembership ] |> List.toSeq) 
+        Create = fun membership -> stub membership
+        Update = fun id membership -> stub membership
+        Delete = fun id -> stub ()
+    }
+
+    let FakeSupportRelationships : SupportRelationshipRepository = {
+        GetAll = fun () -> stub ([ supportRelationship ] |> List.toSeq) 
+        Get = fun id -> stub supportRelationship
+        Create = fun supportRelationship -> stub supportRelationship
+        Update = fun id supportRelationship -> stub supportRelationship
+        Delete = fun id -> stub ()
+    }
+
+    let FakesRepository = {
+        People = FakePeople
+        Units = FakeUnits
+        Departments = FakeDepartments
+        Memberships = FakeMembershipRepository
+        SupportRelationships = FakeSupportRelationships
+    }
 
     type ApiEndpointExample<'T>(example:'T) = 
         let ex = example;

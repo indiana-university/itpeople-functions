@@ -412,40 +412,51 @@ module Database =
     }    
     
 
-    /// A SQL Database implementation of IDatabaseRespository
-    type DatabaseRepository(connectionString:string) =
-        let connStr = connectionString
-        do init() 
+    let People(connStr) = {
+        TryGetId = queryPersonByNetId connStr
+        GetAll = queryPeople connStr
+        Get = queryPerson connStr
+        GetMemberships = queryPersonMemberships connStr
+    }
 
-        interface IDataRepository with 
-            member this.TryGetPersonId netId = queryPersonByNetId connStr netId
-            
-            member this.GetPeople query = queryPeople connStr query
-            member this.GetPerson id = queryPerson connStr id
-            member this.GetPersonMemberships personId = queryPersonMemberships connStr personId
-            
-            member this.GetUnits query = queryUnits connStr query
-            member this.GetUnit id = queryUnit connStr id
-            member this.CreateUnit unit = insertUnit connStr unit
-            member this.UpdateUnit id unit = updateUnit connStr id unit
-            member this.DeleteUnit id = deleteUnit connStr id
-            member this.GetUnitChildren id = queryUnitChildren connStr id
-            member this.GetUnitMembers id = queryUnitMembers connStr id
-            member this.GetUnitSupportedDepartments id = queryUnitSupportedDepartments connStr id
-            
-            member this.GetDepartments query = queryDepartments connStr query
-            member this.GetDepartment id = queryDepartment connStr id
-            member this.GetDepartmentMemberUnits id = queryDeptMemberUnits connStr id
-            member this.GetDepartmentSupportingUnits id = queryDeptSupportingUnits connStr id
+    let Units(connStr) = {
+        GetAll = queryUnits connStr
+        Get = queryUnit connStr 
+        Create = insertUnit connStr
+        Update = updateUnit connStr
+        Delete = deleteUnit connStr
+        GetChildren = queryUnitChildren connStr
+        GetMembers = queryUnitMembers connStr
+        GetSupportedDepartments = queryUnitSupportedDepartments connStr
+    }
 
-            member this.GetMemberships () = queryMemberships connStr 
-            member this.GetMembership id = queryMembership connStr id
-            member this.CreateMembership membership = insertMembership connStr membership
-            member this.UpdateMembership id membership = updateMembership connStr id membership
-            member this.DeleteMembership id = deleteMembership connStr id
-            
-            member this.GetSupportRelationships () = querySupportRelationships connStr 
-            member this.GetSupportRelationship id = querySupportRelationship connStr id
-            member this.CreateSupportRelationship supportRelationship = insertSupportRelationship connStr supportRelationship
-            member this.UpdateSupportRelationship id supportRelationship = updateSupportRelationship connStr id supportRelationship
-            member this.DeleteSupportRelationship id = deleteSupportRelationship connStr id
+    let Departments (connStr) = {
+        GetAll = queryDepartments connStr
+        Get = queryDepartment connStr
+        GetMemberUnits = queryDeptMemberUnits connStr
+        GetSupportingUnits = queryDeptSupportingUnits connStr
+    }
+
+    let Memberships (connStr) : MembershipRepository = {
+        GetAll = fun () -> queryMemberships connStr
+        Get = queryMembership connStr
+        Create = insertMembership connStr
+        Update = updateMembership connStr
+        Delete = deleteMembership connStr
+    }
+
+    let SupportRelationshipsRepository(connStr) = {
+        GetAll = fun () -> querySupportRelationships connStr 
+        Get = querySupportRelationship connStr
+        Create = insertSupportRelationship connStr
+        Update = updateSupportRelationship connStr
+        Delete = deleteSupportRelationship connStr
+    }
+
+    let DatabaseRepository(connStr) = {
+        People = People(connStr)
+        Departments = Departments(connStr)
+        Units = Units(connStr)
+        Memberships = Memberships(connStr)
+        SupportRelationships = SupportRelationshipsRepository(connStr)
+    }

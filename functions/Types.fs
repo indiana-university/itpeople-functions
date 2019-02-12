@@ -236,59 +236,80 @@ module Types =
 
     type NoContent = unit
 
-    type IDataRepository =
+    type PeopleRepository = {
         /// Get a user record for a given net ID (e.g. 'jhoerr')
-        abstract member TryGetPersonId: NetId -> Async<Result<NetId * Id option,Error>>
+        TryGetId: NetId -> Async<Result<NetId * Id option,Error>>
         /// Get a list of all people
-        abstract member GetPeople: Query option -> Async<Result<Person seq,Error>>
+        GetAll: Query option -> Async<Result<Person seq,Error>>
         /// Get a single person by ID
-        abstract member GetPerson: PersonId -> Async<Result<Person,Error>>
+        Get: PersonId -> Async<Result<Person,Error>>
         /// Get a list of a person's unit memberships
-        abstract member GetPersonMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
+        GetMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
+    }
+
+    type UnitRepository = {
         /// Get a list of all units
-        abstract member GetUnits: Query option -> Async<Result<Unit seq,Error>>
+        GetAll: Query option -> Async<Result<Unit seq,Error>>
         /// Get a single unit by ID
-        abstract member GetUnit: Id -> Async<Result<Unit,Error>>
+        Get: Id -> Async<Result<Unit,Error>>
         /// Get a unit's members by unit ID        
-        abstract member GetUnitMembers: Id -> Async<Result<UnitMember seq,Error>>
+        GetMembers: Id -> Async<Result<UnitMember seq,Error>>
         /// Get a unit's supported departments by unit ID        
-        abstract member GetUnitSupportedDepartments: Id -> Async<Result<SupportRelationship seq,Error>>
+        GetSupportedDepartments: Id -> Async<Result<SupportRelationship seq,Error>>
         // Get a unit's child units by parent unit Id
-        abstract member GetUnitChildren: Id -> Async<Result<Unit seq,Error>>
-        /// Get a membership by ID        
-        abstract member GetMemberships: unit -> Async<Result<UnitMember seq,Error>>
-        /// Get a membership by ID        
-        abstract member GetMembership: Id -> Async<Result<UnitMember,Error>>
-        /// Create a unit membership
-        abstract member CreateMembership: UnitMember -> Async<Result<UnitMember,Error>>
-        /// Update a unit membership
-        abstract member UpdateMembership: Id -> UnitMember -> Async<Result<UnitMember,Error>>
-        /// Delete a unit membership
-        abstract member DeleteMembership: Id -> Async<Result<unit,Error>>
+        GetChildren: Id -> Async<Result<Unit seq,Error>>
         /// Create a unit
-        abstract member CreateUnit: Unit -> Async<Result<Unit,Error>>
+        Create: Unit -> Async<Result<Unit,Error>>
         /// Update a unit
-        abstract member UpdateUnit: Id -> Unit -> Async<Result<Unit,Error>>
+        Update: Id -> Unit -> Async<Result<Unit,Error>>
         /// Delete a unit
-        abstract member DeleteUnit: Id -> Async<Result<unit,Error>>
+        Delete: Id -> Async<Result<unit,Error>>
+    }
+
+    type DepartmentRepository = {
         /// Get a list of all departments
-        abstract member GetDepartments: Query option -> Async<Result<Department seq,Error>>
+        GetAll: Query option -> Async<Result<Department seq,Error>>
         /// Get a single department by ID
-        abstract member GetDepartment: DepartmentId -> Async<Result<Department,Error>>
+        Get: DepartmentId -> Async<Result<Department,Error>>
         /// Get a list of a department's member units
-        abstract member GetDepartmentMemberUnits: DepartmentId -> Async<Result<Unit seq,Error>>
+        GetMemberUnits: DepartmentId -> Async<Result<Unit seq,Error>>
         /// Get a list of a department's supporting units        
-        abstract member GetDepartmentSupportingUnits: DepartmentId -> Async<Result<SupportRelationship seq,Error>>
+        GetSupportingUnits: DepartmentId -> Async<Result<SupportRelationship seq,Error>>
+    }
+
+    type MembershipRepository = {
+        /// Get a membership by ID        
+        GetAll: unit -> Async<Result<UnitMember seq,Error>>
+        /// Get a membership by ID        
+        Get: Id -> Async<Result<UnitMember,Error>>
+        /// Create a unit membership
+        Create: UnitMember -> Async<Result<UnitMember,Error>>
+        /// Update a unit membership
+        Update: Id -> UnitMember -> Async<Result<UnitMember,Error>>
+        /// Delete a unit membership
+        Delete: Id -> Async<Result<unit,Error>>
+    }
+
+    type SupportRelationshipRepository = {
         /// Get a list of all support relationships
-        abstract member GetSupportRelationships: unit -> Async<Result<SupportRelationship seq,Error>>
+        GetAll: unit -> Async<Result<SupportRelationship seq,Error>>
         /// Get a single support relationsihps
-        abstract member GetSupportRelationship : Id -> Async<Result<SupportRelationship,Error>>
+        Get : Id -> Async<Result<SupportRelationship,Error>>
         /// Crate a support relationship
-        abstract member CreateSupportRelationship: SupportRelationship -> Async<Result<SupportRelationship,Error>>
+        Create: SupportRelationship -> Async<Result<SupportRelationship,Error>>
         /// Update a support relationship
-        abstract member UpdateSupportRelationship: Id -> SupportRelationship -> Async<Result<SupportRelationship,Error>>
+        Update: Id -> SupportRelationship -> Async<Result<SupportRelationship,Error>>
         /// Delete a support relationsihps
-        abstract member DeleteSupportRelationship : Id -> Async<Result<unit,Error>>
+        Delete : Id -> Async<Result<unit,Error>>
+    }
+
+    type DataRepository = {
+        People: PeopleRepository
+        Units: UnitRepository
+        Departments: DepartmentRepository
+        Memberships: MembershipRepository
+        SupportRelationships: SupportRelationshipRepository
+    }
     
     let stub a = async { return! a |> ok |> async.Return }
 

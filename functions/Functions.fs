@@ -142,7 +142,7 @@ module Functions =
         // workflow partials
         let createUaaTokenRequest = createUaaTokenRequest config
         let requestTokenFromUaa = postAsync<JwtResponse> config.OAuth2TokenUrl
-        let resolveAppUserId claims = data.TryGetPersonId claims.UserName
+        let resolveAppUserId claims = data.People.TryGetId claims.UserName
         let encodeAppJwt = encodeAppJwt config.JwtSecret (now().AddHours(8.))
 
         // workflow definition
@@ -174,7 +174,7 @@ module Functions =
         let workflow user = 
             req
             |> tryQueryParam "q"
-            |> await data.GetPeople
+            |> await data.People.GetAll
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -184,7 +184,7 @@ module Functions =
     let peopleGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
         let workflow user = 
-            await data.GetPerson personId
+            await data.People.Get personId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -194,7 +194,7 @@ module Functions =
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
         let workflow user = 
-            await data.GetPersonMemberships personId
+            await data.People.GetMemberships personId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -212,7 +212,7 @@ module Functions =
         let workflow user = 
             req
             |> tryQueryParam "q"
-            |> await data.GetUnits
+            |> await data.Units.GetAll
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -222,7 +222,7 @@ module Functions =
     let unitGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}")>] req, unitId) =
         let workflow user = 
-            await data.GetUnit unitId
+            await data.Units.Get unitId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
             
@@ -232,7 +232,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow user =
             deserializeBody<Unit> req
-            >>= await data.CreateUnit
+            >>= await data.Units.Create
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.Created
 
@@ -243,7 +243,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow user = 
             deserializeBody<Unit> req
-            >>= await (data.UpdateUnit unitId)
+            >>= await (data.Units.Update unitId)
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.OK
 
@@ -253,7 +253,7 @@ module Functions =
     let unitDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow user = 
-            await data.DeleteUnit unitId
+            await data.Units.Delete unitId
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.NoContent
 
@@ -263,7 +263,7 @@ module Functions =
     let unitGetAllMembers
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
         let workflow user = 
-            await data.GetUnitMembers unitId
+            await data.Units.GetMembers unitId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -273,7 +273,7 @@ module Functions =
     let unitGetAllSupportedDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/supportedDepartments")>] req, unitId) =
         let workflow user = 
-            await data.GetUnitSupportedDepartments unitId
+            await data.Units.GetSupportedDepartments unitId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -283,7 +283,7 @@ module Functions =
     let unitGetAllChildren
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/children")>] req, unitId) =
         let workflow user = 
-            await data.GetUnitChildren unitId
+            await data.Units.GetChildren unitId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -298,7 +298,7 @@ module Functions =
     let getMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships")>] req) =
         let workflow user = 
-            await data.GetMemberships ()
+            await data.Memberships.GetAll ()
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -308,7 +308,7 @@ module Functions =
     let getMembershipById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
-            await data.GetMembership membershipId
+            await data.Memberships.Get membershipId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -318,7 +318,7 @@ module Functions =
         else fail (Status.BadRequest, "The unit ID must be greater than zero.")
 
     let validateUnitExists (membership:UnitMember) = async {
-        let! lookupResult = data.GetUnit membership.UnitId
+        let! lookupResult = data.Units.Get membership.UnitId
         return 
             match lookupResult with
             | Ok(_,_) -> ok membership
@@ -338,7 +338,7 @@ module Functions =
         let workflow user = 
             deserializeBody<UnitMember> req
             >>= validateUnitMembershipRequest
-            >>= await data.CreateMembership
+            >>= await data.Memberships.Create
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.Created
 
@@ -350,7 +350,7 @@ module Functions =
         let workflow user = 
             deserializeBody<UnitMember> req
             >>= validateUnitMembershipRequest
-            >>= await (data.UpdateMembership membershipId)
+            >>= await (data.Memberships.Update membershipId)
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.OK
   
@@ -360,7 +360,7 @@ module Functions =
     let unitDeleteMember
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
-            await data.DeleteMembership membershipId
+            await data.Memberships.Delete membershipId
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.NoContent
 
@@ -378,7 +378,7 @@ module Functions =
         let workflow user = 
             req
             |> tryQueryParam "q"
-            |> await data.GetDepartments
+            |> await data.Departments.GetAll
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -388,7 +388,7 @@ module Functions =
     let departmentGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}")>] req, departmentId) =
         let workflow user = 
-            await data.GetDepartment departmentId
+            await data.Departments.Get departmentId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -398,7 +398,7 @@ module Functions =
     let departmentGetMemberUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/memberUnits")>] req, departmentId) =
         let workflow user = 
-            await data.GetDepartmentMemberUnits departmentId
+            await data.Departments.GetMemberUnits departmentId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -408,7 +408,7 @@ module Functions =
     let departmentGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
         let workflow user = 
-            await data.GetDepartmentSupportingUnits departmentId
+            await data.Departments.GetSupportingUnits departmentId
             >>= determineUserPermissions user    
         req |> authenticate workflow Status.OK
 
@@ -424,7 +424,7 @@ module Functions =
     let supportRelationshipsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "supportRelationships")>] req) =
         let workflow user = 
-            await data.GetSupportRelationships ()
+            await data.SupportRelationships.GetAll ()
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -434,7 +434,7 @@ module Functions =
     let supportRelationshipsGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
-            await data.GetSupportRelationship relationshipId
+            await data.SupportRelationships.Get relationshipId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -446,7 +446,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "supportRelationships")>] req) =
         let workflow user = 
             deserializeBody<SupportRelationship> req
-            >>= await data.CreateSupportRelationship          
+            >>= await data.SupportRelationships.Create          
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.Created
 
@@ -458,7 +458,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
             deserializeBody<SupportRelationship> req
-            >>= await (data.UpdateSupportRelationship relationshipId)
+            >>= await (data.SupportRelationships.Update relationshipId)
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.OK
 
@@ -468,6 +468,6 @@ module Functions =
     let supportRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
-            await data.DeleteSupportRelationship relationshipId
+            await data.SupportRelationships.Delete relationshipId
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.NoContent
