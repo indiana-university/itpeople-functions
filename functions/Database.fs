@@ -214,23 +214,18 @@ module Database =
         with exn -> return dbFail "query all" "unit members" exn
     }
 
-    let queryUnitSupportRelationshipSql = """
-        SELECT * FROM support_relationships
-        WHERE unit_id = @Id"""
-    let queryUnitSupportRelationshipDepartmentSql = """
-        SELECT d.* FROM support_relationships s
+    let queryUnitSupportedDepartmentsSql = """
+        SELECT s.*, d.*, u.*
+        FROM support_relationships s
         JOIN departments d on d.id = s.department_id
+        JOIN units u on u.id = s.unit_id
         WHERE s.unit_id = @Id"""
     let queryUnitSupportedDepartments connStr id = async {
         try
+            let map s d u = {s with Unit=u; Department=d}
             use cn = sqlConnection connStr
-            let! unit = cn.GetAsync<Unit>(id) |> awaitTask
-            let! relations = cn.QueryAsync<SupportRelationship>(queryUnitSupportRelationshipSql, {Id=id}) |> awaitTask
-            let! departments = cn.QueryAsync<Department>(queryUnitSupportRelationshipDepartmentSql, {Id=id}) |> awaitTask
-            let associateWithDepartment (s:SupportRelationship) = 
-                let d = departments |> Seq.find (fun d -> d.Id = s.DepartmentId)
-                { s with Department=d; Unit=unit }
-            return relations |> Seq.map associateWithDepartment |> ok
+            let! results = cn.QueryAsync<SupportRelationship, Department, Unit, SupportRelationship>(queryUnitSupportedDepartmentsSql, map, {Id=id}) |> awaitTask
+            return ok results
         with exn -> return dbFail "query all" "unit supported departments" exn
     }
 
@@ -261,21 +256,17 @@ module Database =
     }
 
     let queryDeptSupportRelationshipSql = """
-        SELECT * FROM support_relationships
-        WHERE department_id = @Id"""
-    let queryDeptSupportRelationshipUnitsSql = """
-        SELECT u.* FROM support_relationships s
+        SELECT s.*, d.*, u.*
+        FROM support_relationships s
+        JOIN departments d on d.id = s.department_id
         JOIN units u on u.id = s.unit_id
         WHERE s.department_id = @Id"""
     let queryDeptSupportingUnits connStr id = async {
         try
+            let map s d u = {s with Unit=u; Department=d}
             use cn = sqlConnection connStr
-            let! relations = cn.QueryAsync<SupportRelationship>(queryDeptSupportRelationshipSql, {Id=id}) |> awaitTask
-            let! units = cn.QueryAsync<Unit>(queryDeptSupportRelationshipUnitsSql, {Id=id}) |> awaitTask
-            let associateWithUnit (s:SupportRelationship) = 
-                let u = units |> Seq.find (fun u -> u.Id = s.UnitId)
-                { s with Unit=u }
-            return relations |> Seq.map associateWithUnit |> ok
+            let! results = cn.QueryAsync<SupportRelationship, Department, Unit, SupportRelationship>(queryDeptSupportRelationshipSql, map, {Id=id}) |> awaitTask
+            return ok results
         with exn -> return dbFail "query all" "unit supported departments" exn
     }
 
@@ -357,23 +348,50 @@ module Database =
     // Support Relationships
     // *********************
 
+    let querySupportRelationshipSql = """
+        SELECT s.*, d.*, u.*
+        FROM support_relationships s
+        JOIN departments d on d.id = s.department_id
+        JOIN units u on u.id = s.unit_id"""
+
+    let map s d u = {s with Unit=u; Department=d}
     let mapSupportRelationship (supportRelationship:SupportRelationship) id = {supportRelationship with Id=id}
 
     let querySupportRelationshipsSql = """SELECT * FROM support_relationships"""
     let querySupportRelationships connStr = async {
-        return! queryAll<SupportRelationship> connStr querySupportRelationshipsSql
+        try
+            use cn = sqlConnection connStr
+            let! results = cn.QueryAsync<SupportRelationship, Department, Unit, SupportRelationship>(querySupportRelationshipSql, map) |> awaitTask
+            return ok results
+        with exn -> return dbFail "query all" "support relationship" exn   
     }
 
     let querySupportRelationship connStr id = async {
-        return! queryExactlyOne<SupportRelationship> connStr id
+        try
+            use cn = sqlConnection connStr
+            let! results = cn.QueryAsync<SupportRelationship, Department, Unit, SupportRelationship>(querySupportRelationshipSql, map, {Id=id}) |> awaitTask
+            if Seq.isEmpty results 
+            then return fail(Status.NotFound, "No support relationship found with that id")
+            else return results |> Seq.head |> ok
+        with exn -> return dbFail "query all" "support relationship" exn
     }
 
     let insertSupportRelationship connStr supportRelationship = async {
-        return! insert<SupportRelationship> connStr supportRelationship (mapSupportRelationship supportRelationship)
+        let mutable id = 0
+        try
+            use db = sqlConnection connStr
+            let! inserted = db.InsertAsync<SupportRelationship>(supportRelationship) |> awaitTask
+            return! querySupportRelationship connStr (inserted.GetValueOrDefault())
+        with exn -> return dbFail "insert" "support relationship" exn
     }
 
     let updateSupportRelationship connStr id supportRelationship = async {
-        return! update<SupportRelationship> connStr (mapSupportRelationship supportRelationship id)
+        let mutable id = 0
+        try
+            use db = sqlConnection connStr
+            let! inserted = db.UpdateAsync<SupportRelationship>(supportRelationship) |> awaitTask
+            return! querySupportRelationship connStr id
+        with exn -> return dbFail "update" "support relationship" exn
     }
 
     let deleteSupportRelationshipSql = """DELETE FROM support_relationships WHERE id=@Id"""
