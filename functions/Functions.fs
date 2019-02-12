@@ -105,6 +105,22 @@ module Functions =
             |> createResponse req config log successStatus
         with exn -> handle req exn
 
+    // VALIDATION 
+
+    let validateExists id model lookup = async {
+        let! lookupResult = lookup id
+        return 
+            match lookupResult with
+            | Ok(_) -> ok model
+            | Bad(msgs) -> Bad msgs
+    }
+
+    let validateUnitExists id model= validateExists id model data.Units.Get
+    let validatePersonExists id model  = validateExists id model data.People.Get
+    let validateDepartmentExists id model = validateExists id model data.Departments.Get
+    let inline validateMembershipExists id model = validateExists id model data.Memberships.Get
+    let validateSupportRelationshipExists id model = validateExists id model data.SupportRelationships.Get
+
 
     // FUNCTION WORKFLOWS 
     [<FunctionName("Options")>]
@@ -292,6 +308,14 @@ module Functions =
     // ** Unit Memberships
     // *******************
 
+    let validateMembershipRecordExists m = validateMembershipExists m.Id m
+    let validateMembershipRecordExists' id = validateMembershipExists id id
+    let validateMembershipUnitExists (m:UnitMember) = validateUnitExists m.UnitId m 
+    let validateMembershipPersonExists (m:UnitMember) = 
+        match m.PersonId with 
+        | Some(id) -> validatePersonExists id m
+        | None -> ok m |> async.Return
+
     [<FunctionName("GetAllMembership")>]
     [<SwaggerOperation(Summary="Find a unit membership by ID", Tags=[|"Unit Memberships"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
@@ -312,23 +336,6 @@ module Functions =
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
-    let hasValidUnitId (membership:UnitMember) = 
-        if (membership.UnitId > 0)
-        then ok membership
-        else fail (Status.BadRequest, "The unit ID must be greater than zero.")
-
-    let validateUnitExists (membership:UnitMember) = async {
-        let! lookupResult = data.Units.Get membership.UnitId
-        return 
-            match lookupResult with
-            | Ok(_,_) -> ok membership
-            | Bad(_) -> fail (Status.NotFound, "No unit exists with that ID.")
-    }
-
-    let validateUnitMembershipRequest membership = 
-        membership
-        |> hasValidUnitId
-        >>= await validateUnitExists
 
     [<FunctionName("PostMembership")>]
     [<SwaggerOperation(Summary="Create a unit member.", Tags=[|"Unit Memberships"|])>]
@@ -337,7 +344,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "memberships")>] req) =
         let workflow user = 
             deserializeBody<UnitMember> req
-            >>= validateUnitMembershipRequest
+            >>= await validateMembershipUnitExists
+            >>= await validateMembershipPersonExists
             >>= await data.Memberships.Create
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.Created
@@ -349,8 +357,11 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
             deserializeBody<UnitMember> req
-            >>= validateUnitMembershipRequest
-            >>= await (data.Memberships.Update membershipId)
+            >>= fun um -> ok {um with Id=membershipId}
+            >>= await validateMembershipRecordExists
+            >>= await validateMembershipUnitExists
+            >>= await validateMembershipPersonExists
+            >>= await data.Memberships.Update
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.OK
   
@@ -360,7 +371,8 @@ module Functions =
     let unitDeleteMember
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
-            await data.Memberships.Delete membershipId
+            await validateMembershipRecordExists' membershipId
+            >>= await data.Memberships.Delete
             >>= determineUserPermissions user
         req |> authorizeWrite workflow Status.NoContent
 
