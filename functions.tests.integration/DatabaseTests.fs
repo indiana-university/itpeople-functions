@@ -104,7 +104,7 @@ module DatabaseTests=
         member __.``Update`` () = 
             let expected = { Id=1; Name="Test"; Description="Desc"; Url="Url"; ParentId=Some(1) }
 
-            let actual = repo.Units.Update expected.Id expected |> awaitAndUnpack
+            let actual = repo.Units.Update expected |> awaitAndUnpack
             let retrieved = repo.Units.Get expected.Id |> awaitAndUnpack
             
             actual |> should equal expected
@@ -112,7 +112,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Delete`` () = 
-            let _ = repo.Units.Delete fourthFloor.Id |> awaitAndUnpack
+            let _ = repo.Units.Delete fourthFloor |> awaitAndUnpack
             
             let actual = repo.Units.Get fourthFloor.Id |> await
             match actual with 

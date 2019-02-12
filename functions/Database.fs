@@ -167,7 +167,7 @@ module QueryHelpers =
         | exn -> return dbFail "insert" (typedefof<'T>.Name) exn   
     }
 
-    let update<'T> connStr id (obj:'T) = async {
+    let update<'T> connStr (obj:'T) = async {
         try
             use cn = sqlConnection connStr
             let! _ = cn.UpdateAsync<'T>(obj) |> awaitTask
@@ -265,8 +265,8 @@ module Database =
         return! updateMultimap<UnitMember> connStr unitMember.Id unitMember multimapMembership
     }
 
-    let deleteMembership connStr id = async {
-        return! delete<UnitMember> connStr id
+    let deleteMembership connStr (unitMember:UnitMember) = async {
+        return! delete<UnitMember> connStr unitMember.Id
     }    
 
     
@@ -291,12 +291,12 @@ module Database =
         return! insertMultimap connStr supportRelationship multimapRelation
     }
 
-    let updateSupportRelationship connStr id supportRelationship = async {
-        return! updateMultimap<SupportRelationship> connStr id {supportRelationship with Id=id} multimapRelation
+    let updateSupportRelationship connStr (supportRelationship:SupportRelationship) = async {
+        return! updateMultimap<SupportRelationship> connStr supportRelationship.Id supportRelationship multimapRelation
     }
 
-    let deleteSupportRelationship connStr id = async {
-        return! delete<SupportRelationship> connStr id
+    let deleteSupportRelationship connStr (supportRelationship:SupportRelationship) = async {
+        return! delete<SupportRelationship> connStr supportRelationship.Id
     }
    
 
@@ -321,16 +321,16 @@ module Database =
         return! insert<Unit> connStr unit
     }
 
-    let updateUnit connStr id unit = async {
-        return! update<Unit> connStr id {unit with Id=id}
+    let updateUnit connStr (unit:Unit) = async {
+        return! update<Unit> connStr unit
     }
 
     let deleteUnitSql = """
         DELETE FROM unit_members WHERE unit_id=@Id;
         DELETE FROM support_relationships WHERE unit_id=@Id;
         DELETE FROM units WHERE id=@Id"""
-    let deleteUnit connStr id = async {
-        return! execute connStr deleteUnitSql {Id=id}    
+    let deleteUnit connStr (unit:Unit) = async {
+        return! execute connStr deleteUnitSql {Id=unit.Id}    
     }
 
     let queryUnitChildren connStr id = async {
@@ -368,7 +368,7 @@ module Database =
     }
 
     let updateDepartment connStr id department = async {
-        return! update<Department> connStr id {department with Id=id}
+        return! update<Department> connStr {department with Id=id}
     }
 
     let queryDeptSupportingUnits connStr id = async {

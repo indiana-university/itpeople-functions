@@ -261,9 +261,9 @@ module Types =
         /// Create a unit
         Create: Unit -> Async<Result<Unit,Error>>
         /// Update a unit
-        Update: Id -> Unit -> Async<Result<Unit,Error>>
+        Update: Unit -> Async<Result<Unit,Error>>
         /// Delete a unit
-        Delete: Id -> Async<Result<unit,Error>>
+        Delete: Unit -> Async<Result<unit,Error>>
     }
 
     type DepartmentRepository = {
@@ -287,7 +287,7 @@ module Types =
         /// Update a unit membership
         Update: UnitMember -> Async<Result<UnitMember,Error>>
         /// Delete a unit membership
-        Delete: Id -> Async<Result<unit,Error>>
+        Delete: UnitMember -> Async<Result<unit,Error>>
     }
 
     type SupportRelationshipRepository = {
@@ -298,9 +298,9 @@ module Types =
         /// Crate a support relationship
         Create: SupportRelationship -> Async<Result<SupportRelationship,Error>>
         /// Update a support relationship
-        Update: Id -> SupportRelationship -> Async<Result<SupportRelationship,Error>>
+        Update: SupportRelationship -> Async<Result<SupportRelationship,Error>>
         /// Delete a support relationsihps
-        Delete : Id -> Async<Result<unit,Error>>
+        Delete : SupportRelationship -> Async<Result<unit,Error>>
     }
 
     type DataRepository = {
@@ -322,3 +322,19 @@ module Types =
       { UserId: Id
         UserName: NetId
         Expiration: System.DateTime }
+
+    type Model = 
+        | Person of Person
+        | Unit of Unit
+        | Department of Department
+        | UnitMember of UnitMember
+        | SupportRelationship of SupportRelationship
+
+    let identity model : Id =
+        match model with
+        | Person p -> p.Id
+        | Unit u -> u.Id
+        | Department d -> d.Id
+        | UnitMember um -> um.Id
+        | SupportRelationship sr -> sr.Id
+

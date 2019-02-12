@@ -171,8 +171,8 @@ module Fakes =
         GetChildren = fun id -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun id -> stub ([ supportRelationship ] |> List.toSeq) 
         Create = fun unit -> stub parksAndRec
-        Update = fun id unit -> stub parksAndRec
-        Delete = fun id -> stub ()
+        Update = fun unit -> stub parksAndRec
+        Delete = fun unit -> stub ()
     }
 
     let FakeDepartments = {
@@ -194,8 +194,8 @@ module Fakes =
         GetAll = fun () -> stub ([ supportRelationship ] |> List.toSeq) 
         Get = fun id -> stub supportRelationship
         Create = fun supportRelationship -> stub supportRelationship
-        Update = fun id supportRelationship -> stub supportRelationship
-        Delete = fun id -> stub ()
+        Update = fun supportRelationship -> stub supportRelationship
+        Delete = fun supportRelationship -> stub ()
     }
 
     let FakesRepository = {
