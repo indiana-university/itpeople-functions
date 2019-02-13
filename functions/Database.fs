@@ -61,136 +61,114 @@ module QueryHelpers =
     type NetIdFilter = { NetId: NetId }
     type SearchFilter = { Query: string }
 
-    let like (term:string) = sprintf "%%%s%%" term
+    type Cn = NpgsqlConnection
+    type Query = string
+    type WhereClause = string
+    type MultimapMany<'T> = Cn -> Task<seq<'T>>
+    type MultimapOne<'T> = int -> Cn -> Task<seq<'T>>
 
-    let isDefault<'T when 'T:equality> result = 
-        result = Unchecked.defaultof<'T>
+    type QueryAllParams<'T> = 
+        | AllFromTable
+        | RawQuery of Query
+        | ParameterizedQuery of Query * obj
+        | RawFilter of WhereClause
+        | ParameterizedFilter of WhereClause * obj
+        | QueryMultimapped of MultimapMany<'T>
+
+    type QueryOneParams<'T> =
+        | SimpleObject
+        | ComplexObject of MultimapOne<'T>
+
+    let like (term:string) = sprintf "%%%s%%" term
 
     let sqlConnection connectionString =
         new NpgsqlConnection(connectionString)
 
-    let dbFail operation resource (exn:System.Exception) =  
-        let msg = sprintf "Database error on %s %s: %s" operation resource exn.Message
-        fail (Status.InternalServerError, msg)
-
-    type Cn = NpgsqlConnection
-
-    let fetchAll<'T> connStr = async {
+    let dbOp connStr name resource op = async {
         try
             use cn = sqlConnection connStr
-            let! result = cn.GetListAsync<'T>() |> awaitTask
-            return ok result
+            return! op cn
         with 
-        | exn -> return dbFail "fetch all" (typedefof<'T>.Name) exn   
+        | exn -> 
+            let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
+            return fail (Status.InternalServerError, msg)
+    } 
+
+    let fetchAll<'T> connStr queryParams = async {
+        return! dbOp connStr "fetch one" (typedefof<'T>.Name) (fun cn -> async {
+            let fetch = 
+                match queryParams with
+                | AllFromTable -> cn.GetListAsync<'T>()
+                | RawQuery sql -> cn.QueryAsync<'T>(sql)  
+                | ParameterizedQuery (sql, param) -> cn.QueryAsync<'T>(sql, param)  
+                | RawFilter filter -> cn.GetListAsync<'T>(conditions=filter) 
+                | ParameterizedFilter (filter, param) -> cn.GetListAsync<'T>(conditions=filter, parameters=param) 
+                | QueryMultimapped (mapper) -> mapper cn 
+            let! result = fetch |> awaitTask
+            return ok result
+        })
     }
 
-    let fetchAll'<'T> connStr sql parameters = async {
-        try
-            use cn = sqlConnection connStr
-            let! result = cn.QueryAsync<'T>(sql, parameters) |> awaitTask
-            return ok result
-        with 
-        | exn -> return dbFail "fetch all" (typedefof<'T>.Name) exn   
+    let fetchOneSimple<'T when 'T:equality> (cn:Cn) id = async {
+        let! result = cn.GetAsync<'T>(id) |> awaitTask
+        return if result = Unchecked.defaultof<'T> then None else Some(result)
+    }
+    let fetchOneComplex (cn:Cn) id mapper  = async { 
+        let! result = mapper id cn |> awaitTask
+        return Seq.tryHead result
     }
 
-    let fetchAll''<'T> connStr filter (parameters:obj option) = async {
-        try
-            use cn = sqlConnection connStr
+    let fetchOne<'T when 'T:equality> connStr queryParams id  = async {
+        return! dbOp connStr "fetch one" (typedefof<'T>.Name) (fun cn -> async {
             let! result = 
-                match parameters with
-                | Some(p) -> cn.GetListAsync<'T>(conditions=filter, parameters=p) |> awaitTask
-                | None -> cn.GetListAsync<'T>(conditions=filter) |> awaitTask
-            return ok result
-        with 
-        | exn -> return dbFail "fetch all" (typedefof<'T>.Name) exn   
+                match queryParams with
+                | SimpleObject -> fetchOneSimple<'T> cn id
+                | ComplexObject(mapper) -> fetchOneComplex cn id mapper
+            return
+                match result with
+                | Some(r) -> ok r
+                | None -> fail(Status.NotFound, sprintf "No %s was found with that ID %d." (typedefof<'T>.Name) id)
+        })
     }
 
-    let fetchAllMultimap<'T> connStr (getAll: Cn -> Task<seq<'T>>) = async {
-        try
-            use cn = sqlConnection connStr
-            let! result = cn |> getAll |> awaitTask
-            return ok result
-        with 
-        | exn -> return dbFail "fetch all" (typedefof<'T>.Name) exn   
+    let insertImpl<'T> connStr id (obj:'T) = async {
+        return! dbOp connStr "insert" (typedefof<'T>.Name) (fun cn -> async {
+            let! result = cn.InsertAsync<'T>(obj) |> awaitTask
+            return ok (result.GetValueOrDefault())
+        })
     }
 
-    let fetchOne<'T when 'T:equality> connStr id = async {
-        try
-            use cn = sqlConnection connStr
-            let! result = cn.GetAsync<'T>(id) |> awaitTask
-            if isDefault<'T> result
-            then return fail(Status.NotFound, sprintf "No %s was found with that ID %d." (typedefof<'T>.Name) id)
-            else return result |> ok
-        with 
-        | exn -> return dbFail "fetch one" (typedefof<'T>.Name) exn   
+    let insert<'T when 'T:equality> connStr (obj:'T) writeParams = async {
+        return 
+            await (insertImpl connStr id) obj
+            >>= await (fetchOne<'T> connStr writeParams)
     }
 
-    let fetchOneMultimap<'T when 'T:equality> connStr id (getById: int -> Cn -> Task<seq<'T>>) = async {
-        try
-            use cn = sqlConnection connStr
-            let! result = cn |> getById id|> awaitTask
-            if Seq.isEmpty result
-            then return fail(Status.NotFound, sprintf "No %s was found with that ID %d." (typedefof<'T>.Name) id)
-            else return result |> Seq.head |> ok
-        with 
-        | exn -> return dbFail "fetch one" (typedefof<'T>.Name) exn   
-    }
-
-    let insert<'T> connStr (obj:'T) = async {
-        try
-            use cn = sqlConnection connStr
-            let! id = cn.InsertAsync<'T>(obj) |> awaitTask
-            let! inserted = cn.GetAsync<'T>(id) |> awaitTask
-            return inserted |> ok
-        with 
-        | exn -> return dbFail "insert" (typedefof<'T>.Name) exn   
-    }
-
-    let insertMultimap<'T> connStr (obj:'T) (getById: int -> Cn -> Task<seq<'T>>) = async {
-        try
-            use cn = sqlConnection connStr
-            let! id = cn.InsertAsync<'T>(obj) |> awaitTask
-            let! inserted = cn |> getById (id.GetValueOrDefault()) |> awaitTask
-            return inserted |> Seq.head |> ok
-        with 
-        | exn -> return dbFail "insert" (typedefof<'T>.Name) exn   
-    }
-
-    let update<'T> connStr (obj:'T) = async {
-        try
-            use cn = sqlConnection connStr
+    let updateImpl<'T> connStr id (obj:'T) = async {
+        return! dbOp connStr "insert" (typedefof<'T>.Name) (fun cn -> async {
             let! _ = cn.UpdateAsync<'T>(obj) |> awaitTask
-            return obj |> ok
-        with 
-        | exn -> return dbFail "update" (typedefof<'T>.Name) exn   
+            return ok id            
+        })
     }
 
-    let updateMultimap<'T> connStr id (obj:'T) (getById: int -> Cn -> Task<seq<'T>>) = async {
-        try
-            use cn = sqlConnection connStr
-            let! _ = cn.UpdateAsync<'T>(obj) |> awaitTask
-            let! updated = cn |> getById id |> awaitTask
-            return updated |> Seq.head |> ok
-        with 
-        | exn -> return dbFail "update" (typedefof<'T>.Name) exn   
+    let update<'T when 'T:equality> connStr id (obj:'T) writeParams = async {
+        return 
+            await (updateImpl connStr id) obj
+            >>= await (fetchOne<'T> connStr writeParams)
     }
 
     let delete<'T> connStr (id:int) = async {
-        try
-            use cn = sqlConnection connStr
+        return! dbOp connStr "delete" (typedefof<'T>.Name) (fun cn -> async {
             let! _ = cn.DeleteAsync<'T>(id) |> awaitTask
             return () |> ok
-        with 
-        | exn -> return dbFail "delete" (typedefof<'T>.Name) exn   
+        })
     }
 
     let execute connStr sql parameters = async {
-        try
-            use cn = sqlConnection connStr
+        return! dbOp connStr "execute" "" (fun cn -> async {
             let! _ = cn.ExecuteAsync(sql, parameters) |> awaitTask
             return () |> ok
-        with 
-        | exn -> return dbFail "execute" "anonymous" exn   
+        })
     }
 
 module Database =
@@ -224,7 +202,7 @@ module Database =
     // **************
 
     let queryPersonByNetId connStr netId = async {
-        let! people = fetchAll''<Person> connStr "WHERE netid = @NetId LIMIT 1" (Some({NetId=netId}:>obj))
+        let! people = fetchAll<Person> connStr (ParameterizedFilter("WHERE netid = @NetId LIMIT 1", {NetId=netId}))
         match people with
         | Ok(result,_) ->
             match result |> Seq.tryHead with
@@ -245,19 +223,19 @@ module Database =
     let multimapMembership (id:int) = multimapMemberships' "WHERE m.id=@Id" {Id=id}
 
     let queryMemberships connStr = async {
-        return! fetchAllMultimap connStr multimapMemberships
+        return! fetchAll connStr (QueryMultimapped(multimapMemberships))
     }
 
     let queryMembership connStr id = async {
-        return! fetchOneMultimap connStr id multimapMembership
+        return! fetchOne connStr (ComplexObject(multimapMembership)) id 
     }
 
-    let insertMembership connStr unitMember = async {
-        return! insertMultimap connStr unitMember multimapMembership
+    let insertMembership connStr (unitMember:UnitMember) = async {
+        return! insert connStr unitMember (ComplexObject(multimapMembership))
     }
 
     let updateMembership connStr (unitMember:UnitMember) = async {
-        return! updateMultimap<UnitMember> connStr unitMember.Id unitMember multimapMembership
+        return! update connStr unitMember.Id unitMember (ComplexObject(multimapMembership))
     }
 
     let deleteMembership connStr (unitMember:UnitMember) = async {
@@ -275,19 +253,19 @@ module Database =
     let multimapRelation (id:int) = multimapRelations' "WHERE s.id=@Id" {Id=id}
 
     let querySupportRelationships connStr = async {
-        return! fetchAllMultimap connStr multimapRelations
+        return! fetchAll connStr (QueryMultimapped(multimapRelations))
     }
 
     let querySupportRelationship connStr id = async {
-        return! fetchOneMultimap connStr id multimapRelation
+        return! fetchOne connStr (ComplexObject(multimapRelation)) id
     }
 
     let insertSupportRelationship connStr supportRelationship = async {
-        return! insertMultimap connStr supportRelationship multimapRelation
+        return! insert<SupportRelationship> connStr supportRelationship (ComplexObject(multimapRelation))
     }
 
     let updateSupportRelationship connStr (supportRelationship:SupportRelationship) = async {
-        return! updateMultimap<SupportRelationship> connStr supportRelationship.Id supportRelationship multimapRelation
+        return! update<SupportRelationship> connStr supportRelationship.Id supportRelationship (ComplexObject(multimapRelation))
     }
 
     let deleteSupportRelationship connStr (supportRelationship:SupportRelationship) = async {
@@ -300,22 +278,23 @@ module Database =
     // **********
 
     let queryUnits connStr query = async {
-        return! 
+        let filter = 
             match query with 
-            | None -> fetchAll''<Unit> connStr "WHERE parent_id IS NULL" None
-            | Some(q) -> fetchAll''<Unit> connStr "WHERE name ILIKE @Query OR description ILIKE @Query" (Some({Query=like q}:>obj))
+            | None -> RawFilter("WHERE parent_id IS NULL")
+            | Some(q) -> ParameterizedFilter ("WHERE name ILIKE @Query OR description ILIKE @Query", {Query=like q})
+        return! fetchAll<Unit> connStr filter
     }
 
     let queryUnit connStr id = async {
-        return! fetchOne<Unit> connStr id
+        return! fetchOne<Unit> connStr SimpleObject id
     }
 
     let insertUnit connStr unit = async {
-        return! insert<Unit> connStr unit
+        return! insert<Unit> connStr unit SimpleObject
     }
 
     let updateUnit connStr (unit:Unit) = async {
-        return! update<Unit> connStr unit
+        return! update<Unit> connStr unit.Id unit SimpleObject
     }
 
     let deleteUnitSql = """
@@ -327,15 +306,15 @@ module Database =
     }
 
     let queryUnitChildren connStr (unit:Unit) = async {
-        return! fetchAll''<Unit> connStr "WHERE parent_id=@Id" (Some({Id=unit.Id}:>obj))
+        return! fetchAll<Unit> connStr (ParameterizedFilter("WHERE parent_id=@Id", {Id=unit.Id}))
     }
 
     let queryUnitMembers connStr (unit:Unit) = async {
-        return! fetchAllMultimap connStr (multimapMemberships' "WHERE u.id=@Id" {Id=unit.Id})
+        return! fetchAll connStr (QueryMultimapped(multimapMemberships' "WHERE u.id=@Id" {Id=unit.Id}))
     }
 
     let queryUnitSupportedDepartments connStr (unit:Unit) = async {
-        return! fetchAllMultimap connStr (multimapRelations' "WHERE u.id=@Id" {Id=unit.Id})
+        return! fetchAll connStr (QueryMultimapped(multimapRelations' "WHERE u.id=@Id" {Id=unit.Id}))
     }
 
 
@@ -346,24 +325,24 @@ module Database =
     let queryDepartments connStr query = async {
         return! 
             match query with 
-            | None -> fetchAll<Department> connStr
-            | Some(q) -> fetchAll''<Department> connStr "WHERE name ILIKE @Query OR description ILIKE @Query" (Some({Query=like q}:>obj))
+            | None -> fetchAll<Department> connStr AllFromTable
+            | Some(q) -> fetchAll<Department> connStr (ParameterizedFilter("WHERE name ILIKE @Query OR description ILIKE @Query", {Query=like q}))
     }
 
     let queryDepartment connStr id = async {
-        return! fetchOne<Department> connStr id
+        return! fetchOne<Department> connStr SimpleObject id
     }
 
     let insertDepartment connStr department = async {
-        return! insert<Department> connStr department
+        return! insert<Department> connStr department SimpleObject
     }
 
-    let updateDepartment connStr id department = async {
-        return! update<Department> connStr {department with Id=id}
+    let updateDepartment connStr (department:Department) = async {
+        return! update<Department> connStr department.Id department SimpleObject
     }
 
     let queryDeptSupportingUnits connStr id = async {
-        return! fetchAllMultimap connStr (multimapRelations' "WHERE d.id = @Id" {Id=id})
+        return! fetchAll connStr (QueryMultimapped(multimapRelations' "WHERE d.id = @Id" {Id=id}))
     }
 
     let queryDeptMemberUnitsSql = """
@@ -372,7 +351,7 @@ module Database =
         JOIN people p on p.id = m.person_id
         WHERE p.department_id = @Id"""
     let queryDeptMemberUnits connStr id = async {
-        return! fetchAll'<Unit> connStr queryDeptMemberUnitsSql {Id=id}
+        return! fetchAll<Unit> connStr (ParameterizedQuery(queryDeptMemberUnitsSql, {Id=id}))
     }
 
 
@@ -386,18 +365,19 @@ module Database =
     let multimapPerson (id:int) = multimapPeople' "WHERE p.id=@Id" {Id=id}
 
     let queryPeople connStr query = async {
-        return! 
+        let filter = 
             match query with
-            | None -> fetchAllMultimap connStr multimapPeople
-            | Some(q) -> fetchAllMultimap connStr (multimapPeople' "WHERE p.name ILIKE @Query OR p.netid ILIKE @Query" {Query=like q})
+            | None ->  multimapPeople
+            | Some(q) -> multimapPeople' "WHERE p.name ILIKE @Query OR p.netid ILIKE @Query" {Query=like q}
+        return! fetchAll connStr (QueryMultimapped(filter))
     }
 
     let queryPerson connStr id = async {
-        return! fetchOneMultimap connStr id multimapPerson
+        return! fetchOne<Person> connStr (ComplexObject(multimapPerson)) id
     }
     
     let queryPersonMemberships connStr id = async {
-        return! fetchAllMultimap connStr (multimapMemberships' "WHERE p.id=@Id" {Id=id})
+        return! fetchAll connStr (QueryMultimapped(multimapMemberships' "WHERE p.id=@Id" {Id=id}))
     }    
 
     let People(connStr) = {
