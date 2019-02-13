@@ -125,17 +125,6 @@ module QueryHelpers =
         | exn -> return dbFail "fetch one" (typedefof<'T>.Name) exn   
     }
 
-    let fetchOne'<'T when 'T:equality> connStr sql parameters = async {
-        try
-            use cn = sqlConnection connStr
-            let! result = cn.QueryFirstOrDefaultAsync<'T>(sql, parameters) |> awaitTask
-            if isDefault<'T> result
-            then return fail(Status.NotFound, sprintf "No %s was found with those parameters." (typedefof<'T>.Name))
-            else return result |> ok
-        with 
-        | exn -> return dbFail "fetch one" (typedefof<'T>.Name) exn   
-    }
-
     let fetchOneMultimap<'T when 'T:equality> connStr id (getById: int -> Cn -> Task<seq<'T>>) = async {
         try
             use cn = sqlConnection connStr
@@ -235,7 +224,13 @@ module Database =
     // **************
 
     let queryPersonByNetId connStr netId = async {
-        return! fetchOne' connStr "SELECT id FROM people WHERE netid = @NetId" {NetId=netId}
+        let! people = fetchAll''<Person> connStr "WHERE netid = @NetId LIMIT 1" (Some({NetId=netId}:>obj))
+        match people with
+        | Ok(result,_) ->
+            match result |> Seq.tryHead with
+            | Some(p) -> return ok (netId, Some(p.Id))
+            | None -> return ok (netId, None)
+        | Bad(msgs) -> return Bad(msgs)
     }
 
     // ***********
@@ -404,7 +399,6 @@ module Database =
     let queryPersonMemberships connStr id = async {
         return! fetchAllMultimap connStr (multimapMemberships' "WHERE p.id=@Id" {Id=id})
     }    
-    
 
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr

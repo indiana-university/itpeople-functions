@@ -115,7 +115,6 @@ module Functions =
             | Bad(msgs) -> Bad msgs
     }
     let validatePersonExists id = validateExistsAndPassThrough id id data.People.Get
-    let findUnit id = validateExistsAndReturn id data.Units.Get
     let findMembership id = validateExistsAndReturn id data.Memberships.Get
     let findSupportRelationship id = validateExistsAndReturn id data.SupportRelationships.Get
 
@@ -173,8 +172,6 @@ module Functions =
 
         req |> anonymous workflow Status.OK
 
-
-
     // *****************
     // ** People
     // *****************
@@ -218,6 +215,7 @@ module Functions =
     // ** Units
     // *****************
 
+    let findUnit id = validateExistsAndReturn id data.Units.Get
     let validateUnitExists (model:Unit) = 
         validateExistsAndPassThrough model.Id model data.Units.Get
     let validateUnitExists' id model = 

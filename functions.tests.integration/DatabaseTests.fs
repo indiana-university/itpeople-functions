@@ -29,8 +29,21 @@ module DatabaseTests=
             |> System.Exception 
             |> raise
 
-    type Name = Name of string
-    let name = Name(null)
+    type AuthTests(output:ITestOutputHelper)=
+        inherit DatabaseIntegrationTestBase()
+        let repo = Functions.Database.People(testConnectionString)
+
+        [<Fact>]
+        member __.``Fetches some person ID for valid netid`` () =
+            let (netid, id) = (repo.TryGetId knope.NetId) |> awaitAndUnpack
+            netid |> should equal knope.NetId
+            id |> should equal (Some(knope.Id))
+
+        [<Fact>]
+        member __.``Fetches no person ID for invalid netid`` () =
+            let (netid, id) = (repo.TryGetId "zzz") |> awaitAndUnpack
+            netid |> should equal "zzz"
+            id |> should equal (None)
 
     type UnitsRead(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
