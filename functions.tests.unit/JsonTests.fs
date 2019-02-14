@@ -22,6 +22,7 @@ module JsonTests =
             Name= "name"
             Description= "description"
             ParentId= Some(1)
+            Parent=None
             Url= "url"
           }, [])
         let actual = tryDeserialize Status.BadRequest """{
