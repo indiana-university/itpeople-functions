@@ -62,31 +62,34 @@ module QueryHelpers =
     type SearchFilter = { Query: string }
 
     type Cn = NpgsqlConnection
-    type Query = string
+    type Sql = string
     type WhereClause = string
-    type MultimapMany<'T> = Cn -> Task<seq<'T>>
-    type MultimapOne<'T> = int -> Cn -> Task<seq<'T>>
 
-    type QueryAllParams<'T> = 
-        | AllFromTable
-        | RawQuery of Query
-        | ParameterizedQuery of Query * obj
-        | RawFilter of WhereClause
-        | ParameterizedFilter of WhereClause * obj
-        | QueryMultimapped of MultimapMany<'T>
+    type MapMany<'T> = Cn -> Task<seq<'T>>
+    type MapOne<'T> = int -> MapMany<'T>
+
+    type Filter =
+        | Unfiltered
+        | Where of WhereClause
+        | WhereId of WhereClause * Id
+        | WhereParam of WhereClause * obj
 
     type QueryOneParams<'T> =
-        | SimpleObject
-        | ComplexObject of MultimapOne<'T>
+        | MapOne of (int -> Cn -> Task<seq<'T>>)
 
-    let like (term:string) = sprintf "%%%s%%" term
+    let like = sprintf "%%%s%%"
+    let where = sprintf "%s WHERE %s"
 
-    let sqlConnection connectionString =
-        new NpgsqlConnection(connectionString)
+    let parseQueryAndParam sql filter = 
+        match filter with
+        | Unfiltered -> (sql, ():>obj)
+        | Where clause -> ((where sql clause), ():>obj)
+        | WhereId (clause,id)-> ((where sql clause+"=@Id"), {Id=id}:>obj)
+        | WhereParam (clause,param)-> ((where sql clause), param)
 
     let dbOp connStr name resource op = async {
         try
-            use cn = sqlConnection connStr
+            use cn = new NpgsqlConnection(connStr)
             return! op cn
         with 
         | exn -> 
@@ -94,40 +97,19 @@ module QueryHelpers =
             return fail (Status.InternalServerError, msg)
     } 
 
-    let fetchAll<'T> connStr queryParams = async {
-        return! dbOp connStr "fetch one" (typedefof<'T>.Name) (fun cn -> async {
-            let fetch = 
-                match queryParams with
-                | AllFromTable -> cn.GetListAsync<'T>()
-                | RawQuery sql -> cn.QueryAsync<'T>(sql)  
-                | ParameterizedQuery (sql, param) -> cn.QueryAsync<'T>(sql, param)  
-                | RawFilter filter -> cn.GetListAsync<'T>(conditions=filter) 
-                | ParameterizedFilter (filter, param) -> cn.GetListAsync<'T>(conditions=filter, parameters=param) 
-                | QueryMultimapped (mapper) -> mapper cn 
-            let! result = fetch |> awaitTask
+    let fetchAll<'T> connStr (mapper:MapMany<'T>) = async {
+        return! dbOp connStr "fetch all" (typedefof<'T>.Name) (fun cn -> async {
+            let! result = cn |> mapper |> awaitTask
             return ok result
         })
     }
 
-    let fetchOneSimple<'T when 'T:equality> (cn:Cn) id = async {
-        let! result = cn.GetAsync<'T>(id) |> awaitTask
-        return if result = Unchecked.defaultof<'T> then None else Some(result)
-    }
-    let fetchOneComplex (cn:Cn) id mapper  = async { 
-        let! result = mapper id cn |> awaitTask
-        return Seq.tryHead result
-    }
-
-    let fetchOne<'T when 'T:equality> connStr queryParams id  = async {
+    let fetchOne<'T> connStr (mapper:MapOne<'T>) id  = async {
         return! dbOp connStr "fetch one" (typedefof<'T>.Name) (fun cn -> async {
-            let! result = 
-                match queryParams with
-                | SimpleObject -> fetchOneSimple<'T> cn id
-                | ComplexObject(mapper) -> fetchOneComplex cn id mapper
-            return
-                match result with
-                | Some(r) -> ok r
-                | None -> fail(Status.NotFound, sprintf "No %s was found with that ID %d." (typedefof<'T>.Name) id)
+            let! result = mapper id cn |> awaitTask
+            if Seq.isEmpty result 
+            then return fail(Status.NotFound, sprintf "No %s was found with ID %d." (typedefof<'T>.Name) id)
+            else return result |> Seq.head |> ok
         })
     }
 
@@ -140,7 +122,8 @@ module QueryHelpers =
 
     let insert<'T when 'T:equality> connStr (obj:'T) writeParams = async {
         return 
-            await (insertImpl connStr id) obj
+            obj
+            |> await (insertImpl connStr id)
             >>= await (fetchOne<'T> connStr writeParams)
     }
 
@@ -153,7 +136,8 @@ module QueryHelpers =
 
     let update<'T when 'T:equality> connStr id (obj:'T) writeParams = async {
         return 
-            await (updateImpl connStr id) obj
+            obj
+            |> await (updateImpl connStr id)
             >>= await (fetchOne<'T> connStr writeParams)
     }
 
@@ -180,11 +164,53 @@ module Database =
         Dapper.DefaultTypeMap.MatchNamesWithUnderscores <- true
         OptionHandler.RegisterTypes()
 
+    // **************
+    // Authentication
+    // **************
+
+
+    // ***********
+    // Memberships
+    // ***********
     let queryUnitMemberSql = """
         SELECT m.*, u.*, p.*
         FROM unit_members m
         JOIN units u on u.id = m.unit_id
         LEFT JOIN people p on p.id = m.person_id """
+
+    let mapUnitMembers filter (cn:Cn) = 
+        let (query, param) = parseQueryAndParam queryUnitMemberSql filter
+        let mapper m u p = 
+            let person = if isNull (box p) then None else Some(p)
+            {m with Unit=u; Person=person}
+        cn.QueryAsync<UnitMember, Unit, Person, UnitMember>(query, mapper, param)
+
+    let mapUnitMember id = mapUnitMembers (WhereId("m.id", id))
+
+    let queryMemberships connStr = async {
+        return! fetchAll connStr (mapUnitMembers Unfiltered)
+    }
+
+    let queryMembership connStr id = async {
+        return! fetchOne connStr mapUnitMember id 
+    }
+
+    let insertMembership connStr (unitMember:UnitMember) = async {
+        return! insert connStr unitMember mapUnitMember
+    }
+
+    let updateMembership connStr (unitMember:UnitMember) = async {
+        return! update connStr unitMember.Id unitMember mapUnitMember
+    }
+
+    let deleteMembership connStr (unitMember:UnitMember) = async {
+        return! delete<UnitMember> connStr unitMember.Id
+    }    
+
+
+    // *********************
+    // Support Relationships
+    // *********************
 
     let querySupportRelationshipSql = """
         SELECT s.*, d.*, u.*
@@ -192,80 +218,27 @@ module Database =
         JOIN departments d on d.id = s.department_id
         JOIN units u on u.id = s.unit_id """
 
-    let queryPersonSql = """
-        SELECT p.*, d.*
-        FROM people p
-        JOIN departments d on d.id = p.department_id """
+    let mapSupportRelationships filter (cn:Cn) = 
+        let (query, param) = parseQueryAndParam querySupportRelationshipSql filter
+        let mapper s d u = {s with Unit=u; Department=d}
+        cn.QueryAsync<SupportRelationship, Department, Unit, SupportRelationship>(query, mapper, param)
 
-    // **************
-    // Authentication
-    // **************
-
-    let queryPersonByNetId connStr netId = async {
-        let! people = fetchAll<Person> connStr (ParameterizedFilter("WHERE netid = @NetId LIMIT 1", {NetId=netId}))
-        match people with
-        | Ok(result,_) ->
-            match result |> Seq.tryHead with
-            | Some(p) -> return ok (netId, Some(p.Id))
-            | None -> return ok (netId, None)
-        | Bad(msgs) -> return Bad(msgs)
-    }
-
-    // ***********
-    // Memberships
-    // ***********
-
-    let mapMember m u p = 
-        let person = if (box p = null) then None else Some(p)
-        {m with Unit=u; Person=person}
-    let multimapMemberships = fun (cn:Cn) -> cn.QueryAsync<UnitMember, Unit, Person, UnitMember>(queryUnitMemberSql, mapMember)
-    let multimapMemberships' (filter:string) param = fun (cn:Cn) -> cn.QueryAsync<UnitMember, Unit, Person, UnitMember>(queryUnitMemberSql+" "+filter, mapMember, param)
-    let multimapMembership (id:int) = multimapMemberships' "WHERE m.id=@Id" {Id=id}
-
-    let queryMemberships connStr = async {
-        return! fetchAll connStr (QueryMultimapped(multimapMemberships))
-    }
-
-    let queryMembership connStr id = async {
-        return! fetchOne connStr (ComplexObject(multimapMembership)) id 
-    }
-
-    let insertMembership connStr (unitMember:UnitMember) = async {
-        return! insert connStr unitMember (ComplexObject(multimapMembership))
-    }
-
-    let updateMembership connStr (unitMember:UnitMember) = async {
-        return! update connStr unitMember.Id unitMember (ComplexObject(multimapMembership))
-    }
-
-    let deleteMembership connStr (unitMember:UnitMember) = async {
-        return! delete<UnitMember> connStr unitMember.Id
-    }    
-
-    
-    // *********************
-    // Support Relationships
-    // *********************
-
-    let mapRelation s d u = {s with Unit=u; Department=d}
-    let multimapRelations = fun (cn:Cn) -> cn.QueryAsync<SupportRelationship, Department, Unit, SupportRelationship>(querySupportRelationshipSql, mapRelation)
-    let multimapRelations' (filter:string) param = fun (cn:Cn) -> cn.QueryAsync<SupportRelationship, Department, Unit, SupportRelationship>(querySupportRelationshipSql+" "+filter, mapRelation, param)
-    let multimapRelation (id:int) = multimapRelations' "WHERE s.id=@Id" {Id=id}
+    let mapSupportRelationship id = mapSupportRelationships (WhereId("s.id", id))
 
     let querySupportRelationships connStr = async {
-        return! fetchAll connStr (QueryMultimapped(multimapRelations))
+        return! fetchAll<SupportRelationship> connStr (mapSupportRelationships Unfiltered)
     }
 
     let querySupportRelationship connStr id = async {
-        return! fetchOne connStr (ComplexObject(multimapRelation)) id
+        return! fetchOne connStr mapSupportRelationship id
     }
 
     let insertSupportRelationship connStr supportRelationship = async {
-        return! insert<SupportRelationship> connStr supportRelationship (ComplexObject(multimapRelation))
+        return! insert<SupportRelationship> connStr supportRelationship mapSupportRelationship
     }
 
     let updateSupportRelationship connStr (supportRelationship:SupportRelationship) = async {
-        return! update<SupportRelationship> connStr supportRelationship.Id supportRelationship (ComplexObject(multimapRelation))
+        return! update<SupportRelationship> connStr supportRelationship.Id supportRelationship mapSupportRelationship
     }
 
     let deleteSupportRelationship connStr (supportRelationship:SupportRelationship) = async {
@@ -277,24 +250,38 @@ module Database =
     // Units
     // **********
 
+    let queryUnitsSql = """
+        SELECT u.*, p.*
+        FROM units u
+        LEFT JOIN units p ON p.id = u.parent_id"""
+
+    let mapUnits' sql filter (cn:Cn) = 
+        let (query, param) = parseQueryAndParam sql filter
+        let mapper u p = 
+            let parent = if isNull (box p) then None else Some(p)
+            {u with Parent=parent}
+        cn.QueryAsync<Unit, Unit, Unit>(query, mapper, param)
+    let mapUnits = mapUnits' queryUnitsSql
+    let mapUnit id = mapUnits (WhereId("u.id", id))
+
     let queryUnits connStr query = async {
         let filter = 
             match query with 
-            | None -> RawFilter("WHERE parent_id IS NULL")
-            | Some(q) -> ParameterizedFilter ("WHERE name ILIKE @Query OR description ILIKE @Query", {Query=like q})
-        return! fetchAll<Unit> connStr filter
+            | None -> Where("u.parent_id IS NULL")
+            | Some(q) -> WhereParam("u.name ILIKE @Query OR u.description ILIKE @Query", {Query=like q})
+        return! fetchAll<Unit> connStr (mapUnits(filter))
     }
 
     let queryUnit connStr id = async {
-        return! fetchOne<Unit> connStr SimpleObject id
+        return! fetchOne<Unit> connStr mapUnit id
     }
 
     let insertUnit connStr unit = async {
-        return! insert<Unit> connStr unit SimpleObject
+        return! insert<Unit> connStr unit mapUnit
     }
 
     let updateUnit connStr (unit:Unit) = async {
-        return! update<Unit> connStr unit.Id unit SimpleObject
+        return! update<Unit> connStr unit.Id unit mapUnit
     }
 
     let deleteUnitSql = """
@@ -306,15 +293,15 @@ module Database =
     }
 
     let queryUnitChildren connStr (unit:Unit) = async {
-        return! fetchAll<Unit> connStr (ParameterizedFilter("WHERE parent_id=@Id", {Id=unit.Id}))
+        return! fetchAll<Unit> connStr (mapUnits(WhereId("u.parent_id", unit.Id)))
     }
 
     let queryUnitMembers connStr (unit:Unit) = async {
-        return! fetchAll connStr (QueryMultimapped(multimapMemberships' "WHERE u.id=@Id" {Id=unit.Id}))
+        return! fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
     }
 
     let queryUnitSupportedDepartments connStr (unit:Unit) = async {
-        return! fetchAll connStr (QueryMultimapped(multimapRelations' "WHERE u.id=@Id" {Id=unit.Id}))
+        return! fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
     }
 
 
@@ -322,36 +309,48 @@ module Database =
     // Departments
     // ***********
 
+    let queryDepartmentsSql = """
+        SELECT d.* FROM departments d"""
+
+    let mapDepartments filter (cn:Cn) = 
+        parseQueryAndParam queryDepartmentsSql filter
+        |> cn.QueryAsync<Department>
+
+    let mapDepartment id = mapDepartments (WhereId("d.id", id))
+
     let queryDepartments connStr query = async {
-        return! 
+        let filter = 
             match query with 
-            | None -> fetchAll<Department> connStr AllFromTable
-            | Some(q) -> fetchAll<Department> connStr (ParameterizedFilter("WHERE name ILIKE @Query OR description ILIKE @Query", {Query=like q}))
+            | None -> Unfiltered
+            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query", {Query=like q})
+        return! fetchAll<Department> connStr (mapDepartments filter)
+            
     }
 
     let queryDepartment connStr id = async {
-        return! fetchOne<Department> connStr SimpleObject id
+        return! fetchOne<Department> connStr mapDepartment id
     }
 
     let insertDepartment connStr department = async {
-        return! insert<Department> connStr department SimpleObject
+        return! insert<Department> connStr department mapDepartment
     }
 
     let updateDepartment connStr (department:Department) = async {
-        return! update<Department> connStr department.Id department SimpleObject
+        return! update<Department> connStr department.Id department mapDepartment
     }
 
     let queryDeptSupportingUnits connStr id = async {
-        return! fetchAll connStr (QueryMultimapped(multimapRelations' "WHERE d.id = @Id" {Id=id}))
+        return! fetchAll connStr (mapSupportRelationships (WhereId("d.id", id)))
     }
 
     let queryDeptMemberUnitsSql = """
-        SELECT DISTINCT ON (u.id) u.* FROM units u
+        SELECT DISTINCT ON (u.id) u.*, pu.* FROM units u
+        LEFT JOIN units pu on pu.id = u.parent_id
         JOIN unit_members m ON m.unit_id = u.id
-        JOIN people p on p.id = m.person_id
-        WHERE p.department_id = @Id"""
+        JOIN people p on p.id = m.person_id"""
     let queryDeptMemberUnits connStr id = async {
-        return! fetchAll<Unit> connStr (ParameterizedQuery(queryDeptMemberUnitsSql, {Id=id}))
+        let mapDeptMemberUnits = mapUnits' queryDeptMemberUnitsSql
+        return! fetchAll<Unit> connStr (mapDeptMemberUnits(WhereId("p.department_id", id)))
     }
 
 
@@ -359,25 +358,42 @@ module Database =
     // People
     // ***********
 
-    let mapPerson (p:Person) d = {p with Department=d}
-    let multimapPeople = fun (cn:Cn) -> cn.QueryAsync<Person, Department, Person>(queryPersonSql, mapPerson)
-    let multimapPeople' (filter:string) param = fun (cn:Cn) -> cn.QueryAsync<Person, Department, Person>(queryPersonSql+" "+filter, mapPerson, param)
-    let multimapPerson (id:int) = multimapPeople' "WHERE p.id=@Id" {Id=id}
+    let queryPersonSql = """
+        SELECT p.*, d.*
+        FROM people p
+        JOIN departments d on d.id = p.department_id """
+
+    let mapPeople filter (cn:Cn) = 
+        let (query, param) = parseQueryAndParam queryPersonSql filter
+        let mapper (p:Person) d = {p with Department=d}
+        cn.QueryAsync<Person, Department, Person>(query, mapper, param)
+
+    let mapPerson id = mapPeople (WhereId("p.id", id))
 
     let queryPeople connStr query = async {
         let filter = 
             match query with
-            | None ->  multimapPeople
-            | Some(q) -> multimapPeople' "WHERE p.name ILIKE @Query OR p.netid ILIKE @Query" {Query=like q}
-        return! fetchAll connStr (QueryMultimapped(filter))
+            | None ->  Unfiltered
+            | Some(q) -> WhereParam("p.name ILIKE @Query OR p.netid ILIKE @Query", {Query=like q})
+        return! fetchAll connStr (mapPeople(filter))
     }
 
     let queryPerson connStr id = async {
-        return! fetchOne<Person> connStr (ComplexObject(multimapPerson)) id
+        return! fetchOne<Person> connStr mapPerson id
     }
-    
+
+    let queryPersonByNetId connStr netId = async {
+        let! people = fetchAll<Person> connStr (mapPeople(WhereParam("netid = @NetId", {NetId=netId})))
+        match people with
+        | Ok(result,_) ->
+            match result |> Seq.tryHead with
+            | Some(p) -> return ok (netId, Some(p.Id))
+            | None -> return ok (netId, None)
+        | Bad(msgs) -> return Bad(msgs)
+    }
+
     let queryPersonMemberships connStr id = async {
-        return! fetchAll connStr (QueryMultimapped(multimapMemberships' "WHERE p.id=@Id" {Id=id}))
+        return! fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
     }    
 
     let People(connStr) = {
@@ -386,6 +402,7 @@ module Database =
         Get = queryPerson connStr
         GetMemberships = queryPersonMemberships connStr
     }
+
 
     let Units(connStr) = {
         GetAll = queryUnits connStr

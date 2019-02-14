@@ -159,7 +159,9 @@ module Types =
         /// A URL for the website of this unit.
         [<Column("url")>] Url: string
         /// The unique ID of the parent unit of this unit.
-        [<Column("parent_id")>][<Editable(true)>] ParentId: Id option }
+        [<Column("parent_id")>][<Editable(true)>] ParentId: Id option 
+          /// The parent unit of this unit
+        [<ReadOnly(true)>] Parent: Unit option }
 
     [<CLIMutable>]
     /// This relationship describes which IT Unit provides IT-related support for a given department.

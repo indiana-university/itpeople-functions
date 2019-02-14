@@ -105,7 +105,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Create`` () = 
-            let expected = { Id=0; Name="Test"; Description="Desc"; Url="Url"; ParentId=Some(1) }
+            let expected = { Id=0; Name="Test"; Description="Desc"; Url="Url"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee) }
             
             let actual = repo.Units.Create expected |> awaitAndUnpack
             let retrieved = repo.Units.Get actual.Id |> awaitAndUnpack
@@ -115,7 +115,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Update`` () = 
-            let expected = { Id=1; Name="Test"; Description="Desc"; Url="Url"; ParentId=Some(1) }
+            let expected = { Id=fourthFloor.Id; Name="Fourth Floor vNext"; Description="Re-org Fourth Flor"; Url="Url"; ParentId=Some(parksAndRec.Id); Parent=Some({parksAndRec with Parent=None}) }
 
             let actual = repo.Units.Update expected |> awaitAndUnpack
             let retrieved = repo.Units.Get expected.Id |> awaitAndUnpack
