@@ -60,7 +60,7 @@ namespace Swashbuckle.AspNetCore.Filters
             var formattedExample = jsonFormatter.FormatJson(example, serializerSettings, includeMediaType: false);
             string name = SchemaDefinitionName(requestType, schema);
 
-            Console.Out.WriteLine($"   SchemaDefinitionName: {name}");
+            // Console.Out.WriteLine($"   SchemaDefinitionName: {name}");
             if (string.IsNullOrEmpty(name))
             {
 
@@ -70,7 +70,7 @@ namespace Swashbuckle.AspNetCore.Filters
             // set the example on the object in the schema registry (this is what swagger-ui will display)
             if (schemaRegistry.Definitions.ContainsKey(name))
             {
-                Console.Out.WriteLine($"   Registry contains key");
+                //Console.Out.WriteLine($"   Registry contains key");
                 var definitionToUpdate = schemaRegistry.Definitions[name];
                 if (definitionToUpdate.Example == null)
                 {
@@ -79,7 +79,7 @@ namespace Swashbuckle.AspNetCore.Filters
             }
             else
             {
-                Console.Out.WriteLine($"   Registry does not contain key");
+                //Console.Out.WriteLine($"   Registry does not contain key");
                 bodyParameter.Schema.Example = formattedExample; // set example on the request paths/parameters/schema/example property
             }
         }

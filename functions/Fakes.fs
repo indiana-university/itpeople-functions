@@ -225,3 +225,4 @@ module Fakes =
     type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
     type SupportRelationshipResponseExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
     type SupportRelationshipsResponseExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])
+    type QueryExample() = inherit ApiEndpointExample<string>("term")
