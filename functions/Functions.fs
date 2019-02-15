@@ -179,7 +179,7 @@ module Functions =
     // *****************
 
     [<FunctionName("PeopleGetAll")>]
-    [<SwaggerOperation(Summary="List all people", Tags=[|"People"|])>]
+    [<SwaggerOperation(Summary="List all people", Description="Search for people by name and/or username (netid).", Tags=[|"People"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Person>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let peopleGetAll
@@ -202,7 +202,7 @@ module Functions =
         req |> authenticate workflow Status.OK
 
     [<FunctionName("PeopleGetAllMemberships")>]
-    [<SwaggerOperation(Summary="Find a person's unit memberships", Tags=[|"People"|])>]
+    [<SwaggerOperation(Summary="List a person's unit memberships", Description="List all units for which this person does IT work.", Tags=[|"People"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
@@ -235,7 +235,7 @@ module Functions =
         else authorizeUnitModification user model model.Id
 
     [<FunctionName("UnitGetAll")>]
-    [<SwaggerOperation(Summary="List all top-level IT units.", Tags=[|"Units"|])>]
+    [<SwaggerOperation(Summary="List all IT units.", Description="Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units." , Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let unitGetAll
@@ -300,7 +300,7 @@ module Functions =
         req |> authenticate workflow Status.NoContent
 
     [<FunctionName("UnitGetAllMembers")>]
-    [<SwaggerOperation(Summary="Get all unit members", Tags=[|"Units"|])>]
+    [<SwaggerOperation(Summary="List all unit members", Description="List all people who do IT work for this unit along with any vacant positions.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
     let unitGetAllMembers
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
@@ -311,7 +311,7 @@ module Functions =
         req |> authenticate workflow Status.OK
 
     [<FunctionName("UnitGetAllSupportedDepartments")>]
-    [<SwaggerOperation(Summary="Get all departments supported by a unit", Tags=[|"Units"|])>]
+    [<SwaggerOperation(Summary="List all supported departments", Description="List all departments that receive IT support from this unit.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
     let unitGetAllSupportedDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/supportedDepartments")>] req, unitId) =
@@ -322,7 +322,7 @@ module Functions =
         req |> authenticate workflow Status.OK
 
     [<FunctionName("UnitGetAllChildren")>]
-    [<SwaggerOperation(Summary="Get all children of a unit", Tags=[|"Units"|])>]
+    [<SwaggerOperation(Summary="List all unit children", Description="List all units that fall below this unit in an organizational hierarchy.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
     let unitGetAllChildren
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/children")>] req, unitId) =
@@ -420,7 +420,7 @@ module Functions =
     // *****************
 
     [<FunctionName("DepartmentGetAll")>]
-    [<SwaggerOperation(Summary="List all departments.", Tags=[|"Departments"|])>]
+    [<SwaggerOperation(Summary="List all departments.", Description="Search for departments by name and/or description.", Tags=[|"Departments"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Department>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let departmentGetAll

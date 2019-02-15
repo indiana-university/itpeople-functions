@@ -10,6 +10,7 @@ open Dapper
 open Serilog.Core
 open System.ComponentModel.DataAnnotations
 open Dapper
+open Microsoft.Build.Framework
 
 module Types = 
 
@@ -153,7 +154,7 @@ module Types =
       { /// The unique ID of this unit record.
         [<Key>][<Column("id")>] Id: Id
         /// The name of this unit.
-        [<Column("name")>] Name: Name
+        [<Required>][<Column("name")>] Name: Name
         /// A description of this unit.
         [<Column("description")>] Description: Name
         /// A URL for the website of this unit.
@@ -164,15 +165,14 @@ module Types =
         [<ReadOnly(true)>] Parent: Unit option }
 
     [<CLIMutable>]
-    [<Table("units")>]
     type UnitRequest = 
-      { /// The name of this unit.
-        Name: Name
+      { /// (Required) The unique name of this unit.
+        [<Required>]Name: Name
         /// A description of this unit.
         Description: Name
         /// A URL for the website of this unit.
         Url: string
-        /// The unique ID of the parent unit of this unit.
+        /// The ID of this unit's parent unit.
         ParentId: Id option }
 
     [<CLIMutable>]
@@ -181,10 +181,10 @@ module Types =
     type SupportRelationship = 
       { /// The unique ID of this unit record.
         [<Key>][<Column("id")>] Id: Id
-        /// The unique ID of the unit in this relationship
-        [<Column("unit_id")>] UnitId: Id
-        /// The unique ID of the department in this relationship
-        [<Column("department_id")>] DepartmentId: Id 
+        /// The ID of the unit in this relationship
+        [<Required>][<Column("unit_id")>] UnitId: Id
+        /// The ID of the department in this relationship
+        [<Required>][<Column("department_id")>] DepartmentId: Id 
         /// The department in this relationship.
         [<ReadOnly(true)>] Department: Department
         /// The unit in this relationship.
@@ -193,10 +193,10 @@ module Types =
 
     [<CLIMutable>]
     type SupportRelationshipRequest = 
-      { /// The unique ID of the unit in this relationship
-        UnitId: Id
-        /// The unique ID of the department in this relationship
-        DepartmentId: Id 
+      { /// (Required) The ID of the unit in this relationship
+        [<Required>]UnitId: Id
+        /// (Required) The ID of the department in this relationship
+        [<Required>]DepartmentId: Id 
       }
 
     [<CLIMutable>]
@@ -204,16 +204,16 @@ module Types =
     type UnitMember = 
       { /// The unique ID of this unit member record.
         [<Key>][<Column("id")>] Id: Id
-        /// The unique ID of the unit record.
-        [<Column("unit_id")>] UnitId: Id
-        /// The unique ID of the person record. This can be null if the position is vacant.
+        /// The ID of the unit record.
+        [<Required>][<Column("unit_id")>] UnitId: Id
+        /// The role of the person in this membership as part of the unit.
+        [<Required>][<Column("role")>] Role: Role
+        /// The permissions of the person in this membership as part of the unit.
+        [<Required>][<Column("permissions")>] Permissions: Permissions
+        /// The ID of the person record. This can be null if the position is vacant.
         [<Column("person_id")>][<Editable(true)>] PersonId: Id option
         /// The title/position of this membership.
         [<Column("title")>] Title: string
-        /// The role of the person in this membership as part of the unit.
-        [<Column("role")>] Role: Role
-        /// The permissions of the person in this membership as part of the unit.
-        [<Column("permissions")>] Permissions: Permissions
         /// The percentage of time allocated to this position by this person (in case of split appointments).
         [<Column("percentage")>] Percentage: int
         /// The tools that can be used by the person in this position as part of this unit.
@@ -225,16 +225,16 @@ module Types =
 
     [<CLIMutable>]
     type UnitMemberRequest = 
-      { /// The unique ID of the unit record.
-        UnitId: int
-        /// The unique ID of the person record. This can be null if the position is vacant.
+      { /// (Required) The unique ID of the unit record.
+        [<Required>]UnitId: int
+        /// (Required) The role of the person in this membership as part of the unit.
+        [<Required>]Role: Role
+        /// (Required) The permissions of the person in this membership as part of the unit.
+        [<Required>]Permissions: Permissions
+        /// The ID of the person record. This can be null if the position is vacant.
         PersonId: int option
         /// The title/position of this membership.
         Title: string
-        /// The role of the person in this membership as part of the unit.
-        Role: Role
-        /// The permissions of the person in this membership as part of the unit.
-        Permissions: Permissions
         /// The percentage of time allocated to this position by this person (in case of split appointments).
         Percentage: int
         /// The tools that can be used by the person in this position as part of this unit.
