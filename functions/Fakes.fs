@@ -171,6 +171,7 @@ module Fakes =
         GetMembers = fun unit -> stub ([ swansonMembership ] |> List.toSeq) 
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
+        GetDescendantOfParent = fun parent childId -> stub None
         Create = fun unit -> stub parksAndRec
         Update = fun unit -> stub parksAndRec
         Delete = fun unit -> stub ()

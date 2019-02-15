@@ -131,4 +131,20 @@ module DatabaseTests=
             match actual with 
             | Bad([(status, msg)]) -> status |> should equal Status.NotFound
             | _ -> System.Exception("Should have failed") |> raise
+
+        [<Fact>]
+        member __.``Gets unit when descended from parent`` () = 
+            // This request should return parksAndRec because it is a child unit of the City of Pawnee
+            let actual = repo.Units.GetDescendantOfParent cityOfPawnee parksAndRec.Id |> awaitAndUnpack
+            
+            actual.IsSome |> should be True
+            actual.Value.Name |> should equal (parksAndRec.Name)
+ 
+        [<Fact>]
+        member __.``Doesn't get unit when not descended from parent`` () = 
+            // This request should not return parksAndRec because it is not a child unit the Fourth Floor
+            let actual = repo.Units.GetDescendantOfParent fourthFloor parksAndRec.Id |> awaitAndUnpack
+            
+            actual.IsNone |> should be True
+        
             

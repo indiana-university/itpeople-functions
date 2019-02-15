@@ -70,12 +70,10 @@ module QueryHelpers =
 
     type Filter =
         | Unfiltered
+        | Param of obj
         | Where of WhereClause
         | WhereId of WhereClause * Id
         | WhereParam of WhereClause * obj
-
-    type QueryOneParams<'T> =
-        | MapOne of (int -> Cn -> Task<seq<'T>>)
 
     let like = sprintf "%%%s%%"
     let where = sprintf "%s WHERE %s"
@@ -83,6 +81,7 @@ module QueryHelpers =
     let parseQueryAndParam sql filter = 
         match filter with
         | Unfiltered -> (sql, ():>obj)
+        | Param param -> (sql, param)
         | Where clause -> ((where sql clause), ():>obj)
         | WhereId (clause,id)-> ((where sql clause+"=@Id"), {Id=id}:>obj)
         | WhereParam (clause,param)-> ((where sql clause), param)
@@ -305,6 +304,46 @@ module Database =
     }
 
 
+    // This query is recursive. (Whoa.)
+    // Given some unit id (ChildId) it will recurse to 
+    //  find every parent, grandparent, etc of that unit
+    //  until it reaches the top of the org chart.
+    // If it finds the second specified unit id (ParentId) 
+    //  anywhere in that hierarchy, they query will return
+    //  information for the ChildId unit. 
+    // Otherwise it returns nothing.
+    let queryUnitParentage = """
+    WITH RECURSIVE parentage AS (
+     -- first row
+     SELECT id, name, parent_id
+     FROM units
+     WHERE id = @ChildId -- DCD, 157
+     UNION
+     -- recurse
+     SELECT u.id, u.name, u.parent_id
+     FROM units u
+     INNER JOIN parentage p ON p.parent_id = u.id
+    ) 
+    SELECT * FROM parentage
+    WHERE id = @ChildId
+    AND EXISTS (
+    	SELECT id FROM parentage 
+    	WHERE id = @ParentId -- UITS, 1
+    )"""
+
+    type Descendant = 
+      { ParentId: Id
+        ChildId: Id }
+    let queryUnitGetDescendantOfParent connStr (parent:Unit) childId = async {
+        let param = {ParentId=parent.Id; ChildId=childId}
+        let query (cn:Cn) = cn.QueryAsync<Unit>(queryUnitParentage, param)
+        return     
+            query
+            |> await (fetchAll connStr) 
+            >>= (Seq.tryHead >> ok)
+    }
+
+
     // ***********
     // Departments
     // ***********
@@ -324,7 +363,6 @@ module Database =
             | None -> Unfiltered
             | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query", {Query=like q})
         return! fetchAll<Department> connStr (mapDepartments filter)
-            
     }
 
     let queryDepartment connStr id = async {
@@ -403,7 +441,6 @@ module Database =
         GetMemberships = queryPersonMemberships connStr
     }
 
-
     let Units(connStr) = {
         GetAll = queryUnits connStr
         Get = queryUnit connStr 
@@ -413,6 +450,7 @@ module Database =
         GetChildren = queryUnitChildren connStr
         GetMembers = queryUnitMembers connStr
         GetSupportedDepartments = queryUnitSupportedDepartments connStr
+        GetDescendantOfParent = queryUnitGetDescendantOfParent connStr
     }
 
     let Departments (connStr) = {

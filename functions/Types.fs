@@ -279,6 +279,8 @@ module Types =
         Update: Unit -> Async<Result<Unit,Error>>
         /// Delete a unit
         Delete: Unit -> Async<Result<unit,Error>>
+        /// 
+        GetDescendantOfParent: Unit -> Id -> Async<Result<Unit option,Error>>
     }
 
     type DepartmentRepository = {
