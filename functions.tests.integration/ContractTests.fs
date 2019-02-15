@@ -17,7 +17,7 @@ module ContractTests =
     open Functions.Types
     open Functions.Fakes
     open Functions.Database
-    open Migrations.Program
+    open Database.Fakes
     
     type XUnitOutput(output: ITestOutputHelper)=
         let output = output
@@ -25,40 +25,56 @@ module ContractTests =
             member this.WriteLine(message: string)=
                 message |> output.WriteLine
     
-    let verifyPact functionPort output = 
-        let functionUrl = sprintf "http://localhost:%d" functionPort
+    let functionServerScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
+    let functionServerPort = 9091
+
+    let stateServerScriptPath = "../../../../functions.tests.stateserver/bin/Debug/netcoreapp2.1"
+    let stateServerPort = 9092
+
+    let verifyPact output = 
+        let stateServerUrl = sprintf "http://localhost:%d" stateServerPort
+        let functionUrl = sprintf "http://localhost:%d" functionServerPort
         let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
         let verifier = PactVerifierConfig(Outputters=outputters, Verbose=true) |> PactVerifier
         verifier
+            .ProviderState(stateServerUrl)
             .ServiceProvider("API", functionUrl)
             .HonoursPactWith("Client")
-            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/master/contracts/itpeople-app-itpeople-functions.json")
+            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/develop/contracts/itpeople-app-itpeople-functions.json")
             .Verify()
 
     type Pact(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
+
         let output = output
 
         [<Fact>]
         member __.``Test Contracts`` () = async {
-            let functionScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
-            let functionServerPort = 9091
             let mutable functionServer = None
+            let mutable stateServer = None
+
+            // System.Reflection.Assembly.GetEntryAssembly().Location
+            // |> System.IO.Path.GetDirectoryName
+            // |> printfn "Executing in: %s"
 
             try            
                 // These config settings are needed for the tests
+                Environment.SetEnvironmentVariable("UseFakeData", "false")
                 Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
-                Environment.SetEnvironmentVariable("DbConnectionString",connectionString)
+                Environment.SetEnvironmentVariable("DbConnectionString", testConnectionString)
                 // These config settings aren't needed for the tests, but the config expects them
                 Environment.SetEnvironmentVariable("OAuthClientId","na")
                 Environment.SetEnvironmentVariable("OAuthClientSecret","na")
                 Environment.SetEnvironmentVariable("OAuthTokenUrl","na")
                 Environment.SetEnvironmentVariable("OAuthRedirectUrl","na")
 
-                "---> Starting functions hst..." |> output.WriteLine
-                let! functionsServer = startTestServer functionServerPort functionScriptPath output
-                "---> Verifying contract..." |> output.WriteLine
-                verifyPact functionServerPort output
+                "---> Starting functions host..." |> Console.WriteLine
+                let! functionsServer = startTestServer functionServerPort functionServerScriptPath output
+                "---> Starting state server host..." |> Console.WriteLine
+                let! stateServer = startTestServer stateServerPort stateServerScriptPath output
+                "---> Verifying contract..." |> Console.WriteLine
+                verifyPact output
             finally
                 stopTestServer functionServer
+                stopTestServer stateServer
         }

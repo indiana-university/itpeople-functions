@@ -8,28 +8,41 @@ module PostgresContainer =
     open System
     open System.Diagnostics
     open Npgsql
+    open Dapper
     open Functions.Database
     open Xunit.Abstractions
+    open Database.Fakes
 
     let result b = if b then "[OK]" else "[ERROR]"
-    let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
     let startServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
     let logsSqlServer = "logs integration_test_db"   
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
 
-    /// Get a new postgres connection.
-    let dbConnection () = sqlConnection connectionString
-    
     /// Attempt to connect to the postgres database.
     let tryConnect () = async {
         try
-            use conn = dbConnection ()
+            use conn = new NpgsqlConnection(testConnectionString)
             do! conn.OpenAsync() |> Async.AwaitTask
             return None
         with 
         | exn -> 
             return sprintf "Failed to connect to server: %s" exn.Message |> Some
+    }
+
+    /// Attempt to connect to the postgres database.
+    let clearSchema () = async {
+        let sql = """
+            DROP SCHEMA public CASCADE;
+            CREATE SCHEMA public;
+            GRANT ALL ON SCHEMA public TO postgres;
+            GRANT ALL ON SCHEMA public TO public;"""
+        try
+            use db = new NpgsqlConnection(testConnectionString)
+            db.Execute(sql) |> ignore
+        with 
+        | exn -> 
+            return sprintf "Failed to clear schema: %s" exn.Message |> Exception |> raise
     }
 
     /// Execute an arbitrary docker command.
@@ -78,16 +91,18 @@ module PostgresContainer =
 
     /// Ensure the postgres container is started
     let ensureDatabaseServerStarted log = async {
-        "---> Checking if PostgresQL Server is available... " |> log
+        "---> Starting PostgresQL Server... " |> log
         let! error = tryConnect()
         match error with
         | None -> ()
         | Some(_) ->
-            "---> Stopping and removing any running 'integration_test_db' containers..." |> log
+            "     Stopping and removing any running 'integration_test_db' containers..." |> log
             runDockerCommand log "stop integration_test_db" true
             runDockerCommand log "rm integration_test_db" true
-            "---> Starting PostgresQL Server in 'integration_test_db' container... "  |> log
+            "     Starting PostgresQL Server in 'integration_test_db' container... "  |> log
             runDockerCommand log startServer false
             do! ensureReady log
-        "---> PostgresQL Server is available. Executing tests..."  |> log
+            "     PostgresQL Server is available."  |> log
+        "---> Clearing public schema..."  |> log
+        do! clearSchema ()
     }

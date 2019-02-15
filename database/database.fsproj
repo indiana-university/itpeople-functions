@@ -6,12 +6,17 @@
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.5.2" />
     <PackageReference Include="Simple.Migrations" Version="0.9.19" />
+    <PackageReference Include="Dapper" Version="1.50.5" />
+    <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
     <PackageReference Include="Npgsql" Version="4.0.3" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Migration.fs" />
+    <Compile Include="Fakes.fs" />
     <Compile Include="Migrations/01_CreateBaseTables.fs" />
-    <Compile Include="Migrations/02_CreateLogTable.fs" />
-    <Compile Include="Migrations/03_AddColumnsToLogTable.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../functions/functions.fsproj" />    
   </ItemGroup>
 </Project>

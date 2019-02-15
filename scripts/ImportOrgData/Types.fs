@@ -31,11 +31,11 @@ module Types =
 
     type CLIArguments =
         | [<Mandatory>]Connection of connection:string
-        | Uits of uitsJson:string
-        | Edge of unitCsv:string * memberCsv:string
-        | UnitDept of unitDeptCsv:string
-        | Dept of deptCsv:string
-        | People of hrCsv:string
+        | [<Mandatory>]Uits of uitsJson:string
+        | [<Mandatory>]Edge of unitCsv:string * memberCsv:string
+        | [<Mandatory>]UnitDept of unitDeptCsv:string
+        | [<Mandatory>]Dept of deptCsv:string
+        | [<Mandatory>]People of hrCsv:string
     with
         interface IArgParserTemplate with
             member s.Usage =

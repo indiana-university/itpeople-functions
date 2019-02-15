@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using Swashbuckle.AspNetCore.Filters.Extensions;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -35,14 +36,12 @@ namespace Swashbuckle.AspNetCore.Filters
         private void SetRequestModelExamples(Operation operation, OperationFilterContext context)
         {
             var actionAttributes = context.MethodInfo.GetCustomAttributes<SwaggerRequestExampleAttribute>();
-
             foreach (var attr in actionAttributes)
             {
                 var examplesProvider = (IExamplesProvider)(serviceProvider.GetService(attr.ExamplesProviderType)
                     ?? Activator.CreateInstance(attr.ExamplesProviderType));
 
                 object example = examplesProvider?.GetExamples();
-
                 requestExample.SetRequestExampleForType(operation, context.SchemaRegistry, attr.RequestType, example, attr.ContractResolver, attr.JsonConverter);
             }
         }

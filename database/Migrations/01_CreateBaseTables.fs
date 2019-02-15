@@ -14,6 +14,7 @@ type CreateBaseTables() =
       name TEXT NOT NULL,
       description TEXT NOT NULL,
       url TEXT NULL,
+      parent_id INTEGER NULL REFERENCES units(id),
       PRIMARY KEY (id)
     );
 
@@ -44,35 +45,47 @@ type CreateBaseTables() =
       PRIMARY KEY (id)
     );
 
-    CREATE TABLE supported_departments (
+    CREATE TABLE support_relationships (
+      id SERIAL NOT NULL,
       unit_id INTEGER NOT NULL REFERENCES units(id),
       department_id INTEGER NOT NULL REFERENCES departments(id),
-      PRIMARY KEY (unit_id, department_id) 
-    );
-
-    CREATE TABLE unit_relations (
-      child_id INTEGER NOT NULL REFERENCES units(id),
-      parent_id INTEGER NOT NULL REFERENCES units(id),
-      PRIMARY KEY (child_id, parent_id) 
+      PRIMARY KEY (id)
     );
     
     CREATE TABLE unit_members (
+      id SERIAL NOT NULL,
       unit_id INTEGER NOT NULL REFERENCES units(id),
-      person_id INTEGER NOT NULL REFERENCES people(id),
+      person_id INTEGER NULL REFERENCES people(id),
       title TEXT NULL,
-      role INTEGER NOT NULL DEFAULT 2,
-      percentage INTEGER NOT NULL DEFAULT 100,
-      tools INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (unit_id, person_id)
+      role INTEGER NOT NULL DEFAULT 2,          -- default: member
+      percentage INTEGER NOT NULL DEFAULT 100,  -- default: 100%
+      tools INTEGER NOT NULL DEFAULT 0,         -- default: no tools
+      permissions INTEGER NOT NULL DEFAULT 2,   -- default: viewer
+      PRIMARY KEY (id)
     );
 
+    CREATE TABLE logs
+    (
+      timestamp timestamp without time zone,
+      level character varying(50) COLLATE pg_catalog."default",
+      elapsed integer,
+      status integer,
+      method text COLLATE pg_catalog."default",
+      function text COLLATE pg_catalog."default",
+      parameters text COLLATE pg_catalog."default",
+      query text COLLATE pg_catalog."default",
+      detail text COLLATE pg_catalog."default",
+      exception text COLLATE pg_catalog."default",
+      ip_address text COLLATE pg_catalog."default",
+      netid text COLLATE pg_catalog."default"
+    );
     """)
 
   override __.Down() =
     base.Execute("""
+    DROP TABLE IF EXISTS logs CASCADE;
     DROP TABLE IF EXISTS unit_members CASCADE;
-    DROP TABLE IF EXISTS unit_relations CASCADE;
-    DROP TABLE IF EXISTS supported_departments CASCADE;
+    DROP TABLE IF EXISTS support_relationships CASCADE;
     DROP TABLE IF EXISTS units CASCADE;
     DROP TABLE IF EXISTS people CASCADE;
     DROP TABLE IF EXISTS departments CASCADE;

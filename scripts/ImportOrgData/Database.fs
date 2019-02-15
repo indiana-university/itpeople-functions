@@ -23,6 +23,12 @@ module Database =
         Url:string
         Description:string }
 
+    type UnitWithParentParams = 
+      { Name:string
+        Url:string
+        Description:string
+        ParentId:int }
+
     type UnitRelationParams = 
       { ChildId: int
         ParentId: int }
@@ -64,43 +70,21 @@ module Database =
         Dapper.DefaultTypeMap.MatchNamesWithUnderscores <- true
         new NpgsqlConnection(connectionString)
 
-    let private dropExistingUnits (dbConnectionString:string) (uits:Unit) =
-        let deleteUnitSql = """
-            DELETE FROM unit_members
-            WHERE unit_id IN (SELECT id FROM units WHERE name = @Name);
-            DELETE FROM unit_relations
-            WHERE child_id IN (SELECT id FROM units WHERE name = @Name)
-            OR parent_id IN (SELECT id FROM units WHERE name = @Name);
-            DELETE FROM units WHERE id IN (SELECT id FROM units WHERE name = @Name);"""
-
-        use cn = sqlConnection dbConnectionString
-        let rec deleteUnit (unit:Unit) =
-            // delete children first
-            match unit.Children with
-            | EmptySeq -> ()
-            | _ -> unit.Children |> Seq.iter deleteUnit
-            // then delete this unit
-            printfn "\nRemoving existing unit '%s'..." unit.Name
-            cn.Execute(deleteUnitSql, {Name=unit.Name}) |> ignore
-
-        deleteUnit uits
-        uits
-
-    let private addUnitToDb connStr (unit:Unit) = 
+    let private addUnitToDb connStr (unit:Unit) (parentId:int option) = 
         let sql = """
             INSERT INTO units (name, url, description)
             VALUES (@Name, @Url, @Description) RETURNING id;"""
-        let parameters = {Name = unit.Name; Url=unit.Url; Description=""}
+        let sqlParentId = """
+            INSERT INTO units (name, url, description, parent_id)
+            VALUES (@Name, @Url, @Description, @ParentId) RETURNING id;"""
         use cn = sqlConnection connStr
-        cn.QueryFirstOrDefault<int>(sql, parameters)
-
-    let private addUnitRelation connStr parentId childId = 
-        let sql = """
-            INSERT INTO unit_relations (child_id, parent_id)
-            VALUES (@ChildId, @ParentId);"""
-        let parameters = {ChildId = childId; ParentId = parentId}
-        use cn = sqlConnection connStr
-        cn.Execute(sql, parameters) |> ignore
+        match parentId with
+        | Some(id) -> 
+            let parameters = {Name = unit.Name; Url=unit.Url; Description=""; ParentId=id}
+            cn.QueryFirstOrDefault<int>(sqlParentId, parameters)
+        | None ->
+            let parameters = {Name = unit.Name; Url=unit.Url; Description=""}
+            cn.QueryFirstOrDefault<int>(sql, parameters)
 
     let indent level = String.replicate level "  "
 
@@ -121,11 +105,7 @@ module Database =
         let rec addUnit (level:int) (parentId:int option) (parentName:string option) (unit:Unit)  =
             printfn "%sAdding unit '%s'" (indent level) unit.Name
             // add unit
-            let unitId = addUnitToDb connectionString unit
-            // add relationship to parent
-            match parentId with
-            | Some(id) -> addUnitRelation connectionString id unitId
-            | None ->  ()
+            let unitId = addUnitToDb connectionString unit parentId
             // add members
             unit.Members
             |> Seq.iter (fun m -> 
@@ -137,17 +117,9 @@ module Database =
 
         addUnit 0 None None uits
 
-    let private dropExistingUnitDeptRelationships connectionString (unitDept:UnitDept.Row) = 
-        let deleteUnitSql = """
-            DELETE FROM supported_departments
-            WHERE department_id IN (SELECT id FROM departments WHERE name = @Name);"""
-        use cn = sqlConnection connectionString
-        cn.Execute(deleteUnitSql, {Name=unitDept.Dept}) |> ignore
-        unitDept
-
     let private addUnitDepartmentRelationships connectionString (unitDept:UnitDept.Row) = 
         let sql = """
-            INSERT INTO supported_departments (unit_id, department_id)
+            INSERT INTO support_relationships (unit_id, department_id)
             VALUES (
                 (SELECT id FROM units WHERE name = @UnitName), 
                 (SELECT id FROM departments WHERE name = @DepartmentName));"""
@@ -195,19 +167,22 @@ module Database =
         use cn = sqlConnection connectionString
         cn.Execute(sql, parameters) |> ignore
 
+    let clearDatabase connectionString =
+        let sql = """
+            DELETE from support_relationships;
+            DELETE from unit_members;
+            DELETE from people;
+            DELETE from units;
+            DELETE from departments;"""
+        printfn "Clearing records..."
+        use cn = sqlConnection connectionString
+        cn.Execute(sql) |> ignore
+
     let addOrUpdateUnits connectionString units =
-        units
-        |> Seq.iter (fun unit ->
-            unit 
-            |> dropExistingUnits connectionString
-            |> addUnits connectionString )
+        units |> Seq.iter (addUnits connectionString)
  
     let addOrUpdateUnitDepts connectionString unitDepts =
-        unitDepts
-        |> Seq.iter (fun unitDept -> 
-            unitDept
-            |> dropExistingUnitDeptRelationships connectionString
-            |> addUnitDepartmentRelationships connectionString )
+        unitDepts |> Seq.iter (addUnitDepartmentRelationships connectionString)
 
     let addOrUpdateDepartments connectionString (people:Dept.Row seq) =
         people 

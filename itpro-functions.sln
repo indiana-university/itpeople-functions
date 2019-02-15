@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "functions", "functions\functions.fsproj", "{BFD6A7BA-50F3-4DCB-AF85-52D00D743F77}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "migrations", "migrations\migrations.fsproj", "{424FE816-7DC4-4924-92FF-43ED52CC0477}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "database", "database\database.fsproj", "{424FE816-7DC4-4924-92FF-43ED52CC0477}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "functions.tests", "functions.tests.unit\functions.tests.fsproj", "{BD90C1C8-2372-4AEE-9B93-A4441DA4AE29}"
 EndProject

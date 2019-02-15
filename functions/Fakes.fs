@@ -15,16 +15,17 @@ module Fakes =
     let accessToken = { access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxNTE1NTQ0NjQzIiwidXNlcl9pZCI6MSwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfcm9sZSI6ImFkbWluIn0.akuT7-xDFxrev-T9Dv0Wdumx1HK5L2hQAOU51igIjUE" }
 
     // Units
-    let city:Unit = {Id=0; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url=""}
-    let parksAndRec:Unit = {Id=0; Name="Parks and Rec"; Description="Parks and Recreation"; Url=""}
-    let fourthFloor:Unit = {Id=0; Name="Fourth Floor"; Description="It's spooky up there!"; Url=""}
+    let cityOfPawnee:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url="http://pawneeindiana.com/"; ParentId=None; Parent=None}
+    let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url="http://pawneeindiana.com/parks-and-recreation/"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
+    let fourthFloor:Unit = {Id=3; Name="Fourth Floor"; Description="City Hall's Fourth Floor"; Url="http://pawneeindiana.com/fourth-floor/"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
+    let parksAndRecUnitRequest:UnitRequest = { Name="Parks and Rec"; Description="Parks and Recreation"; Url="http://pawneeindiana.com/parks-and-recreation/"; ParentId=Some(cityOfPawnee.Id) }
 
     // Departments
-    let parksDept:Department = {Id=0; Name="PA-PARKS"; Description="Parks and Recreation Department"; DisplayUnits=true}
+    let parksDept:Department = {Id=1; Name="PA-PARKS"; Description="Parks and Recreation Department" }
     
     // People
     let swanson:Person = {
-        Id=0
+        Id=1
         Hash="hash"
         NetId="rswanso"
         Name="Swanson, Ron"
@@ -38,11 +39,12 @@ module Fakes =
         PhotoUrl="http://flavorwire.files.wordpress.com/2011/11/ron-swanson.jpg"
         Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership
-        HrDepartmentId=parksDept.Id
+        DepartmentId=parksDept.Id
+        Department=parksDept
     }
 
     let knope:Person = {
-        Id=0
+        Id=2
         Hash="hash"
         NetId="lknope"
         Name="Knope, Lesie Park"
@@ -56,172 +58,173 @@ module Fakes =
         PhotoUrl="https://en.wikipedia.org/wiki/Leslie_Knope#/media/File:Leslie_Knope_(played_by_Amy_Poehler).png"
         Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
-        HrDepartmentId=parksDept.Id
+        DepartmentId=parksDept.Id
+        Department=parksDept
     }
 
-    let sebastian:Person = {
-        Id=0
+    let wyatt:Person = {
+        Id=3
         Hash="hash"
-        NetId="lsebastian"
-        Name="Sebastian, L'il"
-        Position="Mascot and Guiding Light"
+        NetId="bwyatt"
+        Name="Wyatt, Ben"
+        Position="Auditor"
         Location=""
         Campus=""
         CampusPhone=""
-        CampusEmail="lknope@pawnee.in.us"
-        Expertise="Hay; Being Small"
+        CampusEmail="bwyatt@pawnee.in.us"
+        Expertise="Board Games; Comic Books"
         Notes=""
         PhotoUrl="https://sasquatchbrewery.com/wp-content/uploads/2018/06/lil.jpg"
         Tools = Tools.ItProMail ||| Tools.ItProWeb
-        Responsibilities = Responsibilities.UserExperience
-        HrDepartmentId=parksDept.Id
-    }
-
-    // People DTOs
-    let swansonDto:PersonDto = {
-        Id=swanson.Id
-        NetId=swanson.NetId
-        Name=swanson.Name
-        Position=swanson.Position
-        Location=swanson.Location
-        Campus=swanson.Campus
-        CampusPhone=swanson.CampusPhone
-        CampusEmail=swanson.CampusEmail
-        Expertise=swanson.Expertise.Split(";")
-        Notes=swanson.Notes
-        PhotoUrl=swanson.PhotoUrl
-        Tools = swanson.Tools |> mapFlagsToSeq
-        Responsibilities = swanson.Responsibilities |> mapFlagsToSeq
+        Responsibilities = Responsibilities.ItProjectMgt
+        DepartmentId=parksDept.Id
         Department=parksDept
-        UnitMemberships=
-          [ {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100} ]
     }
 
-    let knopeDto:PersonDto = {
-        Id=knope.Id
-        NetId=knope.NetId
-        Name=knope.Name
-        Position=knope.Position
-        Location=knope.Location
-        Campus=knope.Campus
-        CampusPhone=knope.CampusPhone
-        CampusEmail=knope.CampusEmail
-        Expertise=knope.Expertise.Split(";")
-        Notes=knope.Notes
-        PhotoUrl=knope.PhotoUrl
-        Tools = knope.Tools |> mapFlagsToSeq
-        Responsibilities = knope.Responsibilities |> mapFlagsToSeq
+    let knopeMembershipRequest:UnitMemberRequest = {
+        UnitId=parksAndRec.Id
+        PersonId=Some(knope.Id)
+        Role=Role.Sublead
+        Permissions=Permissions.Viewer
+        Title="Deputy Director"
+        Tools=Tools.None
+        Percentage=100
+    }
+
+    let swansonMembership:UnitMember = {
+        Id=1
+        UnitId=parksAndRec.Id
+        PersonId=Some(swanson.Id)
+        Unit=parksAndRec
+        Person=Some(swanson)
+        Title="Director"
+        Role=Role.Leader
+        Permissions=Permissions.Owner
+        Percentage=100
+        Tools=Tools.SuperPass
+    }
+
+    let knopeMembership = {
+        Id=2
+        UnitId=parksAndRec.Id
+        PersonId=Some(knope.Id)
+        Role=Role.Sublead
+        Permissions=Permissions.Viewer
+        Title="Deputy Director"
+        Tools=Tools.None
+        Percentage=100
+        Person=Some(knope)
+        Unit=parksAndRec
+    }
+
+    let parksAndRecVacancy = {
+        Id=3
+        UnitId=parksAndRec.Id
+        PersonId=None
+        Role=Role.Member
+        Permissions=Permissions.Viewer
+        Title="Assistant to the Manager"
+        Tools=Tools.None
+        Percentage=100
+        Person=None
+        Unit=parksAndRec
+    }
+
+    let wyattMembership:UnitMember = {
+        Id=4
+        UnitId=cityOfPawnee.Id
+        PersonId=Some(wyatt.Id)
+        Unit=cityOfPawnee
+        Person=Some(wyatt)
+        Title="Auditor"
+        Role=Role.Leader
+        Permissions=Permissions.Owner
+        Percentage=100
+        Tools=Tools.SuperPass
+    }
+
+    let supportRelationshipRequest:SupportRelationshipRequest = {
+        UnitId=cityOfPawnee.Id
+        DepartmentId=parksDept.Id
+    }
+
+    let supportRelationship:SupportRelationship = {
+        Id=1
+        UnitId=cityOfPawnee.Id
+        DepartmentId=parksDept.Id
+        Unit=cityOfPawnee
         Department=parksDept
-        UnitMemberships=
-          [ {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100} ]
     }
-
-    let sebastianDto:PersonDto = {
-        Id=sebastian.Id
-        NetId=sebastian.NetId
-        Name=sebastian.Name
-        Position=sebastian.Position
-        Location=sebastian.Location
-        Campus=sebastian.Campus
-        CampusPhone=sebastian.CampusPhone
-        CampusEmail=sebastian.CampusEmail
-        Expertise=sebastian.Expertise.Split(";")
-        Notes=sebastian.Notes
-        PhotoUrl=sebastian.PhotoUrl
-        Tools = sebastian.Tools |> mapFlagsToSeq
-        Responsibilities = sebastian.Responsibilities |> mapFlagsToSeq
-        Department=parksDept
-        UnitMemberships=
-          [ {Id=parksAndRec.Id; Name=parksAndRec.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100} ]
-        
-    }
-
-    let iuware = {Id=1; Name="IUware Tools"; Description=""}
-    let itproMail = {Id=2; Name="IT Pro Mailing List"; Description=""}
-
-    let fakePersonId = (swanson.NetId, swanson.Id)
-
-    let fakePerson id = { swansonDto with Id=id }
-
-    let fakeSimpleSearchResult = 
-      { Users=
-          [ {Id=1; Name=swanson.Name; Description=""}
-            {Id=2; Name=knope.Name; Description=""}
-            {Id=3; Name=sebastian.Name; Description=""} ]
-        Departments=
-          [ {Id=1; Name=parksDept.Name; Description=""} ]
-        Units=
-          [ {Id=1; Name=city.Name; Description=""}
-            {Id=2; Name=parksAndRec.Name; Description=""}
-            {Id=3; Name=fourthFloor.Name; Description=""} ] }
-
-    let fakeUnits = [{parksAndRec with Id=2}; {city with Id=1}] |> List.toSeq
-
-    let fakeUnit id = 
-      { Id=id
-        Name=parksAndRec.Name
-        Description=parksAndRec.Description
-        Url=parksAndRec.Url
-        Members= [ 
-            {Id=1; Name=swanson.Name; Description=""; Role=Role.Leader; Title="Director"; Tools=[ Tools.AccountMgt ]; PhotoUrl=swanson.PhotoUrl; Percentage=100}
-            {Id=2; Name=knope.Name; Description=""; Role=Role.Sublead; Title="Deputy Director"; Tools=[ ]; PhotoUrl=knope.PhotoUrl; Percentage=100}
-            {Id=3; Name=sebastian.Name; Description=""; Role=Role.Member; Title="Mascot"; Tools=[ ]; PhotoUrl=sebastian.PhotoUrl; Percentage=100} 
-        ]
-        SupportedDepartments= [ {parksDept with Id=1} ]
-        Children= [ { fourthFloor with Id=3 } ]
-        Parent= Some(city) }
-
-    let fakeDepartments = [ {parksDept with Id=1} ] |> List.toSeq
-
-    let fakeDepartment id = 
-      { Id=id
-        Name=parksDept.Name
-        Description=parksDept.Description
-        SupportingUnits=[ { fourthFloor with Id=3} ]
-        Units=[ {parksAndRec with Id=2}]
-        Members= 
-          [ {Member.Id=1; Name=swanson.Name; Description=""}
-            {Member.Id=2; Name=knope.Name; Description=""}
-            {Member.Id=3; Name=sebastian.Name; Description=""} ] }
 
     /// A canned data implementation of IDatabaseRespository (for testing)
 
-    let satisfyWith a = async { return! a |> ok |> async.Return }
+    let FakePeople = {
+        TryGetId = fun netId -> stub (swanson.NetId, Some(swanson.Id))
+        GetAll = fun query -> stub ([ swanson ] |> List.toSeq)
+        Get = fun id -> stub swanson
+        GetMemberships = fun personId -> stub ([ swansonMembership ] |> List.toSeq)
+    }
 
-    type FakesRepository() =
-        interface IDataRepository with 
-            member this.TryGetPersonId netId = fakePersonId |> satisfyWith
-            member this.GetProfile id = fakePerson id |> satisfyWith
-            member this.GetSimpleSearchByTerm term = fakeSimpleSearchResult |> satisfyWith
-            member this.GetUnits () = fakeUnits |> satisfyWith
-            member this.GetUnit id = fakeUnit id |> satisfyWith
-            member this.GetDepartments () = fakeDepartments |> satisfyWith
-            member this.GetDepartment id = fakeDepartment id |> satisfyWith
+    let FakeUnits = {
+        GetAll = fun query -> stub ([ parksAndRec ] |> List.toSeq)
+        Get = fun id -> stub parksAndRec
+        GetMembers = fun unit -> stub ([ swansonMembership ] |> List.toSeq) 
+        GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
+        GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
+        Create = fun unit -> stub parksAndRec
+        Update = fun unit -> stub parksAndRec
+        Delete = fun unit -> stub ()
+    }
 
-    type JwtResponseExample() =
-        interface IExamplesProvider<JwtResponse> with
-            member this.GetExamples() = accessToken
+    let FakeDepartments = {
+        GetAll = fun query -> stub ([ parksDept ] |> List.toSeq)
+        Get = fun id -> stub parksDept
+        GetMemberUnits = fun id -> stub ([ parksAndRec ] |> List.toSeq)
+        GetSupportingUnits = fun id -> stub ([ supportRelationship ] |> List.toSeq)
+    }
 
-    type UnitExample() =
-        interface IExamplesProvider<UnitDto> with
-            member this.GetExamples () = fakeUnit 1
+    let FakeMembershipRepository : MembershipRepository = {
+        Get = fun id -> stub swansonMembership 
+        GetAll = fun () -> stub ([ swansonMembership ] |> List.toSeq) 
+        Create = fun membership -> stub membership
+        Update = fun membership -> stub membership
+        Delete = fun id -> stub ()
+    }
 
-    type UnitsExample() =
-        interface IExamplesProvider<seq<Unit>> with
-            member this.GetExamples () = fakeUnits
+    let FakeSupportRelationships : SupportRelationshipRepository = {
+        GetAll = fun () -> stub ([ supportRelationship ] |> List.toSeq) 
+        Get = fun id -> stub supportRelationship
+        Create = fun supportRelationship -> stub supportRelationship
+        Update = fun supportRelationship -> stub supportRelationship
+        Delete = fun supportRelationship -> stub ()
+    }
 
-    type DepartmentExample() =
-        interface IExamplesProvider<DepartmentDto> with
-            member this.GetExamples () = fakeDepartment 1
- 
-    type DepartmentsExample() =
-        interface IExamplesProvider<seq<Department>> with
-            member this.GetExamples () = fakeDepartments
-    
-    type SimpleSearchExample() =
-        interface IExamplesProvider<SimpleSearch> with
-            member this.GetExamples () = fakeSimpleSearchResult
+    let FakesRepository = {
+        People = FakePeople
+        Units = FakeUnits
+        Departments = FakeDepartments
+        Memberships = FakeMembershipRepository
+        SupportRelationships = FakeSupportRelationships
+    }
 
-    type PersonExample() =
-        interface IExamplesProvider<PersonDto> with
-            member this.GetExamples () = fakePerson 1
+    type ApiEndpointExample<'T>(example:'T) = 
+        let ex = example;
+        interface IExamplesProvider with
+            member this.GetExamples () = ex :> obj
+        interface IExamplesProvider<'T> with
+            member this.GetExamples () = ex
+
+    type JwtResponseExample () = inherit ApiEndpointExample<JwtResponse>(accessToken)
+    type UnitsExample() = inherit ApiEndpointExample<seq<Unit>>([parksAndRec])
+    type UnitExample() = inherit ApiEndpointExample<Unit>(parksAndRec)
+    type UnitRequestExample() = inherit ApiEndpointExample<UnitRequest>(parksAndRecUnitRequest)
+    type DepartmentsExample() = inherit ApiEndpointExample<seq<Department>>([parksDept])
+    type DepartmentExample() = inherit ApiEndpointExample<Department>(parksDept)
+    type PeopleExample() = inherit ApiEndpointExample<seq<Person>>([knope; knope; wyatt])
+    type PersonExample() = inherit ApiEndpointExample<Person>(knope)
+    type MembershipRequestExample() = inherit ApiEndpointExample<UnitMemberRequest>(knopeMembershipRequest)
+    type MembershipResponseExample() = inherit ApiEndpointExample<UnitMember>(knopeMembership)
+    type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
+    type SupportRelationshipResponseExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
+    type SupportRelationshipsResponseExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])
+    type QueryExample() = inherit ApiEndpointExample<string>("term")

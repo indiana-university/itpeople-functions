@@ -68,7 +68,8 @@ $ dotnet test
         "OauthClientId": "<YOUR UAA CLIENT ID>",
         "OauthClientSecret": "<YOUR UAA CLIENT SECRET>",
         "JwtSecret": "8rjYaJehyxd21bp1JrEsRJ7zstN2eT4jhxWU3UiB",
-        "DbConnectionString": "Server=tcp:localhost,1433;User ID=sa;Password=Abcd1234!"
+        "DbConnectionString": "Server=tcp:localhost,1433;User ID=sa;Password=Abcd1234!",
+        "UseFakeData": "false"
     },
     "Host": {
         "LocalHttpPort": 7071,

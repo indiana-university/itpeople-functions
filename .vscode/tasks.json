@@ -23,7 +23,7 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "build",
+      "label": "build_all",
       "windows": {
         "command": "dotnet build; copy functions/local.settings.json functions/bin/Debug/netcoreapp2.1"
       },
@@ -40,6 +40,27 @@
       },
       "options": {
         "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build_functions",
+      "windows": {
+        "command": "dotnet build; copy local.settings.json bin/Debug/netcoreapp2.1"
+      },
+      "osx": {
+        "command": "dotnet build && cp local.settings.json bin/Debug/netcoreapp2.1"
+      },
+      "type": "shell",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/functions"
       },
       "problemMatcher": "$msCompile"
     },
@@ -75,7 +96,7 @@
     {
       "label": "start",
       "type": "shell",
-      "dependsOn": "build",
+      "dependsOn": "build_functions",
       "group": {
         "kind": "build",
         "isDefault": true

@@ -66,8 +66,10 @@ module Api =
 
     let getData config =
         if config.UseFakes
-        then FakesRepository() :> IDataRepository
-        else DatabaseRepository(config.DbConnectionString) :> IDataRepository
+        then FakesRepository
+        else
+            Functions.Database.init()
+            DatabaseRepository(config.DbConnectionString)
 
     ///
     /// CORS
@@ -83,7 +85,19 @@ module Api =
                 res.Headers.Add("Access-Control-Allow-Origin", value=origin)
                 res.Headers.Add("Access-Control-Allow-Headers", "origin, content-type, accept, authorization")
                 res.Headers.Add("Access-Control-Allow-Credentials", "true")
+                res.Headers.Add("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, HEAD")
             else ()
+
+    let addPermissionsHeader (res:HttpResponseMessage) (auth: UserPermissions list option) =
+        match auth with
+        | Some(methods) ->
+            let values = 
+                methods 
+                |> List.map (fun a -> a.ToString())
+                |> String.concat ", "
+            res.Headers.Add("Access-Control-Expose-Headers", "X-User-Permissions")
+            res.Headers.Add("X-User-Permissions", values)
+        | None -> ()
 
     let origin (req:HttpRequestMessage) =
         if req.Headers.Contains("origin")
@@ -101,18 +115,20 @@ module Api =
         addCORSHeader response origin config.CorsHosts
         response
 
-    let contentResponse req corsHosts status content = 
+    let contentResponse req corsHosts status auth content = 
         let response = new HttpResponseMessage(status)
         response.Content <- content
-        response.Content.Headers.ContentType <- "application/json" |> MediaTypeHeaderValue;
+        response.Content.Headers.ContentType <- MediaTypeHeaderValue "application/json"
+        response.Content.Headers.ContentType.CharSet <- "utf-8"
         addCORSHeader response (origin req) corsHosts
+        addPermissionsHeader response auth
         response
 
     /// Construct an HTTP response with JSON content
-    let jsonResponse req corsHosts status model = 
+    let jsonResponse req corsHosts status model auth = 
         JsonConvert.SerializeObject(model, Json.JsonSettings)
         |> (fun s -> new StringContent(s))
-        |> contentResponse req corsHosts status
+        |> contentResponse req corsHosts status auth
 
     /// Organize the errors into a status code and a collection of error messages. 
     /// If multiple errors are found, the aggregate status will be that of the 
@@ -138,15 +154,15 @@ module Api =
     /// The result of a successful trial will be passed to the provided success function.
     /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
     /// JSON error message with an appropriate status code.
-    let createResponse req config log result =
+    let createResponse req config log status result = 
         match result with
-        | Ok(result, _) -> 
-            logSuccess log req Status.OK
-            jsonResponse req config.CorsHosts Status.OK result
-        | Bad(msgs) -> 
+        | Ok((body,auth), _) ->
+            logSuccess log req status
+            jsonResponse req config.CorsHosts status body (Some(auth))
+        | Bad((msgs:Error list)) -> 
             let (status, errors) = failure (msgs)
             logError log req status errors
-            jsonResponse req config.CorsHosts status errors
+            jsonResponse req config.CorsHosts status errors None
 
     // open Microsoft.OpenApi.Models
 
@@ -167,11 +183,12 @@ module Api =
         services
             .AddSwaggerGen((fun (options:Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions) -> 
                 options.SwaggerDoc(name="v1", info=apiInfo)
-                options.ExampleFilters()
                 options.DescribeAllEnumsAsStrings()
                 options.EnableAnnotations()
+                options.ExampleFilters()
                 options.TryIncludeFunctionXmlComments(assembly)
             ))
-            .AddSwaggerExamplesFromAssemblyOf<UnitsExample>(Json.JsonSettings)
+            .AddSwaggerExamplesFromAssemblyOf<UnitExample>(Json.JsonSettings)
+            .AddSwaggerExamples(Json.JsonSettings)
             .BuildServiceProvider(true)
             .GetSwagger("v1")
