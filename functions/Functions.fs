@@ -130,8 +130,10 @@ module Functions =
     [<SwaggerIgnore>]
     let openapi
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
-        new StringContent(openApiSpec.Value) 
-        |> contentResponse req "*" Status.OK None
+        let (content, status) = 
+            try (new StringContent(openApiSpec.Value), Status.OK)
+            with exn -> (new StringContent(exn.ToString()), Status.InternalServerError)
+        contentResponse req "*" status None content
 
     [<FunctionName("PingGet")>]
     [<SwaggerIgnore>]
