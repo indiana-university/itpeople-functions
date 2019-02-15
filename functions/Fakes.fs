@@ -15,9 +15,10 @@ module Fakes =
     let accessToken = { access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxNTE1NTQ0NjQzIiwidXNlcl9pZCI6MSwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfcm9sZSI6ImFkbWluIn0.akuT7-xDFxrev-T9Dv0Wdumx1HK5L2hQAOU51igIjUE" }
 
     // Units
-    let cityOfPawnee:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url=""; ParentId=None; Parent=None}
-    let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url=""; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
-    let fourthFloor:Unit = {Id=3; Name="Fourth Floor"; Description="It's spooky up there!"; Url=""; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
+    let cityOfPawnee:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url="http://pawneeindiana.com/"; ParentId=None; Parent=None}
+    let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url="http://pawneeindiana.com/parks-and-recreation/"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
+    let fourthFloor:Unit = {Id=3; Name="Fourth Floor"; Description="City Hall's Fourth Floor"; Url="http://pawneeindiana.com/fourth-floor/"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
+    let parksAndRecUnitRequest:UnitRequest = { Name="Parks and Rec"; Description="Parks and Recreation"; Url="http://pawneeindiana.com/parks-and-recreation/"; ParentId=Some(cityOfPawnee.Id) }
 
     // Departments
     let parksDept:Department = {Id=1; Name="PA-PARKS"; Description="Parks and Recreation Department" }
@@ -216,12 +217,13 @@ module Fakes =
     type JwtResponseExample () = inherit ApiEndpointExample<JwtResponse>(accessToken)
     type UnitsExample() = inherit ApiEndpointExample<seq<Unit>>([parksAndRec])
     type UnitExample() = inherit ApiEndpointExample<Unit>(parksAndRec)
+    type UnitRequestExample() = inherit ApiEndpointExample<UnitRequest>(parksAndRecUnitRequest)
     type DepartmentsExample() = inherit ApiEndpointExample<seq<Department>>([parksDept])
     type DepartmentExample() = inherit ApiEndpointExample<Department>(parksDept)
-    type PeopleExample() = inherit ApiEndpointExample<seq<Person>>([swanson; knope; wyatt])
+    type PeopleExample() = inherit ApiEndpointExample<seq<Person>>([knope; knope; wyatt])
     type PersonExample() = inherit ApiEndpointExample<Person>(knope)
     type MembershipRequestExample() = inherit ApiEndpointExample<UnitMemberRequest>(knopeMembershipRequest)
-    type MembershipResponseExample() = inherit ApiEndpointExample<UnitMember>(swansonMembership)
+    type MembershipResponseExample() = inherit ApiEndpointExample<UnitMember>(knopeMembership)
     type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
     type SupportRelationshipResponseExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
     type SupportRelationshipsResponseExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])

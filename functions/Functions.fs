@@ -259,6 +259,8 @@ module Functions =
             
     [<FunctionName("UnitPost")>]
     [<SwaggerOperation(Summary="Create a unit.", Tags=[|"Units"|])>]
+    [<SwaggerRequestExample(typeof<UnitRequest>, typeof<UnitRequestExample>)>]
+    [<SwaggerResponse(201, Type=typeof<Unit>)>]
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow user =
@@ -271,6 +273,7 @@ module Functions =
 
     [<FunctionName("UnitPut")>]
     [<SwaggerOperation(Summary="Update a unit.", Tags=[|"Units"|])>]
+    [<SwaggerRequestExample(typeof<UnitRequest>, typeof<UnitRequestExample>)>]
     [<SwaggerResponse(200, Type=typeof<Unit>)>]
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
@@ -348,7 +351,7 @@ module Functions =
         authorizeUnitModification user model model.UnitId 
 
     [<FunctionName("MemberGetAll")>]
-    [<SwaggerOperation(Summary="Find a unit membership by ID", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerOperation(Summary="Find a unit membership", Tags=[|"Unit Memberships"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
     let memberGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships")>] req) =
@@ -359,7 +362,7 @@ module Functions =
 
     [<FunctionName("MemberGetById")>]
     [<SwaggerOperation(Summary="Find a unit membership by ID", Tags=[|"Unit Memberships"|])>]
-    [<SwaggerResponse(200, Type=typeof<Unit>)>]
+    [<SwaggerResponse(200, Type=typeof<UnitMember>)>]
     let memberGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
@@ -368,7 +371,8 @@ module Functions =
         req |> authenticate workflow Status.OK
 
     [<FunctionName("MemberCreate")>]
-    [<SwaggerOperation(Summary="Create a unit member.", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerOperation(Summary="Create a unit membership.", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
     [<SwaggerResponse(201, Type=typeof<UnitMember>)>]
     let memberCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "memberships")>] req) =
@@ -382,7 +386,8 @@ module Functions =
         req |> authenticate workflow Status.Created
 
     [<FunctionName("MemberUpdate")>]
-    [<SwaggerOperation(Summary="Update a unit member.", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerOperation(Summary="Update a unit membership.", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
     [<SwaggerResponse(200, Type=typeof<UnitMember>)>]
     let memberUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
@@ -398,8 +403,8 @@ module Functions =
         req |> authenticate workflow Status.OK
   
     [<FunctionName("MemberDelete")>]
-    [<SwaggerOperation(Summary="Delete a unit member.", Tags=[|"Unit Memberships"|])>]
-    [<SwaggerResponse(200, Type=typeof<UnitMember>)>]
+    [<SwaggerOperation(Summary="Delete a unit membership.", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerResponse(204)>]
     let memberDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 

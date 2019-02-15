@@ -164,6 +164,18 @@ module Types =
         [<ReadOnly(true)>] Parent: Unit option }
 
     [<CLIMutable>]
+    [<Table("units")>]
+    type UnitRequest = 
+      { /// The name of this unit.
+        Name: Name
+        /// A description of this unit.
+        Description: Name
+        /// A URL for the website of this unit.
+        Url: string
+        /// The unique ID of the parent unit of this unit.
+        ParentId: Id option }
+
+    [<CLIMutable>]
     /// This relationship describes which IT Unit provides IT-related support for a given department.
     [<Table("support_relationships")>]
     type SupportRelationship = 
@@ -211,6 +223,7 @@ module Types =
         /// The unit related to this membership.
         [<ReadOnly(true)>][<Column("unit")>] Unit: Unit }
 
+    [<CLIMutable>]
     type UnitMemberRequest = 
       { /// The unique ID of the unit record.
         UnitId: int
