@@ -234,6 +234,19 @@ module Functions =
             fail(Status.Conflict, error)
         | None -> ok u
     
+    let validateUnitNameIsUnique (model:Unit) = async {
+        let nameConflict (u:Unit) = 
+            (model.Id <> u.Id) && (invariantEqual model.Name u.Name)            
+        let assertUnique (units:seq<Unit>) = 
+            if units |> Seq.exists nameConflict
+            then fail(Status.Conflict, "Another unit already has that name.")
+            else ok model        
+        return
+            Some(model.Name)
+            |> await (query data.Units.GetAll)
+            >>= assertUnique        
+    }
+
     let validateUnitParentIsNotCircular (u:Unit) = async {
         match u.ParentId with
         | None -> return (ok u)

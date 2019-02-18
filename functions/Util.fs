@@ -20,6 +20,9 @@ module Util =
         with
         | exn -> None
 
+    let invariantEqual (str:string) arg = 
+        str.Equals(arg, System.StringComparison.InvariantCultureIgnoreCase)
+
     /// Checks whether the string is null or empty
     let isEmpty str = String.IsNullOrWhiteSpace str
 
