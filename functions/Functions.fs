@@ -368,7 +368,7 @@ module Functions =
     // ** Unit Memberships
     // *******************
 
-    let validateMembershipRecordExists (m:UnitMember) = 
+    let validateMembershipExists (m:UnitMember) = 
         queryAndPassThrough data.Memberships.Get m.Id m 
     let validateMembershipUnitExists (m:UnitMember) = 
         queryAndPassThrough data.Units.Get m.UnitId m 
@@ -376,13 +376,35 @@ module Functions =
         match m.PersonId with 
         | Some(id) -> queryAndPassThrough data.People.Get id m 
         | None -> ok m |> async.Return
-
+    let validateMembershipIsUnique (m:UnitMember) = async {
+        let conflict mx = 
+            m.Id <> mx.Id 
+            && m.UnitId = mx.UnitId 
+            && m.PersonId = mx.PersonId
+        let assertUniqueness memberships = 
+            if memberships |> Seq.exists conflict
+            then fail (Status.Conflict, "This person is already a member of this unit.")
+            else ok m
+        return
+            match m.PersonId with
+            | None -> ok m
+            | Some(id) -> 
+                await data.People.GetMemberships id
+                >>= assertUniqueness
+    }
 
     let authorizeMemberUnitModification user (model:UnitMember) = 
         authorizeUnitModification user model model.UnitId 
 
     let findMembership = query data.Memberships.Get
 
+    let validateMembershipModification membership = async {
+        return
+            membership
+            |> await validateMembershipUnitExists
+            >>= await validateMembershipPersonExists
+            >>= await validateMembershipIsUnique
+    }
     [<FunctionName("MemberGetAll")>]
     [<SwaggerOperation(Summary="Find a unit membership", Tags=[|"Unit Memberships"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
@@ -411,9 +433,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "memberships")>] req) =
         let workflow user = 
             deserializeBody<UnitMember> req
-            >>= await validateMembershipUnitExists
-            >>= await validateMembershipPersonExists
             >>= authorizeMemberUnitModification user
+            >>= await validateMembershipModification
             >>= await data.Memberships.Create
             >>= determineUserPermissions user
         req |> authenticate workflow Status.Created
@@ -427,10 +448,9 @@ module Functions =
         let workflow user = 
             deserializeBody<UnitMember> req
             >>= fun model -> ok { model with Id=membershipId }
-            >>= await validateMembershipRecordExists
-            >>= await validateMembershipUnitExists
-            >>= await validateMembershipPersonExists
             >>= authorizeMemberUnitModification user
+            >>= await validateMembershipExists
+            >>= await validateMembershipModification
             >>= await data.Memberships.Update
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
