@@ -14,7 +14,7 @@ module PostgresContainer =
     open Database.Fakes
 
     let result b = if b then "[OK]" else "[ERROR]"
-    let startServer = """run --name integration_test_db -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
+    let startServer = """run --name integration_test_db --shm-size 256M -p 5432:5432 circleci/postgres:9.6.5-alpine-ram"""
     let logsSqlServer = "logs integration_test_db"   
     let stopSqlServer = "stop integration_test_db"   
     let rmSqlServer = "rm integration_test_db"   
@@ -30,21 +30,6 @@ module PostgresContainer =
             return sprintf "Failed to connect to server: %s" exn.Message |> Some
     }
 
-    /// Attempt to connect to the postgres database.
-    let clearSchema () = async {
-        let sql = """
-            DROP SCHEMA public CASCADE;
-            CREATE SCHEMA public;
-            GRANT ALL ON SCHEMA public TO postgres;
-            GRANT ALL ON SCHEMA public TO public;"""
-        try
-            use db = new NpgsqlConnection(testConnectionString)
-            db.Execute(sql) |> ignore
-        with 
-        | exn -> 
-            return sprintf "Failed to clear schema: %s" exn.Message |> Exception |> raise
-    }
-
     /// Execute an arbitrary docker command.
     let runDockerCommand log cmd wait = 
 
@@ -54,13 +39,13 @@ module PostgresContainer =
             else sprintf "%s: %s" level data |> log
 
         sprintf "EXEC: %s" cmd |> log
-        let si = new ProcessStartInfo()
+        let si = ProcessStartInfo()
         si.FileName <- "docker"
         si.Arguments <- cmd
         si.UseShellExecute <- false
         si.RedirectStandardOutput <- true
         si.RedirectStandardError <- true
-        let p = new System.Diagnostics.Process()
+        use p = new System.Diagnostics.Process()
         p.StartInfo <- si
         p.EnableRaisingEvents <- true
         p.OutputDataReceived.AddHandler(DataReceivedEventHandler (fun _ a -> a.Data |> logConsoleOutput "INFO"))
@@ -77,7 +62,7 @@ module PostgresContainer =
         let mutable count = 0
         let mutable isReady = false
         "---> Waiting for PostgresQL Server to beome available... " |> log
-        while isReady = false && count < maxTries do
+        while not isReady && count < maxTries do
             do! Async.Sleep(delayMs)
             let! error = tryConnect ()
             match error with 
@@ -103,6 +88,4 @@ module PostgresContainer =
             runDockerCommand log startServer false
             do! ensureReady log
             "     PostgresQL Server is available."  |> log
-        "---> Clearing public schema..."  |> log
-        do! clearSchema ()
     }

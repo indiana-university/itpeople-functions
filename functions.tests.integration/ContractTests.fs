@@ -32,7 +32,7 @@ module ContractTests =
     let stateServerPort = 9092
 
     let verifyPact output = 
-        let stateServerUrl = sprintf "http://localhost:%d" stateServerPort
+        let stateServerUrl = sprintf "http://localhost:%d/state" stateServerPort
         let functionUrl = sprintf "http://localhost:%d" functionServerPort
         let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
         let verifier = PactVerifierConfig(Outputters=outputters, Verbose=true) |> PactVerifier
@@ -52,10 +52,6 @@ module ContractTests =
         member __.``Test Contracts`` () = async {
             let mutable functionServer = None
             let mutable stateServer = None
-
-            // System.Reflection.Assembly.GetEntryAssembly().Location
-            // |> System.IO.Path.GetDirectoryName
-            // |> printfn "Executing in: %s"
 
             try            
                 // These config settings are needed for the tests

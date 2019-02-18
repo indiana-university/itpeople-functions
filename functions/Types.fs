@@ -205,13 +205,13 @@ module Types =
       { /// The unique ID of this unit member record.
         [<Key>][<Column("id")>] Id: Id
         /// The ID of the unit record.
-        [<Required>][<Column("unit_id")>] UnitId: Id
+        [<Required>][<Column("unit_id")>] UnitId: UnitId
         /// The role of the person in this membership as part of the unit.
         [<Required>][<Column("role")>] Role: Role
         /// The permissions of the person in this membership as part of the unit.
         [<Required>][<Column("permissions")>] Permissions: Permissions
         /// The ID of the person record. This can be null if the position is vacant.
-        [<Column("person_id")>][<Editable(true)>] PersonId: Id option
+        [<Column("person_id")>][<Editable(true)>] PersonId: PersonId option
         /// The title/position of this membership.
         [<Column("title")>] Title: string
         /// The percentage of time allocated to this position by this person (in case of split appointments).
@@ -226,13 +226,13 @@ module Types =
     [<CLIMutable>]
     type UnitMemberRequest = 
       { /// (Required) The unique ID of the unit record.
-        [<Required>]UnitId: int
+        [<Required>]UnitId: UnitId
         /// (Required) The role of the person in this membership as part of the unit.
         [<Required>]Role: Role
         /// (Required) The permissions of the person in this membership as part of the unit.
         [<Required>]Permissions: Permissions
         /// The ID of the person record. This can be null if the position is vacant.
-        PersonId: int option
+        PersonId: PersonId option
         /// The title/position of this membership.
         Title: string
         /// The percentage of time allocated to this position by this person (in case of split appointments).

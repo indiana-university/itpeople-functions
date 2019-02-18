@@ -25,7 +25,12 @@ module Fakes =
         /// Clear the database and migrate it to the latest schema
         let migrator = db |> migrator
         migrator.Load()
+        // Migrate back to 0
         migrator.MigrateTo(int64 0)
+        // Vacuum: garbage-collect and optionally analyze a database
+        // https://www.postgresql.org/docs/9.2/sql-vacuum.html
+        db.Execute("VACUUM") |> ignore
+        // Migrate to the latest schema
         migrator.MigrateToLatest()
         
         // departments
