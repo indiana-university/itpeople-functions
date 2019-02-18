@@ -226,6 +226,24 @@ module Functions =
         match u.ParentId with 
         | Some(id) -> validateUnitExists' id u
         | None -> ok u |> async.Return
+
+    let testForCircularDependency (u:Unit) (child:Unit option) =    
+        match (child) with
+        | Some(c) -> 
+            let error = sprintf "Whoops! %s is a parent of %s in the unit hierarcy. Adding it as a child would result in a circular relationship. 🙃" u.Name c.Name
+            fail(Status.Conflict, error)
+        | None -> ok u
+    
+    let validateUnitParentIsNotCircular (u:Unit) = async {
+        match u.ParentId with
+        | None -> return (ok u)
+        | Some(parentId) ->    
+            return 
+                parentId
+                |> await (data.Units.GetDescendantOfParent u) 
+                >>= testForCircularDependency u
+    }
+       
     let authorizeUnitModification' user (model:Unit) = 
         if (model.Id = 0 && model.ParentId.IsNone)
         then 
@@ -267,6 +285,7 @@ module Functions =
             deserializeBody<Unit> req
             >>= authorizeUnitModification' user
             >>= await validateUnitParentExists
+            >>= await validateUnitParentIsNotCircular
             >>= await data.Units.Create
             >>= determineUserPermissions user
         req |> authenticate workflow Status.Created
@@ -281,8 +300,9 @@ module Functions =
             deserializeBody<Unit> req
             >>= fun model -> ok { model with Id=unitId } 
             >>= await validateUnitExists
-            >>= await validateUnitParentExists
             >>= authorizeUnitModification' user
+            >>= await validateUnitParentExists
+            >>= await validateUnitParentIsNotCircular
             >>= await data.Units.Update
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
