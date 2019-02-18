@@ -347,11 +347,6 @@ module Types =
         | UnitMember of UnitMember
         | SupportRelationship of SupportRelationship
 
-    let identity model : Id =
-        match model with
-        | Person p -> p.Id
-        | Unit u -> u.Id
-        | Department d -> d.Id
-        | UnitMember um -> um.Id
-        | SupportRelationship sr -> sr.Id
-
+    let inline identity (model:^T) = 
+        let id = (^T : (member Id:Id) model)
+        id

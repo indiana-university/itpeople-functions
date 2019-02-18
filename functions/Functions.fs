@@ -81,12 +81,6 @@ module Functions =
         let admins = [ "jhoerr"; "kendjone"; "jerussel"; "brrund"; "mattzink"; "johndoe" ]
         admins |> List.contains user.UserName
 
-    /// Temporary: if this user is an admin, allow them to modify the resource.
-    let authorize (user:JwtClaims) =
-        if isAdmin user
-        then ok user
-        else fail (Status.Forbidden, "You are not authorized to modify this resource.")
-
     let authorizeUnitModification (user:JwtClaims) model unitId =
         if isAdmin user
         then ok model
@@ -99,25 +93,19 @@ module Functions =
         else ok (a, [GET])
 
     // VALIDATION 
-
-    let validateExistsAndPassThrough id model lookup = async {
-        let! lookupResult = lookup id
-        return 
-            match lookupResult with
-            | Ok(_) -> ok model
-            | Bad(msgs) -> Bad msgs
-    }
-    let validateExistsAndReturn id lookup = async {
-        let! lookupResult = lookup id
+    let query lookup param  = async {
+        let! lookupResult = lookup param
         return 
             match lookupResult with
             | Ok(value,_) -> ok value
             | Bad(msgs) -> Bad msgs
     }
-    let validatePersonExists id = validateExistsAndPassThrough id id data.People.Get
-    let findMembership id = validateExistsAndReturn id data.Memberships.Get
-    let findSupportRelationship id = validateExistsAndReturn id data.SupportRelationships.Get
 
+    let queryAndPassThrough lookup param model  = async {
+        return 
+            await (query lookup) param
+            >>= fun _ -> ok model
+    }
 
     // FUNCTION WORKFLOWS 
     [<FunctionName("Options")>]
@@ -178,6 +166,7 @@ module Functions =
     // ** People
     // *****************
 
+
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="List all people", Description="Search for people by name and/or username (netid).", Tags=[|"People"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Person>>)>]
@@ -207,8 +196,8 @@ module Functions =
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
         let workflow user = 
-            await validatePersonExists personId
-            >>= await data.People.GetMemberships
+            await (query data.People.Get) personId
+            >>= (fun p -> await data.People.GetMemberships p.Id)
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
 
@@ -217,23 +206,16 @@ module Functions =
     // ** Units
     // *****************
 
-    let findUnit id = validateExistsAndReturn id data.Units.Get
+    let findUnit = query data.Units.Get
+    
     let validateUnitExists (model:Unit) = 
-        validateExistsAndPassThrough model.Id model data.Units.Get
-    let validateUnitExists' id model = 
-        validateExistsAndPassThrough id model data.Units.Get
+        queryAndPassThrough data.Units.Get model.Id model 
+
     let validateUnitParentExists (u:Unit) = 
         match u.ParentId with 
-        | Some(id) -> validateUnitExists' id u
+        | Some(id) -> queryAndPassThrough data.Units.Get id u 
         | None -> ok u |> async.Return
 
-    let testForCircularDependency (u:Unit) (child:Unit option) =    
-        match (child) with
-        | Some(c) -> 
-            let error = sprintf "Whoops! %s is a parent of %s in the unit hierarcy. Adding it as a child would result in a circular relationship. 🙃" u.Name c.Name
-            fail(Status.Conflict, error)
-        | None -> ok u
-    
     let validateUnitNameIsUnique (model:Unit) = async {
         let nameConflict (u:Unit) = 
             (model.Id <> u.Id) && (invariantEqual model.Name u.Name)            
@@ -248,15 +230,22 @@ module Functions =
     }
 
     let validateUnitParentIsNotCircular (u:Unit) = async {
+        let assertLinearDependency (child:Unit option) =    
+            match (child) with
+            | Some(c) -> 
+                let error = sprintf "Whoops! %s is a parent of %s in the unit hierarcy. Adding it as a child would result in a circular relationship. 🙃" u.Name c.Name
+                fail(Status.Conflict, error)
+            | None -> ok u
+
         match u.ParentId with
         | None -> return (ok u)
         | Some(parentId) ->    
             return 
                 parentId
                 |> await (data.Units.GetDescendantOfParent u) 
-                >>= testForCircularDependency u
+                >>= assertLinearDependency
     }
-       
+
     let authorizeUnitModification' user (model:Unit) = 
         if (model.Id = 0 && model.ParentId.IsNone)
         then 
@@ -380,17 +369,19 @@ module Functions =
     // *******************
 
     let validateMembershipRecordExists (m:UnitMember) = 
-        validateExistsAndPassThrough m.Id m data.Memberships.Get
+        queryAndPassThrough data.Memberships.Get m.Id m 
     let validateMembershipUnitExists (m:UnitMember) = 
-        validateExistsAndPassThrough m.UnitId m data.Units.Get 
+        queryAndPassThrough data.Units.Get m.UnitId m 
     let validateMembershipPersonExists (m:UnitMember) = 
         match m.PersonId with 
-        | Some(id) -> validateExistsAndPassThrough id m data.People.Get
+        | Some(id) -> queryAndPassThrough data.People.Get id m 
         | None -> ok m |> async.Return
 
 
     let authorizeMemberUnitModification user (model:UnitMember) = 
         authorizeUnitModification user model model.UnitId 
+
+    let findMembership = query data.Memberships.Get
 
     [<FunctionName("MemberGetAll")>]
     [<SwaggerOperation(Summary="Find a unit membership", Tags=[|"Unit Memberships"|])>]
@@ -510,6 +501,8 @@ module Functions =
     // ************************
     let authorizeSupportUnitModification user (model:SupportRelationship) = 
         authorizeUnitModification user model model.UnitId 
+
+    let findSupportRelationship = query data.SupportRelationships.Get
 
     [<FunctionName("SupportRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-department support relationships.", Tags=[|"Support Relationships"|])>]
