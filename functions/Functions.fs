@@ -272,6 +272,9 @@ module Functions =
             >>= await validateUnitNameIsUnique
             >>= await validateUnitParentIsNotCircular
     }
+
+    let mapToUnit id request = ok { Id=id; Name=request.Name; Description=request.Description; Url=request.Url; ParentId=request.ParentId; Parent=None } 
+    
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all IT units.", Description="Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units." , Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
@@ -302,8 +305,9 @@ module Functions =
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow user =
-            deserializeBody<Unit> req
-            >>= authorizeUnitModification' user
+            deserializeBody<UnitRequest> req
+            >>= mapToUnit 0
+            >>= authorizeUnitModification' user            
             >>= await validateUnitModification
             >>= await data.Units.Create
             >>= determineUserPermissions user
@@ -316,8 +320,8 @@ module Functions =
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow user = 
-            deserializeBody<Unit> req
-            >>= fun model -> ok { model with Id=unitId } 
+            deserializeBody<UnitRequest> req            
+            >>= mapToUnit unitId
             >>= await validateUnitExists
             >>= authorizeUnitModification' user
             >>= await validateUnitModification
