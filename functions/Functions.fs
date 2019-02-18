@@ -265,6 +265,13 @@ module Functions =
             else fail(Status.Forbidden, "Please contact IT Community Partnerships (talk2uits@iu.edu) to create a top-level IT unit.")
         else authorizeUnitModification user model model.Id
 
+    let validateUnitModification (model:Unit) = async {
+        return 
+            model
+            |> await validateUnitParentExists
+            >>= await validateUnitNameIsUnique
+            >>= await validateUnitParentIsNotCircular
+    }
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all IT units.", Description="Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units." , Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
@@ -297,8 +304,7 @@ module Functions =
         let workflow user =
             deserializeBody<Unit> req
             >>= authorizeUnitModification' user
-            >>= await validateUnitParentExists
-            >>= await validateUnitParentIsNotCircular
+            >>= await validateUnitModification
             >>= await data.Units.Create
             >>= determineUserPermissions user
         req |> authenticate workflow Status.Created
@@ -314,8 +320,7 @@ module Functions =
             >>= fun model -> ok { model with Id=unitId } 
             >>= await validateUnitExists
             >>= authorizeUnitModification' user
-            >>= await validateUnitParentExists
-            >>= await validateUnitParentIsNotCircular
+            >>= await validateUnitModification
             >>= await data.Units.Update
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
