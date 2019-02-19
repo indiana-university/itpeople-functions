@@ -520,9 +520,36 @@ module Functions =
     // ** Support Relationships
     // ************************
     let authorizeSupportUnitModification user (model:SupportRelationship) = 
-        authorizeUnitModification user model model.UnitId 
+        authorizeUnitModification user model model.UnitId |> async.Return
 
     let findSupportRelationship = query data.SupportRelationships.Get
+
+    let validateRelationshipExists (m:SupportRelationship) = 
+        queryAndPassThrough data.SupportRelationships.Get m.Id m 
+    let validateRelationshipUnitExists (m:SupportRelationship) = 
+        queryAndPassThrough data.Units.Get m.UnitId m 
+    let validateRelationshipDepartmentExists (m:SupportRelationship) = 
+        queryAndPassThrough data.Departments.Get m.DepartmentId m 
+    let validateRelationshipIsUnique (m:SupportRelationship) = async {
+        let conflict (mx:SupportRelationship) = 
+            m.Id <> mx.Id 
+            && m.UnitId = mx.UnitId 
+            && m.DepartmentId = mx.DepartmentId
+        let assertUniqueness relationships = 
+            if relationships |> Seq.exists conflict
+            then fail (Status.Conflict, "This unit already has a support relationship with this department.")
+            else ok m
+        return
+            await data.SupportRelationships.GetAll ()
+            >>= assertUniqueness
+    }
+    let validateSupportRelationshipModification relationship = async {
+        return
+            relationship
+            |> await validateRelationshipUnitExists
+            >>= await validateRelationshipDepartmentExists
+            >>= await validateRelationshipIsUnique
+    }
 
     [<FunctionName("SupportRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-department support relationships.", Tags=[|"Support Relationships"|])>]
@@ -553,7 +580,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "supportRelationships")>] req) =
         let workflow user = 
             deserializeBody<SupportRelationship> req
-            >>= authorizeSupportUnitModification user
+            >>= await (authorizeSupportUnitModification user)
+            >>= await validateSupportRelationshipModification
             >>= await data.SupportRelationships.Create          
             >>= determineUserPermissions user
         req |> authenticate workflow Status.Created
@@ -567,7 +595,9 @@ module Functions =
         let workflow user = 
             deserializeBody<SupportRelationship> req
             >>= fun model -> ok { model with Id=relationshipId }
-            >>= authorizeSupportUnitModification user
+            >>= await validateRelationshipExists
+            >>= await (authorizeSupportUnitModification user)
+            >>= await validateSupportRelationshipModification
             >>= await data.SupportRelationships.Update
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
@@ -579,7 +609,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
             await findSupportRelationship relationshipId
-            >>= authorizeSupportUnitModification user
+            >>= await validateRelationshipExists
+            >>= await (authorizeSupportUnitModification user)
             >>= await data.SupportRelationships.Delete
             >>= determineUserPermissions user
         req |> authenticate workflow Status.NoContent
