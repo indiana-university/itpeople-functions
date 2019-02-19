@@ -365,43 +365,11 @@ module Functions =
     // ** Unit Memberships
     // *******************
 
-    let validateMembershipExists (m:UnitMember) = 
-        queryAndPassThrough data.Memberships.Get m.Id m 
-    let validateMembershipUnitExists (m:UnitMember) = 
-        queryAndPassThrough data.Units.Get m.UnitId m 
-    let validateMembershipPersonExists (m:UnitMember) = 
-        match m.PersonId with 
-        | Some(id) -> queryAndPassThrough data.People.Get id m 
-        | None -> ok m |> async.Return
-    let validateMembershipIsUnique (m:UnitMember) = async {
-        let conflict mx = 
-            m.Id <> mx.Id 
-            && m.UnitId = mx.UnitId 
-            && m.PersonId = mx.PersonId
-        let assertUniqueness memberships = 
-            if memberships |> Seq.exists conflict
-            then fail (Status.Conflict, "This person is already a member of this unit.")
-            else ok m
-        return
-            match m.PersonId with
-            | None -> ok m
-            | Some(id) -> 
-                await data.People.GetMemberships id
-                >>= assertUniqueness
-    }
-
     let authorizeMemberUnitModification user (model:UnitMember) = 
         authorizeUnitModification user model model.UnitId 
 
-    let findMembership = query data.Memberships.Get
+    let membershipValidator = membershipValidator(data)
 
-    let validateMembershipModification membership = async {
-        return
-            membership
-            |> await validateMembershipUnitExists
-            >>= await validateMembershipPersonExists
-            >>= await validateMembershipIsUnique
-    }
     [<FunctionName("MemberGetAll")>]
     [<SwaggerOperation(Summary="Find a unit membership", Tags=[|"Unit Memberships"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
@@ -431,7 +399,7 @@ module Functions =
         let workflow user = 
             deserializeBody<UnitMember> req
             >>= authorizeMemberUnitModification user
-            >>= await validateMembershipModification
+            >>= await membershipValidator.ValidForCreate
             >>= await data.Memberships.Create
             >>= determineUserPermissions user
         req |> authenticate workflow Status.Created
@@ -446,8 +414,7 @@ module Functions =
             deserializeBody<UnitMember> req
             >>= fun model -> ok { model with Id=membershipId }
             >>= authorizeMemberUnitModification user
-            >>= await validateMembershipExists
-            >>= await validateMembershipModification
+            >>= await membershipValidator.ValidForUpdate
             >>= await data.Memberships.Update
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
@@ -458,8 +425,7 @@ module Functions =
     let memberDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
-            await findMembership membershipId
-            >>= authorizeMemberUnitModification user
+            await membershipValidator.ValidForDelete membershipId
             >>= await data.Memberships.Delete
             >>= determineUserPermissions user
         req |> authenticate workflow Status.NoContent
@@ -577,8 +543,7 @@ module Functions =
     let supportRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
-            relationshipId
-            |> await relationshipValidator.ValidForDelete 
+            await relationshipValidator.ValidForDelete relationshipId
             >>= await (authorizeSupportUnitModification user)
             >>= await data.SupportRelationships.Delete
             >>= determineUserPermissions user
