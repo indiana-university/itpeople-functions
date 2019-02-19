@@ -71,6 +71,7 @@ module Validation =
         let entities id = fun () -> data.People.GetMemberships id
         let conflictPredicate (mx:UnitMember) = 
             m.Id <> mx.UnitId 
+            (m.Id = 0 || m.Id <> mx.UnitId)
             && m.UnitId = mx.UnitId 
             && m.PersonId = mx.PersonId
         let msg = "This person already belongs to this unit."
