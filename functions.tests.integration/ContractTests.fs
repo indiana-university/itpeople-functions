@@ -35,12 +35,12 @@ module ContractTests =
         let stateServerUrl = sprintf "http://localhost:%d/state" stateServerPort
         let functionUrl = sprintf "http://localhost:%d" functionServerPort
         let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
-        let verifier = PactVerifierConfig(Outputters=outputters, Verbose=true) |> PactVerifier
+        let verifier = PactVerifierConfig(Outputters=outputters, Verbose=false, PublishVerificationResults=false) |> PactVerifier
         verifier
             .ProviderState(stateServerUrl)
             .ServiceProvider("API", functionUrl)
             .HonoursPactWith("Client")
-            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/develop/contracts/itpeople-app-itpeople-functions.json")
+            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/feature/pact-crud-validation/contracts/itpeople-app-itpeople-functions.json")
             .Verify()
 
     type Pact(output: ITestOutputHelper)=
