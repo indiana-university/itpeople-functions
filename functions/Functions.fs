@@ -189,7 +189,7 @@ module Functions =
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
         let workflow user = 
-            await (query data.People.Get) personId
+            await data.People.Get personId
             >>= (fun p -> await data.People.GetMemberships p.Id)
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
