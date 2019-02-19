@@ -30,14 +30,36 @@ module Validation =
             await (query lookup) param
             >>= fun _ -> ok model
     }
+    let inline assertUnique lookup conflictPredicate msg model = async { 
+        let assertUniqueness models = 
+            if models |> Seq.exists conflictPredicate
+            then fail (Status.Conflict, msg)
+            else ok model
+        return 
+            await' lookup 
+            >>= assertUniqueness
+    }
 
-    let inline validateEntityExists lookup request = 
+    let inline validateEntityExists getOne request = 
         match request with
-        | Id id -> 
-            query lookup id
-        | Model model -> 
-            let id = (^T : (member Id:Id) model)
-            queryAndPassThrough lookup id model
+        | Id id -> query getOne id
+        | Model model -> queryAndPassThrough getOne (identity model) model
+
+    let inline createValidator data getOne detailsValidationFn = 
+        let validForCreate = detailsValidationFn data
+        let validForUpdate model = async {
+            return 
+                await (validateEntityExists getOne) (Model(model))
+                >>= await (detailsValidationFn data) 
+        }
+        let validForDelete id = validateEntityExists getOne (Id(id))
+
+        { ValidForCreate = validForCreate
+          ValidForUpdate = validForUpdate
+          ValidForDelete = validForDelete }
+
+
+    // Unit Membership Validation
 
     let validateMembershipUnitExists data (m:UnitMember) = 
         queryAndPassThrough data.Units.Get m.UnitId m 
@@ -45,78 +67,45 @@ module Validation =
         match m.PersonId with 
         | Some(id) -> queryAndPassThrough data.People.Get id m 
         | None -> ok m |> async.Return
-    let validateMembershipIsUnique data (m:UnitMember) = async {
-        let conflict mx = 
-            m.Id <> mx.Id 
+    let validateMembershipIsUnique data (m:UnitMember) = 
+        let entities = data.People.GetMemberships
+        let conflictPredicate (mx:UnitMember) = 
+            m.Id <> mx.UnitId 
             && m.UnitId = mx.UnitId 
             && m.PersonId = mx.PersonId
-        let assertUniqueness memberships = 
-            if memberships |> Seq.exists conflict
-            then fail (Status.Conflict, "This person is already a member of this unit.")
-            else ok m
-        return
-            match m.PersonId with
-            | None -> ok m
-            | Some(id) -> 
-                await data.People.GetMemberships id
-                >>= assertUniqueness
-    }
-
+        match m.PersonId with
+        | None -> ok m |> async.Return
+        | Some(id) -> assertUnique (entities id) conflictPredicate "This person already belongs to this unit." m
     let validateMembershipDetails data membership = async {
         return
-            membership
-            |> await (validateMembershipUnitExists data)
+            await (validateMembershipUnitExists data) membership
             >>= await (validateMembershipPersonExists data)
             >>= await (validateMembershipIsUnique data)
     }
+    let membershipValidator data = 
+        createValidator data data.Memberships.Get validateMembershipDetails
 
-    let membershipValidator data : Validator<UnitMember> = 
-        let validForCreate = validateMembershipDetails data
-        let validForUpdate model = async {
-            return 
-                await (validateEntityExists data.Memberships.Get) (Model(model))
-                >>= await (validateMembershipDetails data) 
-        }
-        let validForDelete id = validateEntityExists data.Memberships.Get (Id(id))
 
-        { ValidForCreate = validForUpdate
-          ValidForUpdate = validForUpdate
-          ValidForDelete = validForDelete }
+    // Support Relationship Validation
+
+    let validateRelationshipUnitExists data (m:SupportRelationship) = 
+        queryAndPassThrough data.Units.Get m.UnitId m 
+    let validateRelationshipDepartmentExists data (m:SupportRelationship) = 
+        queryAndPassThrough data.Departments.Get m.DepartmentId m 
+    let validateRelationshipIsUnique data (m:SupportRelationship) =
+        let entities = data.SupportRelationships.GetAll
+        let conflictPredicate (mx:SupportRelationship) = 
+            m.Id <> mx.Id 
+            && m.UnitId = mx.UnitId 
+            && m.DepartmentId = mx.DepartmentId
+        m |> assertUnique (entities ()) conflictPredicate "This unit already has a support relationship with this department."
 
     let validateRelationshipDetails data relationship = async {
-        let validateRelationshipUnitExists (m:SupportRelationship) = 
-            queryAndPassThrough data.Units.Get m.UnitId m 
-        let validateRelationshipDepartmentExists (m:SupportRelationship) = 
-            queryAndPassThrough data.Departments.Get m.DepartmentId m 
-        let validateRelationshipIsUnique (m:SupportRelationship) = async {
-            let conflict (mx:SupportRelationship) = 
-                m.Id <> mx.Id 
-                && m.UnitId = mx.UnitId 
-                && m.DepartmentId = mx.DepartmentId
-            let assertUniqueness relationships = 
-                if relationships |> Seq.exists conflict
-                then fail (Status.Conflict, "This unit already has a support relationship with this department.")
-                else ok m
-            return
-                await data.SupportRelationships.GetAll ()
-                    >>= assertUniqueness
-        }
         return
-            relationship
-            |> await validateRelationshipUnitExists
-            >>= await validateRelationshipDepartmentExists
-            >>= await validateRelationshipIsUnique
+            await (validateRelationshipUnitExists data) relationship
+            >>= await (validateRelationshipDepartmentExists data)
+            >>= await (validateRelationshipIsUnique data)
     }
 
-    let supportRelationshipValidator data : Validator<SupportRelationship> = 
-        let validForCreate = validateRelationshipDetails data
-        let validForUpdate model = async {
-            return 
-                await (validateEntityExists data.SupportRelationships.Get) (Model(model))
-                >>= await (validateRelationshipDetails data) 
-        }
-        let validForDelete id = validateEntityExists data.SupportRelationships.Get (Id(id))
-
-        { ValidForCreate = validForUpdate
-          ValidForUpdate = validForUpdate
-          ValidForDelete = validForDelete }
+    let supportRelationshipValidator data = 
+        createValidator data data.SupportRelationships.Get validateRelationshipDetails
