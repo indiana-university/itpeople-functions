@@ -96,7 +96,7 @@ module DatabaseTests=
         member __.``Get supported departments`` () = 
             let actual = repo.Units.GetSupportedDepartments cityOfPawnee |> awaitAndUnpack
 
-            Seq.length actual |> should equal 1
+            Seq.length actual |> should equal 2
             actual |> should contain supportRelationship
 
     type UnitsWrite(output: ITestOutputHelper)=

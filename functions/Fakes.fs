@@ -22,6 +22,7 @@ module Fakes =
 
     // Departments
     let parksDept:Department = {Id=1; Name="PA-PARKS"; Description="Parks and Recreation Department" }
+    let otherDept:Department = {Id=2; Name="PA-OTHER"; Description="Other Department" }
     
     // People
     let swanson:Person = {
@@ -154,6 +155,14 @@ module Fakes =
         DepartmentId=parksDept.Id
         Unit=cityOfPawnee
         Department=parksDept
+    }
+
+    let otherSupportRelationship:SupportRelationship = {
+        Id=2
+        UnitId=cityOfPawnee.Id
+        DepartmentId=otherDept.Id
+        Unit=cityOfPawnee
+        Department=otherDept
     }
 
     /// A canned data implementation of IDatabaseRespository (for testing)
