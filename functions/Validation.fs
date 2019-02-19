@@ -26,7 +26,7 @@ module Validation =
             | Bad([(Status.NotFound, msg)]) -> fail (Status.BadRequest, msg)
             | Bad(msgs) -> Bad msgs
     }
-    
+
     let inline assertUnique lookup conflictPredicate msg model = async { 
         let assertUniqueness models = 
             if models |> Seq.exists conflictPredicate
@@ -60,13 +60,15 @@ module Validation =
     let membershipIsUnique data (m:UnitMember) = 
         let entities id = fun () -> data.People.GetMemberships id
         let conflictPredicate (mx:UnitMember) = 
-            (m.Id = 0 || m.Id <> mx.UnitId)
+            sprintf "MEM Compare To: %A" mx |> System.Console.WriteLine
+            (m.Id = 0 || m.Id <> mx.Id)
             && m.UnitId = mx.UnitId 
             && m.PersonId = mx.PersonId
         let msg = "This person already belongs to this unit."
         match m.PersonId with
         | None -> ok m |> async.Return
-        | Some(id) -> m |> assertUnique (entities id) conflictPredicate msg
+        | Some(id) -> 
+            m |> assertUnique (entities id) conflictPredicate msg
     let membershipValidationPipeline data membership = async {
         return
             await (membershipUnitExists data) membership
@@ -86,7 +88,7 @@ module Validation =
     let relationshipIsUnique data (m:SupportRelationship) =
         let entities = data.SupportRelationships.GetAll
         let conflictPredicate (mx:SupportRelationship) = 
-            m.Id <> mx.Id 
+            (m.Id = 0 || m.Id <> mx.Id)
             && m.UnitId = mx.UnitId 
             && m.DepartmentId = mx.DepartmentId
         let msg = "This unit already has a support relationship with this department."
@@ -113,7 +115,7 @@ module Validation =
     let unitNameIsUnique data (model:Unit) =
         let entities () = data.Units.GetAll (Some(model.Name))
         let conflictPredicate (u:Unit) = 
-            (model.Id <> u.Id) 
+            (model.Id = 0 || model.Id <> u.Id) 
             && (invariantEqual model.Name u.Name)            
         let msg = "Another unit already has that name."
         model |> assertUnique entities conflictPredicate msg
