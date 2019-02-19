@@ -16,7 +16,7 @@ module Validation =
     type Validator<'T> =
       { ValidForCreate: 'T -> Async<Result<'T,Error>>
         ValidForUpdate: 'T -> Async<Result<'T,Error>>
-        ValidForDelete: Id -> Async<Result<'T,Error>> }
+        ValidEntity: Id -> Async<Result<'T,Error>> }
 
     let query lookup param  = async {
         let! lookupResult = lookup param
@@ -36,7 +36,7 @@ module Validation =
             then fail (Status.Conflict, msg)
             else ok model
         return 
-            await' lookup 
+            await lookup () 
             >>= assertUniqueness
     }
 
@@ -45,67 +45,113 @@ module Validation =
         | Id id -> query getOne id
         | Model model -> queryAndPassThrough getOne (identity model) model
 
-    let inline createValidator data getOne detailsValidationFn = 
-        let validForCreate = detailsValidationFn data
+    let inline createValidator data getOne validationPipeline = 
+        let validForCreate = validationPipeline data
         let validForUpdate model = async {
             return 
                 await (validateEntityExists getOne) (Model(model))
-                >>= await (detailsValidationFn data) 
+                >>= await (validationPipeline data) 
         }
-        let validForDelete id = validateEntityExists getOne (Id(id))
+        let validEntity id = validateEntityExists getOne (Id(id))
 
         { ValidForCreate = validForCreate
           ValidForUpdate = validForUpdate
-          ValidForDelete = validForDelete }
+          ValidEntity = validEntity }
 
 
     // Unit Membership Validation
 
-    let validateMembershipUnitExists data (m:UnitMember) = 
+    let membershipUnitExists data (m:UnitMember) = 
         queryAndPassThrough data.Units.Get m.UnitId m 
-    let validateMembershipPersonExists data (m:UnitMember) = 
+    let membershipPersonExists data (m:UnitMember) = 
         match m.PersonId with 
         | Some(id) -> queryAndPassThrough data.People.Get id m 
         | None -> ok m |> async.Return
-    let validateMembershipIsUnique data (m:UnitMember) = 
-        let entities = data.People.GetMemberships
+    let membershipIsUnique data (m:UnitMember) = 
+        let entities id = fun () -> data.People.GetMemberships id
         let conflictPredicate (mx:UnitMember) = 
             m.Id <> mx.UnitId 
             && m.UnitId = mx.UnitId 
             && m.PersonId = mx.PersonId
+        let msg = "This person already belongs to this unit."
         match m.PersonId with
         | None -> ok m |> async.Return
-        | Some(id) -> assertUnique (entities id) conflictPredicate "This person already belongs to this unit." m
-    let validateMembershipDetails data membership = async {
+        | Some(id) -> m |> assertUnique (entities id) conflictPredicate msg
+    let membershipValidationPipeline data membership = async {
         return
-            await (validateMembershipUnitExists data) membership
-            >>= await (validateMembershipPersonExists data)
-            >>= await (validateMembershipIsUnique data)
+            await (membershipUnitExists data) membership
+            >>= await (membershipPersonExists data)
+            >>= await (membershipIsUnique data)
     }
     let membershipValidator data = 
-        createValidator data data.Memberships.Get validateMembershipDetails
+        createValidator data data.Memberships.Get membershipValidationPipeline
 
 
     // Support Relationship Validation
 
-    let validateRelationshipUnitExists data (m:SupportRelationship) = 
+    let relationshipUnitExists data (m:SupportRelationship) = 
         queryAndPassThrough data.Units.Get m.UnitId m 
-    let validateRelationshipDepartmentExists data (m:SupportRelationship) = 
+    let relationshipDepartmentExists data (m:SupportRelationship) = 
         queryAndPassThrough data.Departments.Get m.DepartmentId m 
-    let validateRelationshipIsUnique data (m:SupportRelationship) =
+    let relationshipIsUnique data (m:SupportRelationship) =
         let entities = data.SupportRelationships.GetAll
         let conflictPredicate (mx:SupportRelationship) = 
             m.Id <> mx.Id 
             && m.UnitId = mx.UnitId 
             && m.DepartmentId = mx.DepartmentId
-        m |> assertUnique (entities ()) conflictPredicate "This unit already has a support relationship with this department."
+        let msg = "This unit already has a support relationship with this department."
+        m |> assertUnique entities conflictPredicate msg
 
-    let validateRelationshipDetails data relationship = async {
+    let relationshipValidationPipeline data relationship = async {
         return
-            await (validateRelationshipUnitExists data) relationship
-            >>= await (validateRelationshipDepartmentExists data)
-            >>= await (validateRelationshipIsUnique data)
+            await (relationshipUnitExists data) relationship
+            >>= await (relationshipDepartmentExists data)
+            >>= await (relationshipIsUnique data)
     }
 
     let supportRelationshipValidator data = 
-        createValidator data data.SupportRelationships.Get validateRelationshipDetails
+        createValidator data data.SupportRelationships.Get relationshipValidationPipeline
+
+
+    // Unit Validation
+
+    let unitParentExists data (u:Unit) = 
+        match u.ParentId with 
+        | Some(id) -> queryAndPassThrough data.Units.Get id u 
+        | None -> ok u |> async.Return
+
+    let unitNameIsUnique data (model:Unit) =
+        let entities () = data.Units.GetAll (Some(model.Name))
+        let conflictPredicate (u:Unit) = 
+            (model.Id <> u.Id) 
+            && (invariantEqual model.Name u.Name)            
+        let msg = "Another unit already has that name."
+        model |> assertUnique entities conflictPredicate msg
+ 
+    let unitParentRelationshipIsNotCircular data (u:Unit) = async {
+        let assertLinearDependency (child:Unit option) =    
+            match (child) with
+            | Some(c) -> 
+                let error = sprintf "Whoops! %s is a parent of %s in the unit hierarcy. Adding it as a child would result in a circular relationship. 🙃" u.Name c.Name
+                fail(Status.Conflict, error)
+            | None -> ok u
+
+        match u.ParentId with
+        | None -> return (ok u)
+        | Some(parentId) ->    
+            return 
+                parentId
+                |> await (data.Units.GetDescendantOfParent u) 
+                >>= assertLinearDependency
+    }
+
+    let unitValidationPipeline data (model:Unit) = async {
+        return 
+            model
+            |> await (unitParentExists data)
+            >>= await (unitNameIsUnique data)
+            >>= await (unitParentRelationshipIsNotCircular data)
+    }
+
+    let unitValidator data =
+        createValidator data data.Units.Get unitValidationPipeline

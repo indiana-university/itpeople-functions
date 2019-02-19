@@ -83,6 +83,14 @@ module Functions =
         then ok model
         else fail (Status.Forbidden, "You are not authorized to modify this resource.")
 
+    let authorizeUnitModification' user (model:Unit) = 
+        if (model.Id = 0 && model.ParentId.IsNone)
+        then 
+            if isAdmin user
+            then ok model
+            else fail(Status.Forbidden, "Please contact IT Community Partnerships (talk2uits@iu.edu) to create a top-level IT unit.")
+        else authorizeUnitModification user model model.Id
+
     /// Temporary: if this user is an admin, give them read/write access, else read-only.
     let determineUserPermissions user a =
         if isAdmin user
@@ -90,19 +98,7 @@ module Functions =
         else ok (a, [GET])
 
     // VALIDATION 
-    let query lookup param  = async {
-        let! lookupResult = lookup param
-        return 
-            match lookupResult with
-            | Ok(value,_) -> ok value
-            | Bad(msgs) -> Bad msgs
-    }
 
-    let queryAndPassThrough lookup param model  = async {
-        return 
-            await (query lookup) param
-            >>= fun _ -> ok model
-    }
 
     // FUNCTION WORKFLOWS 
     [<FunctionName("Options")>]
@@ -203,64 +199,10 @@ module Functions =
     // ** Units
     // *****************
 
-    let findUnit = query data.Units.Get
-    
-    let validateUnitExists (model:Unit) = 
-        queryAndPassThrough data.Units.Get model.Id model 
-
-    let validateUnitParentExists (u:Unit) = 
-        match u.ParentId with 
-        | Some(id) -> queryAndPassThrough data.Units.Get id u 
-        | None -> ok u |> async.Return
-
-    let validateUnitNameIsUnique (model:Unit) = async {
-        let nameConflict (u:Unit) = 
-            (model.Id <> u.Id) && (invariantEqual model.Name u.Name)            
-        let assertUnique (units:seq<Unit>) = 
-            if units |> Seq.exists nameConflict
-            then fail(Status.Conflict, "Another unit already has that name.")
-            else ok model        
-        return
-            Some(model.Name)
-            |> await (query data.Units.GetAll)
-            >>= assertUnique        
-    }
-
-    let validateUnitParentIsNotCircular (u:Unit) = async {
-        let assertLinearDependency (child:Unit option) =    
-            match (child) with
-            | Some(c) -> 
-                let error = sprintf "Whoops! %s is a parent of %s in the unit hierarcy. Adding it as a child would result in a circular relationship. 🙃" u.Name c.Name
-                fail(Status.Conflict, error)
-            | None -> ok u
-
-        match u.ParentId with
-        | None -> return (ok u)
-        | Some(parentId) ->    
-            return 
-                parentId
-                |> await (data.Units.GetDescendantOfParent u) 
-                >>= assertLinearDependency
-    }
-
-    let authorizeUnitModification' user (model:Unit) = 
-        if (model.Id = 0 && model.ParentId.IsNone)
-        then 
-            if isAdmin user
-            then ok model
-            else fail(Status.Forbidden, "Please contact IT Community Partnerships (talk2uits@iu.edu) to create a top-level IT unit.")
-        else authorizeUnitModification user model model.Id
-
-    let validateUnitModification (model:Unit) = async {
-        return 
-            model
-            |> await validateUnitParentExists
-            >>= await validateUnitNameIsUnique
-            >>= await validateUnitParentIsNotCircular
-    }
-
     let mapToUnit id request = ok { Id=id; Name=request.Name; Description=request.Description; Url=request.Url; ParentId=request.ParentId; Parent=None } 
-    
+
+    let unitValidator = unitValidator(data)
+
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all IT units.", Description="Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units." , Tags=[|"Units"|])>]
     [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
@@ -294,7 +236,7 @@ module Functions =
             deserializeBody<UnitRequest> req
             >>= mapToUnit 0
             >>= authorizeUnitModification' user            
-            >>= await validateUnitModification
+            >>= await unitValidator.ValidForCreate
             >>= await data.Units.Create
             >>= determineUserPermissions user
         req |> authenticate workflow Status.Created
@@ -308,9 +250,8 @@ module Functions =
         let workflow user = 
             deserializeBody<UnitRequest> req            
             >>= mapToUnit unitId
-            >>= await validateUnitExists
             >>= authorizeUnitModification' user
-            >>= await validateUnitModification
+            >>= await unitValidator.ValidForUpdate
             >>= await data.Units.Update
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
@@ -321,7 +262,7 @@ module Functions =
     let unitDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow user =
-            await findUnit unitId
+            await unitValidator.ValidEntity unitId
             >>= authorizeUnitModification' user
             >>= await data.Units.Delete
             >>= determineUserPermissions user
@@ -333,7 +274,7 @@ module Functions =
     let unitGetAllMembers
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
         let workflow user =
-            await findUnit unitId
+            await unitValidator.ValidEntity unitId
             >>= await data.Units.GetMembers
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
@@ -344,7 +285,7 @@ module Functions =
     let unitGetAllSupportedDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/supportedDepartments")>] req, unitId) =
         let workflow user = 
-            await findUnit unitId
+            await unitValidator.ValidEntity unitId
             >>= await data.Units.GetSupportedDepartments
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
@@ -355,7 +296,7 @@ module Functions =
     let unitGetAllChildren
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/children")>] req, unitId) =
         let workflow user = 
-            await findUnit unitId
+            await unitValidator.ValidEntity unitId
             >>= await data.Units.GetChildren
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
@@ -425,7 +366,7 @@ module Functions =
     let memberDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
-            await membershipValidator.ValidForDelete membershipId
+            await membershipValidator.ValidEntity membershipId
             >>= await data.Memberships.Delete
             >>= determineUserPermissions user
         req |> authenticate workflow Status.NoContent
@@ -543,7 +484,7 @@ module Functions =
     let supportRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
-            await relationshipValidator.ValidForDelete relationshipId
+            await relationshipValidator.ValidEntity relationshipId
             >>= await (authorizeSupportUnitModification user)
             >>= await data.SupportRelationships.Delete
             >>= determineUserPermissions user
