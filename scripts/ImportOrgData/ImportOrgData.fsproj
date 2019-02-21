@@ -26,7 +26,7 @@
     <PackageReference Include="Chessie" Version="0.6.0" />
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCrud" Version="2.0.1" />
-    <PackageReference Include="FSharp.Core" Version="4.5.2" />
+    <PackageReference Include="FSharp.Core" Version="4.4.1" />
     <PackageReference Include="FSharp.Data" Version="3.0.0" />
     <PackageReference Include="Npgsql" Version="4.0.3" />
     <PackageReference Include="Argu" Version="5.2.0" />
