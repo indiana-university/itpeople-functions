@@ -9,13 +9,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Scaffolding/PostgresContainer.fs" />
-    <Compile Include="Scaffolding/TestFixture.fs" />
     <Compile Include="Scaffolding/TestHost.fs" />
+    <Compile Include="Scaffolding/TestFixture.fs" />
     <Compile Include="DatabaseTests.fs" />
     <Compile Include="ContractTests.fs" />
+    <Compile Include="ApiErrorTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.5.2" />
+    <PackageReference Include="FSharp.Data" Version="3.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />
     <PackageReference Include="xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1" />
