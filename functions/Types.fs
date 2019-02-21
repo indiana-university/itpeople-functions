@@ -11,6 +11,8 @@ open Serilog.Core
 open System.ComponentModel.DataAnnotations
 open Dapper
 open Microsoft.Build.Framework
+open Newtonsoft.Json
+
 
 module Types = 
 
@@ -23,6 +25,7 @@ module Types =
     type Status = HttpStatusCode
     type Message = string
     type Error = Status * Message
+    
     type ErrorModel = 
       { errors: array<string> }
 
@@ -154,7 +157,8 @@ module Types =
       { /// The unique ID of this unit record.
         [<Key>][<Column("id")>] Id: Id
         /// The name of this unit.
-        [<Required>][<Column("name")>] Name: Name
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("name")>] Name: Name
         /// A description of this unit.
         [<Column("description")>] Description: Name
         /// A URL for the website of this unit.
@@ -167,7 +171,8 @@ module Types =
     [<CLIMutable>]
     type UnitRequest = 
       { /// (Required) The unique name of this unit.
-        [<Required>]Name: Name
+        [<JsonProperty(Required = Required.Always)>]
+        Name: Name
         /// A description of this unit.
         Description: Name
         /// A URL for the website of this unit.
@@ -182,9 +187,11 @@ module Types =
       { /// The unique ID of this unit record.
         [<Key>][<Column("id")>] Id: Id
         /// The ID of the unit in this relationship
-        [<Required>][<Column("unit_id")>] UnitId: Id
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("unit_id")>] UnitId: Id
         /// The ID of the department in this relationship
-        [<Required>][<Column("department_id")>] DepartmentId: Id 
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("department_id")>] DepartmentId: Id 
         /// The department in this relationship.
         [<ReadOnly(true)>] Department: Department
         /// The unit in this relationship.
@@ -194,9 +201,11 @@ module Types =
     [<CLIMutable>]
     type SupportRelationshipRequest = 
       { /// (Required) The ID of the unit in this relationship
-        [<Required>]UnitId: Id
+        [<JsonProperty(Required = Required.Always)>]
+        UnitId: Id
         /// (Required) The ID of the department in this relationship
-        [<Required>]DepartmentId: Id 
+        [<JsonProperty(Required = Required.Always)>]
+        DepartmentId: Id 
       }
 
     [<CLIMutable>]
@@ -205,11 +214,14 @@ module Types =
       { /// The unique ID of this unit member record.
         [<Key>][<Column("id")>] Id: Id
         /// The ID of the unit record.
-        [<Required>][<Column("unit_id")>] UnitId: UnitId
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("unit_id")>] UnitId: UnitId
         /// The role of the person in this membership as part of the unit.
-        [<Required>][<Column("role")>] Role: Role
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("role")>] Role: Role
         /// The permissions of the person in this membership as part of the unit.
-        [<Required>][<Column("permissions")>] Permissions: Permissions
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("permissions")>] Permissions: Permissions
         /// The ID of the person record. This can be null if the position is vacant.
         [<Column("person_id")>][<Editable(true)>] PersonId: PersonId option
         /// The title/position of this membership.
@@ -224,13 +236,17 @@ module Types =
         [<ReadOnly(true)>][<Column("unit")>] Unit: Unit }
 
     [<CLIMutable>]
+    [<Table("unit_members")>]
     type UnitMemberRequest = 
       { /// (Required) The unique ID of the unit record.
-        [<Required>]UnitId: UnitId
+        [<JsonProperty(Required = Required.Always)>]
+        UnitId: UnitId
         /// (Required) The role of the person in this membership as part of the unit.
-        [<Required>]Role: Role
+        [<JsonProperty(Required = Required.Always)>]
+        Role: Role
         /// (Required) The permissions of the person in this membership as part of the unit.
-        [<Required>]Permissions: Permissions
+        [<JsonProperty(Required = Required.Always)>]
+        Permissions: Permissions
         /// The ID of the person record. This can be null if the position is vacant.
         PersonId: PersonId option
         /// The title/position of this membership.
