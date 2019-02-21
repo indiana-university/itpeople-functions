@@ -9,8 +9,8 @@ open Api
 open Jwt
 open Util
 open Logging
-open Fakes
 open Validation
+open Fakes
 
 open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
@@ -21,6 +21,7 @@ open Microsoft.Azure.WebJobs.Extensions.Http
 open Swashbuckle.AspNetCore.Annotations
 open Swashbuckle.AspNetCore.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Annotations
+
 
 /// This module defines the bindings and triggers for all functions in the project
 module Functions =    
@@ -78,18 +79,13 @@ module Functions =
         let admins = [ "jhoerr"; "kendjone"; "jerussel"; "brrund"; "mattzink"; "johndoe" ]
         admins |> List.contains user.UserName
 
-    let authorizeUnitModification (user:JwtClaims) model unitId =
+    let authorizeUnitModification (user:JwtClaims) id model  =
         if isAdmin user
         then ok model
         else fail (Status.Forbidden, "You are not authorized to modify this resource.")
 
-    let authorizeUnitModification' user (model:Unit) = 
-        if (model.Id = 0 && model.ParentId.IsNone)
-        then 
-            if isAdmin user
-            then ok model
-            else fail(Status.Forbidden, "Please contact IT Community Partnerships (talk2uits@iu.edu) to create a top-level IT unit.")
-        else authorizeUnitModification user model model.Id
+    let inline authorizeCorrespondingUnitModification user model = 
+        authorizeUnitModification user (unitId model) model
 
     /// Temporary: if this user is an admin, give them read/write access, else read-only.
     let determineUserPermissions user a =
@@ -199,7 +195,7 @@ module Functions =
     // ** Units
     // *****************
 
-    let mapToUnit id request = ok { Id=id; Name=request.Name; Description=request.Description; Url=request.Url; ParentId=request.ParentId; Parent=None } 
+    let setUnitId id (a:Unit) = ok { a with Id=id }
 
     let unitValidator = unitValidator(data)
 
@@ -233,9 +229,9 @@ module Functions =
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow user =
-            deserializeBody<UnitRequest> req
-            >>= mapToUnit 0
-            >>= authorizeUnitModification' user            
+            deserializeBody<Unit> req
+            >>= setUnitId 0      
+            >>= authorizeUnitModification user 0           
             >>= await unitValidator.ValidForCreate
             >>= await data.Units.Create
             >>= determineUserPermissions user
@@ -248,9 +244,9 @@ module Functions =
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow user = 
-            deserializeBody<UnitRequest> req            
-            >>= mapToUnit unitId
-            >>= authorizeUnitModification' user
+            deserializeBody<Unit> req      
+            >>= setUnitId unitId      
+            >>= authorizeUnitModification user unitId
             >>= await unitValidator.ValidForUpdate
             >>= await data.Units.Update
             >>= determineUserPermissions user
@@ -263,8 +259,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow user =
             await unitValidator.ValidEntity unitId
-            >>= authorizeUnitModification' user
-            >>= await data.Units.Delete
+            >>= authorizeUnitModification user unitId
+            >>= fun _ -> await data.Units.Delete unitId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.NoContent
 
@@ -306,10 +302,8 @@ module Functions =
     // ** Unit Memberships
     // *******************
 
-    let authorizeMemberUnitModification user (model:UnitMember) = 
-        authorizeUnitModification user model model.UnitId 
-
     let membershipValidator = membershipValidator(data)
+    let setMembershipId id (a:UnitMember) = ok { a with Id=id }
 
     [<FunctionName("MemberGetAll")>]
     [<SwaggerOperation(Summary="Find a unit membership", Tags=[|"Unit Memberships"|])>]
@@ -339,7 +333,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "memberships")>] req) =
         let workflow user = 
             deserializeBody<UnitMember> req
-            >>= authorizeMemberUnitModification user
+            >>= setMembershipId 0
+            >>= authorizeCorrespondingUnitModification user
             >>= await membershipValidator.ValidForCreate
             >>= await data.Memberships.Create
             >>= determineUserPermissions user
@@ -353,8 +348,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
             deserializeBody<UnitMember> req
-            >>= fun model -> ok { model with Id=membershipId }
-            >>= authorizeMemberUnitModification user
+            >>= setMembershipId membershipId
+            >>= authorizeCorrespondingUnitModification user
             >>= await membershipValidator.ValidForUpdate
             >>= await data.Memberships.Update
             >>= determineUserPermissions user
@@ -367,7 +362,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
             await membershipValidator.ValidEntity membershipId
-            >>= await data.Memberships.Delete
+            >>= authorizeCorrespondingUnitModification user
+            >>= fun _ -> await data.Memberships.Delete membershipId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.NoContent
 
@@ -423,9 +419,8 @@ module Functions =
     // ************************
     // ** Support Relationships
     // ************************
-    let authorizeSupportUnitModification user (model:SupportRelationship) = 
-        authorizeUnitModification user model model.UnitId |> async.Return
 
+    let setRelationshipId id (a:SupportRelationship) = ok { a with Id=id }
     let relationshipValidator = supportRelationshipValidator data
 
     [<FunctionName("SupportRelationshipsGetAll")>]
@@ -457,8 +452,9 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "supportRelationships")>] req) =
         let workflow user = 
             deserializeBody<SupportRelationship> req
+            >>= setRelationshipId 0
             >>= await relationshipValidator.ValidForCreate
-            >>= await (authorizeSupportUnitModification user)
+            >>= authorizeCorrespondingUnitModification user
             >>= await data.SupportRelationships.Create          
             >>= determineUserPermissions user
         req |> authenticate workflow Status.Created
@@ -471,9 +467,9 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
             deserializeBody<SupportRelationship> req
-            >>= fun model -> ok { model with Id=relationshipId }
+            >>= setRelationshipId relationshipId
             >>= await relationshipValidator.ValidForUpdate
-            >>= await (authorizeSupportUnitModification user)
+            >>= authorizeCorrespondingUnitModification user
             >>= await data.SupportRelationships.Update
             >>= determineUserPermissions user
         req |> authenticate workflow Status.OK
@@ -485,7 +481,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
             await relationshipValidator.ValidEntity relationshipId
-            >>= await (authorizeSupportUnitModification user)
-            >>= await data.SupportRelationships.Delete
+            >>= authorizeCorrespondingUnitModification user
+            >>= fun _ -> await data.SupportRelationships.Delete relationshipId
             >>= determineUserPermissions user
         req |> authenticate workflow Status.NoContent

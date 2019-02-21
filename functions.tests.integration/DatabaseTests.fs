@@ -96,7 +96,7 @@ module DatabaseTests=
         member __.``Get supported departments`` () = 
             let actual = repo.Units.GetSupportedDepartments cityOfPawnee |> awaitAndUnpack
 
-            Seq.length actual |> should equal 2
+            Seq.length actual |> should equal 1
             actual |> should contain supportRelationship
 
     type UnitsWrite(output: ITestOutputHelper)=
@@ -106,18 +106,18 @@ module DatabaseTests=
         [<Fact>]
         member __.``Create`` () = 
             let expected = { Id=0; Name="Test"; Description="Desc"; Url="Url"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee) }
-            
+
             let actual = repo.Units.Create expected |> awaitAndUnpack
             let retrieved = repo.Units.Get actual.Id |> awaitAndUnpack
 
             actual |> should equal { expected with Id=actual.Id }
-            retrieved |> should equal { expected with Id=actual.Id }
+            retrieved |> should equal actual
 
         [<Fact>]
         member __.``Update`` () = 
             let expected = { Id=fourthFloor.Id; Name="Fourth Floor vNext"; Description="Re-org Fourth Flor"; Url="Url"; ParentId=Some(parksAndRec.Id); Parent=Some({parksAndRec with Parent=None}) }
 
-            let actual = repo.Units.Update expected |> awaitAndUnpack
+            let actual = repo.Units.Update expected  |> awaitAndUnpack
             let retrieved = repo.Units.Get expected.Id |> awaitAndUnpack
             
             actual |> should equal expected
@@ -125,7 +125,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Delete`` () = 
-            let _ = repo.Units.Delete fourthFloor |> awaitAndUnpack
+            let _ = repo.Units.Delete fourthFloor.Id |> awaitAndUnpack
             
             let actual = repo.Units.Get fourthFloor.Id |> await
             match actual with 
@@ -135,7 +135,7 @@ module DatabaseTests=
         [<Fact>]
         member __.``Gets unit when descended from parent`` () = 
             // This request should return parksAndRec because it is a child unit of the City of Pawnee
-            let actual = repo.Units.GetDescendantOfParent cityOfPawnee parksAndRec.Id |> awaitAndUnpack
+            let actual = repo.Units.GetDescendantOfParent cityOfPawnee.Id parksAndRec.Id |> awaitAndUnpack
             
             actual.IsSome |> should be True
             actual.Value.Name |> should equal (parksAndRec.Name)
@@ -143,7 +143,7 @@ module DatabaseTests=
         [<Fact>]
         member __.``Doesn't get unit when not descended from parent`` () = 
             // This request should not return parksAndRec because it is not a child unit the Fourth Floor
-            let actual = repo.Units.GetDescendantOfParent fourthFloor parksAndRec.Id |> awaitAndUnpack
+            let actual = repo.Units.GetDescendantOfParent fourthFloor.Id parksAndRec.Id |> awaitAndUnpack
             
             actual.IsNone |> should be True
         

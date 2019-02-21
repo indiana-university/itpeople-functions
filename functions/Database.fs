@@ -112,28 +112,28 @@ module QueryHelpers =
         })
     }
 
-    let insertImpl<'T> connStr id (obj:'T) = async {
+    let insertImpl<'T> connStr (obj:'T) = async {
         return! dbOp connStr "insert" (typedefof<'T>.Name) (fun cn -> async {
             let! result = cn.InsertAsync<'T>(obj) |> awaitTask
             return ok (result.GetValueOrDefault())
         })
     }
 
-    let insert<'T when 'T:equality> connStr (obj:'T) writeParams = async {
+    let insert<'T> connStr (obj:'T) writeParams = async {
         return 
             obj
-            |> await (insertImpl connStr id)
+            |> await (insertImpl connStr)
             >>= await (fetchOne<'T> connStr writeParams)
     }
 
-    let updateImpl<'T> connStr id (obj:'T) = async {
+    let updateImpl<'T> connStr id (obj:^T) = async {
         return! dbOp connStr "insert" (typedefof<'T>.Name) (fun cn -> async {
             let! _ = cn.UpdateAsync<'T>(obj) |> awaitTask
-            return ok id            
+            return ok id
         })
     }
 
-    let update<'T when 'T:equality> connStr id (obj:'T) writeParams = async {
+    let update<'T> connStr id (obj:'T) writeParams = async {
         return 
             obj
             |> await (updateImpl connStr id)
@@ -194,16 +194,16 @@ module Database =
         return! fetchOne connStr mapUnitMember id 
     }
 
-    let insertMembership connStr (unitMember:UnitMember) = async {
-        return! insert connStr unitMember mapUnitMember
+    let insertMembership connStr unitMember = async {
+        return! insert<UnitMember> connStr unitMember mapUnitMember
     }
 
     let updateMembership connStr (unitMember:UnitMember) = async {
-        return! update connStr unitMember.Id unitMember mapUnitMember
+        return! update<UnitMember> connStr unitMember.Id unitMember mapUnitMember
     }
 
-    let deleteMembership connStr (unitMember:UnitMember) = async {
-        return! delete<UnitMember> connStr unitMember.Id
+    let deleteMembership connStr id = async {
+        return! delete<UnitMember> connStr id
     }    
 
 
@@ -240,8 +240,8 @@ module Database =
         return! update<SupportRelationship> connStr supportRelationship.Id supportRelationship mapSupportRelationship
     }
 
-    let deleteSupportRelationship connStr (supportRelationship:SupportRelationship) = async {
-        return! delete<SupportRelationship> connStr supportRelationship.Id
+    let deleteSupportRelationship connStr id = async {
+        return! delete<SupportRelationship> connStr id
     }
    
 
@@ -287,8 +287,8 @@ module Database =
         DELETE FROM unit_members WHERE unit_id=@Id;
         DELETE FROM support_relationships WHERE unit_id=@Id;
         DELETE FROM units WHERE id=@Id"""
-    let deleteUnit connStr (unit:Unit) = async {
-        return! execute connStr deleteUnitSql {Id=unit.Id}    
+    let deleteUnit connStr id = async {
+        return! execute connStr deleteUnitSql {Id=id}    
     }
 
     let queryUnitChildren connStr (unit:Unit) = async {
@@ -334,8 +334,8 @@ module Database =
     type Descendant = 
       { ParentId: Id
         ChildId: Id }
-    let queryUnitGetDescendantOfParent connStr (parent:Unit) childId = async {
-        let param = {ParentId=parent.Id; ChildId=childId}
+    let queryUnitGetDescendantOfParent connStr parentId childId = async {
+        let param = {ParentId=parentId; ChildId=childId}
         let query (cn:Cn) = cn.QueryAsync<Unit>(queryUnitParentage, param)
         return     
             query
@@ -367,14 +367,6 @@ module Database =
 
     let queryDepartment connStr id = async {
         return! fetchOne<Department> connStr mapDepartment id
-    }
-
-    let insertDepartment connStr department = async {
-        return! insert<Department> connStr department mapDepartment
-    }
-
-    let updateDepartment connStr (department:Department) = async {
-        return! update<Department> connStr department.Id department mapDepartment
     }
 
     let queryDeptSupportingUnits connStr id = async {

@@ -35,7 +35,6 @@ module Fakes =
         
         // departments
         db.Insert<Department>(parksDept) |> ignore 
-        db.Insert<Department>(otherDept) |> ignore 
         // units
         db.Insert<Unit>(cityOfPawnee) |> ignore // db.Insert<Unit>(cityOfPawnee) |> ignore
         db.Insert<Unit>(parksAndRec) |> ignore
@@ -51,6 +50,5 @@ module Fakes =
         db.Insert<UnitMember>(wyattMembership) |> ignore
         // support relationship
         db.Insert<SupportRelationship>(supportRelationship) |> ignore
-        db.Insert<SupportRelationship>(otherSupportRelationship) |> ignore
         
         ()

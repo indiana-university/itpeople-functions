@@ -22,7 +22,6 @@ module Fakes =
 
     // Departments
     let parksDept:Department = {Id=1; Name="PA-PARKS"; Description="Parks and Recreation Department" }
-    let otherDept:Department = {Id=2; Name="PA-OTHER"; Description="Other Department" }
     
     // People
     let swanson:Person = {
@@ -157,14 +156,6 @@ module Fakes =
         Department=parksDept
     }
 
-    let otherSupportRelationship:SupportRelationship = {
-        Id=2
-        UnitId=cityOfPawnee.Id
-        DepartmentId=otherDept.Id
-        Unit=cityOfPawnee
-        Department=otherDept
-    }
-
     /// A canned data implementation of IDatabaseRespository (for testing)
 
     let FakePeople = {
@@ -180,10 +171,10 @@ module Fakes =
         GetMembers = fun unit -> stub ([ swansonMembership ] |> List.toSeq) 
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
-        GetDescendantOfParent = fun parent childId -> stub None
-        Create = fun unit -> stub parksAndRec
-        Update = fun unit -> stub parksAndRec
-        Delete = fun unit -> stub ()
+        GetDescendantOfParent = fun parentId childId -> stub None
+        Create = fun req -> stub parksAndRec
+        Update = fun req -> stub parksAndRec
+        Delete = fun req -> stub ()
     }
 
     let FakeDepartments = {
@@ -194,19 +185,19 @@ module Fakes =
     }
 
     let FakeMembershipRepository : MembershipRepository = {
-        Get = fun id -> stub swansonMembership 
-        GetAll = fun () -> stub ([ swansonMembership ] |> List.toSeq) 
-        Create = fun membership -> stub membership
-        Update = fun membership -> stub membership
+        Get = fun id -> stub knopeMembership
+        GetAll = fun () -> stub ([ knopeMembership ] |> List.toSeq) 
+        Create = fun req -> stub knopeMembership
+        Update = fun req -> stub knopeMembership
         Delete = fun id -> stub ()
     }
 
     let FakeSupportRelationships : SupportRelationshipRepository = {
         GetAll = fun () -> stub ([ supportRelationship ] |> List.toSeq) 
         Get = fun id -> stub supportRelationship
-        Create = fun supportRelationship -> stub supportRelationship
-        Update = fun supportRelationship -> stub supportRelationship
-        Delete = fun supportRelationship -> stub ()
+        Create = fun req -> stub supportRelationship
+        Update = fun req -> stub supportRelationship
+        Delete = fun id -> stub ()
     }
 
     let FakesRepository = {

@@ -278,9 +278,9 @@ module Types =
         /// Update a unit
         Update: Unit -> Async<Result<Unit,Error>>
         /// Delete a unit
-        Delete: Unit -> Async<Result<unit,Error>>
+        Delete: Id -> Async<Result<unit,Error>>
         /// 
-        GetDescendantOfParent: Unit -> Id -> Async<Result<Unit option,Error>>
+        GetDescendantOfParent: Id -> Id -> Async<Result<Unit option,Error>>
     }
 
     type DepartmentRepository = {
@@ -304,7 +304,7 @@ module Types =
         /// Update a unit membership
         Update: UnitMember -> Async<Result<UnitMember,Error>>
         /// Delete a unit membership
-        Delete: UnitMember -> Async<Result<unit,Error>>
+        Delete: Id -> Async<Result<unit,Error>>
     }
 
     type SupportRelationshipRepository = {
@@ -317,7 +317,7 @@ module Types =
         /// Update a support relationship
         Update: SupportRelationship -> Async<Result<SupportRelationship,Error>>
         /// Delete a support relationsihps
-        Delete : SupportRelationship -> Async<Result<unit,Error>>
+        Delete : Id -> Async<Result<unit,Error>>
     }
 
     type DataRepository = {
@@ -349,4 +349,12 @@ module Types =
 
     let inline identity (model:^T) = 
         let id = (^T : (member Id:Id) model)
+        id
+
+    let inline unitId (model:^T) = 
+        let id = (^T : (member UnitId:UnitId) model)
+        id
+    
+    let inline departmentId (model:^T) = 
+        let id = (^T : (member DepartmentId:DepartmentId) model)
         id

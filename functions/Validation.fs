@@ -38,10 +38,10 @@ module Validation =
     }
 
     let inline createValidator data getOne validationPipeline = 
-        let validForUpdate model = async {
+        let inline validForUpdate model = async {
             return 
                 await getOne (identity model)
-                >>= (fun _ -> await (validationPipeline data) model)
+                >>= fun _ -> await (validationPipeline data) model
         }
 
         { ValidForCreate = validationPipeline data
@@ -51,16 +51,15 @@ module Validation =
 
     // Unit Membership Validation
 
-    let membershipUnitExists data (m:UnitMember) = 
-        assertRelationExists data.Units.Get m.UnitId m 
+    let membershipUnitExists data m = 
+        assertRelationExists data.Units.Get (unitId m) m 
     let membershipPersonExists data (m:UnitMember) = 
         match m.PersonId with 
         | Some(id) -> assertRelationExists data.People.Get id m 
         | None -> ok m |> async.Return
     let membershipIsUnique data (m:UnitMember) = 
         let entities id = fun () -> data.People.GetMemberships id
-        let conflictPredicate (mx:UnitMember) = 
-            sprintf "MEM Compare To: %A" mx |> System.Console.WriteLine
+        let conflictPredicate mx = 
             (m.Id = 0 || m.Id <> mx.Id)
             && m.UnitId = mx.UnitId 
             && m.PersonId = mx.PersonId
@@ -69,7 +68,7 @@ module Validation =
         | None -> ok m |> async.Return
         | Some(id) -> 
             m |> assertUnique (entities id) conflictPredicate msg
-    let membershipValidationPipeline data membership = async {
+    let membershipValidationPipeline data (membership:UnitMember) = async {
         return
             await (membershipUnitExists data) membership
             >>= await (membershipPersonExists data)
@@ -81,27 +80,27 @@ module Validation =
 
     // Support Relationship Validation
 
-    let relationshipUnitExists data (m:SupportRelationship) = 
-        assertRelationExists data.Units.Get m.UnitId m 
-    let relationshipDepartmentExists data (m:SupportRelationship) = 
-        assertRelationExists data.Departments.Get m.DepartmentId m 
-    let relationshipIsUnique data (m:SupportRelationship) =
+    let inline relationshipUnitExists data m = 
+        assertRelationExists data.Units.Get (unitId m) m 
+    let inline relationshipDepartmentExists data m = 
+        assertRelationExists data.Departments.Get (departmentId m) m 
+    let inline relationshipIsUnique data m =
         let entities = data.SupportRelationships.GetAll
-        let conflictPredicate (mx:SupportRelationship) = 
-            (m.Id = 0 || m.Id <> mx.Id)
-            && m.UnitId = mx.UnitId 
-            && m.DepartmentId = mx.DepartmentId
+        let conflictPredicate mx = 
+            ((identity m) = 0 || (identity m) <> (identity mx))
+            && (unitId m) = (unitId mx)
+            && (departmentId m) = (departmentId mx)
         let msg = "This unit already has a support relationship with this department."
         m |> assertUnique entities conflictPredicate msg
 
-    let relationshipValidationPipeline data relationship = async {
+    let inline relationshipValidationPipeline data relationship = async {
         return
             await (relationshipUnitExists data) relationship
             >>= await (relationshipDepartmentExists data)
             >>= await (relationshipIsUnique data)
     }
 
-    let supportRelationshipValidator data = 
+    let inline supportRelationshipValidator data = 
         createValidator data data.SupportRelationships.Get relationshipValidationPipeline
 
 
@@ -112,10 +111,10 @@ module Validation =
         | Some(id) -> assertRelationExists data.Units.Get id u 
         | None -> ok u |> async.Return
 
-    let unitNameIsUnique data (model:Unit) =
+    let unitNameIsUnique data id (model:Unit) =
         let entities () = data.Units.GetAll (Some(model.Name))
         let conflictPredicate (u:Unit) = 
-            (model.Id = 0 || model.Id <> u.Id) 
+            (id = 0 || id <> u.Id) 
             && (invariantEqual model.Name u.Name)            
         let msg = "Another unit already has that name."
         model |> assertUnique entities conflictPredicate msg
@@ -133,15 +132,15 @@ module Validation =
         | Some(parentId) ->    
             return 
                 parentId
-                |> await (data.Units.GetDescendantOfParent u) 
+                |> await (data.Units.GetDescendantOfParent u.Id) 
                 >>= assertLinearDependency
     }
 
-    let unitValidationPipeline data (model:Unit) = async {
+    let unitValidationPipeline data model = async {
         return 
             model
             |> await (unitParentExists data)
-            >>= await (unitNameIsUnique data)
+            >>= await (unitNameIsUnique data model.Id)
             >>= await (unitParentRelationshipIsNotCircular data)
     }
 
