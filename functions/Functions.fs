@@ -127,7 +127,8 @@ module Functions =
 
     [<FunctionName("AuthGet")>]
     [<SwaggerOperation(Summary="Get OAuth JWT", Description="Exchanges a UAA OAuth code for an application-scoped JWT. The JWT is required to make authenticated requests to this API.", Tags=[|"Authentication"|])>]
-    [<SwaggerResponse(200, Type=typeof<JwtResponse>)>]
+    [<SwaggerResponse(200, "A JWT access token scoped for the IT People API.", typeof<JwtResponse>)>]
+    [<SwaggerResponse(400, "The provided code was missing, invalid, or expired.", typeof<ErrorModel>)>]
     let auth
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth")>] req) =
 
@@ -158,7 +159,7 @@ module Functions =
 
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="List all people", Description="Search for people by name and/or username (netid).", Tags=[|"People"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<Person>>)>]
+    [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let peopleGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people")>] req) =
@@ -171,7 +172,8 @@ module Functions =
 
     [<FunctionName("PeopleGetById")>]
     [<SwaggerOperation(Summary="Find a person by ID", Tags=[|"People"|])>]
-    [<SwaggerResponse(200, Type=typeof<Person>)>]
+    [<SwaggerResponse(200, "A person record.", typeof<Person>)>]
+    [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
         let workflow user = 
@@ -181,7 +183,8 @@ module Functions =
 
     [<FunctionName("PeopleGetAllMemberships")>]
     [<SwaggerOperation(Summary="List a person's unit memberships", Description="List all units for which this person does IT work.", Tags=[|"People"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
+    [<SwaggerResponse(200, "A collection of units of which this person is a member.", typeof<seq<UnitMember>>)>]
+    [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
         let workflow user = 
@@ -201,7 +204,7 @@ module Functions =
 
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all IT units.", Description="Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units." , Tags=[|"Units"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
+    [<SwaggerResponse(200, "A collection of unit records.", typeof<seq<Unit>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let unitGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units")>] req) =
@@ -214,7 +217,8 @@ module Functions =
 
     [<FunctionName("UnitGetId")>]
     [<SwaggerOperation(Summary="Find a unit by ID.", Tags=[|"Units"|])>]
-    [<SwaggerResponse(200, Type=typeof<Unit>)>]
+    [<SwaggerResponse(200, "A unit record.", typeof<Unit>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}")>] req, unitId) =
         let workflow user = 
@@ -225,7 +229,9 @@ module Functions =
     [<FunctionName("UnitPost")>]
     [<SwaggerOperation(Summary="Create a unit.", Tags=[|"Units"|])>]
     [<SwaggerRequestExample(typeof<UnitRequest>, typeof<UnitRequestExample>)>]
-    [<SwaggerResponse(201, Type=typeof<Unit>)>]
+    [<SwaggerResponse(201, "A record of the newly created unit.", typeof<Unit>)>]
+    [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow user =
@@ -240,7 +246,11 @@ module Functions =
     [<FunctionName("UnitPut")>]
     [<SwaggerOperation(Summary="Update a unit.", Tags=[|"Units"|])>]
     [<SwaggerRequestExample(typeof<UnitRequest>, typeof<UnitRequestExample>)>]
-    [<SwaggerResponse(200, Type=typeof<Unit>)>]
+    [<SwaggerResponse(200, "A record of the updated unit", typeof<Unit>)>]
+    [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You do not have permission to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow user = 
@@ -255,6 +265,8 @@ module Functions =
     [<FunctionName("UnitDelete")>]
     [<SwaggerOperation(Summary="Delete a unit.", Tags=[|"Units"|])>]
     [<SwaggerResponse(204)>]
+    [<SwaggerResponse(403, "You do not have permission to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow user =
@@ -266,7 +278,8 @@ module Functions =
 
     [<FunctionName("UnitGetAllMembers")>]
     [<SwaggerOperation(Summary="List all unit members", Description="List all people who do IT work for this unit along with any vacant positions.", Tags=[|"Units"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
+    [<SwaggerResponse(200, "A collection of membership records.", typeof<seq<UnitMember>>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetAllMembers
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
         let workflow user =
@@ -277,7 +290,8 @@ module Functions =
 
     [<FunctionName("UnitGetAllSupportedDepartments")>]
     [<SwaggerOperation(Summary="List all supported departments", Description="List all departments that receive IT support from this unit.", Tags=[|"Units"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
+    [<SwaggerResponse(200, "A collection of department records.", typeof<seq<UnitMember>>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetAllSupportedDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/supportedDepartments")>] req, unitId) =
         let workflow user = 
@@ -288,7 +302,8 @@ module Functions =
 
     [<FunctionName("UnitGetAllChildren")>]
     [<SwaggerOperation(Summary="List all unit children", Description="List all units that fall below this unit in an organizational hierarchy.", Tags=[|"Units"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
+    [<SwaggerResponse(200, "A collection of unit records.", typeof<seq<Unit>>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetAllChildren
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/children")>] req, unitId) =
         let workflow user = 
@@ -306,8 +321,8 @@ module Functions =
     let setMembershipId id (a:UnitMember) = ok { a with Id=id }
 
     [<FunctionName("MemberGetAll")>]
-    [<SwaggerOperation(Summary="Find a unit membership", Tags=[|"Unit Memberships"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<UnitMember>>)>]
+    [<SwaggerOperation(Summary="List all unit memberships", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerResponse(200, "A collection of unit membership records", typeof<seq<UnitMember>>)>]
     let memberGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships")>] req) =
         let workflow user = 
@@ -317,7 +332,8 @@ module Functions =
 
     [<FunctionName("MemberGetById")>]
     [<SwaggerOperation(Summary="Find a unit membership by ID", Tags=[|"Unit Memberships"|])>]
-    [<SwaggerResponse(200, Type=typeof<UnitMember>)>]
+    [<SwaggerResponse(200, "A unit membership record", typeof<UnitMember>)>]
+    [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
     let memberGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
@@ -328,7 +344,10 @@ module Functions =
     [<FunctionName("MemberCreate")>]
     [<SwaggerOperation(Summary="Create a unit membership.", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
-    [<SwaggerResponse(201, Type=typeof<UnitMember>)>]
+    [<SwaggerResponse(201, "The newly created unit membership record", typeof<UnitMember>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing, or the specified unit does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "memberships")>] req) =
         let workflow user = 
@@ -343,7 +362,11 @@ module Functions =
     [<FunctionName("MemberUpdate")>]
     [<SwaggerOperation(Summary="Update a unit membership.", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
-    [<SwaggerResponse(200, Type=typeof<UnitMember>)>]
+    [<SwaggerResponse(200, "The update unit membership record.", typeof<UnitMember>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing, or the specified unit does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
@@ -358,6 +381,8 @@ module Functions =
     [<FunctionName("MemberDelete")>]
     [<SwaggerOperation(Summary="Delete a unit membership.", Tags=[|"Unit Memberships"|])>]
     [<SwaggerResponse(204)>]
+    [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
     let memberDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
@@ -374,7 +399,7 @@ module Functions =
 
     [<FunctionName("DepartmentGetAll")>]
     [<SwaggerOperation(Summary="List all departments.", Description="Search for departments by name and/or description.", Tags=[|"Departments"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<Department>>)>]
+    [<SwaggerResponse(200, "A collection of department records", typeof<seq<Department>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let departmentGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments")>] req) =
@@ -387,7 +412,8 @@ module Functions =
 
     [<FunctionName("DepartmentGetId")>]
     [<SwaggerOperation(Summary="Find a department by ID.", Tags=[|"Departments"|])>]
-    [<SwaggerResponse(200, Type=typeof<Department>)>]
+    [<SwaggerResponse(200, "A department record", typeof<Department>)>]
+    [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}")>] req, departmentId) =
         let workflow user = 
@@ -397,7 +423,8 @@ module Functions =
 
     [<FunctionName("DepartmentGetAllMemberUnits")>]
     [<SwaggerOperation(Summary="List a department's member units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
+    [<SwaggerResponse(200, "A collection of unit records", typeof<seq<Unit>>)>]
+    [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetMemberUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/memberUnits")>] req, departmentId) =
         let workflow user = 
@@ -407,7 +434,8 @@ module Functions =
 
     [<FunctionName("DepartmentGetAllSupportingUnits")>]
     [<SwaggerOperation(Summary="List a department's supporting units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
-    [<SwaggerResponse(200, Type=typeof<seq<Unit>>)>]
+    [<SwaggerResponse(200, "A collection of unit records", typeof<seq<Unit>>)>]
+    [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
         let workflow user = 
@@ -425,8 +453,7 @@ module Functions =
 
     [<FunctionName("SupportRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-department support relationships.", Tags=[|"Support Relationships"|])>]
-    [<SwaggerResponse(200, Type=typeof<SupportRelationship>)>]
-    // [<SwaggerResponseExample(200, typeof<SupportRelationshipsResponseExample>)>]
+    [<SwaggerResponse(200, "A collection of support relationship records", typeof<SupportRelationship seq>)>]
     let supportRelationshipsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "supportRelationships")>] req) =
         let workflow user = 
@@ -436,7 +463,8 @@ module Functions =
 
     [<FunctionName("SupportRelationshipsGetId")>]
     [<SwaggerOperation(Summary="Find a unit-department support relationships by ID", Tags=[|"Support Relationships"|])>]
-    [<SwaggerResponse(200, Type=typeof<SupportRelationship seq>)>]
+    [<SwaggerResponse(200, "A support relationship record", typeof<SupportRelationship>)>]
+    [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
     let supportRelationshipsGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
@@ -447,7 +475,10 @@ module Functions =
     [<FunctionName("SupportRelationshipsCreate")>]
     [<SwaggerOperation(Summary="Create a unit-department support relationship", Tags=[|"Support Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
-    [<SwaggerResponse(201, Type=typeof<SupportRelationship>)>]
+    [<SwaggerResponse(201, "The newly created support relationship record", typeof<SupportRelationship>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided department.", typeof<ErrorModel>)>]
     let supportRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "supportRelationships")>] req) =
         let workflow user = 
@@ -462,7 +493,11 @@ module Functions =
     [<FunctionName("SupportRelationshipsUpdate")>]
     [<SwaggerOperation(Summary="Update a unit-department support relationship", Tags=[|"Support Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
-    [<SwaggerResponse(200, Type=typeof<SupportRelationship>)>]
+    [<SwaggerResponse(200, "The updated support relationship record", typeof<SupportRelationship>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided department.", typeof<ErrorModel>)>]
     let supportRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
@@ -477,6 +512,8 @@ module Functions =
     [<FunctionName("SupportRelationshipsDelete")>]
     [<SwaggerOperation(Summary="Delete a unit-department support relationship", Tags=[|"Support Relationships"|])>]
     [<SwaggerResponse(204)>]
+    [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
     let supportRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 

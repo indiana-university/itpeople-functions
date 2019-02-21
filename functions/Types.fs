@@ -170,7 +170,7 @@ module Types =
 
     [<CLIMutable>]
     type UnitRequest = 
-      { /// (Required) The unique name of this unit.
+      { /// The unique name of this unit.
         [<JsonProperty(Required = Required.Always)>]
         Name: Name
         /// A description of this unit.
@@ -200,10 +200,10 @@ module Types =
 
     [<CLIMutable>]
     type SupportRelationshipRequest = 
-      { /// (Required) The ID of the unit in this relationship
+      { /// The ID of the unit in this relationship
         [<JsonProperty(Required = Required.Always)>]
         UnitId: Id
-        /// (Required) The ID of the department in this relationship
+        /// The ID of the department in this relationship
         [<JsonProperty(Required = Required.Always)>]
         DepartmentId: Id 
       }
@@ -238,13 +238,13 @@ module Types =
     [<CLIMutable>]
     [<Table("unit_members")>]
     type UnitMemberRequest = 
-      { /// (Required) The unique ID of the unit record.
+      { /// The unique ID of the unit record.
         [<JsonProperty(Required = Required.Always)>]
         UnitId: UnitId
-        /// (Required) The role of the person in this membership as part of the unit.
+        /// The role of the person in this membership as part of the unit.
         [<JsonProperty(Required = Required.Always)>]
         Role: Role
-        /// (Required) The permissions of the person in this membership as part of the unit.
+        /// The permissions of the person in this membership as part of the unit.
         [<JsonProperty(Required = Required.Always)>]
         Permissions: Permissions
         /// The ID of the person record. This can be null if the position is vacant.
