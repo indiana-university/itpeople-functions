@@ -22,7 +22,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.*" />
+    <PackageReference Include="FSharp.Core" Version="4.5.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.KeyPerFile" Version="2.1.1" />
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
