@@ -7,12 +7,8 @@ open System
 open System.Net
 open Chessie.ErrorHandling
 open Dapper
-open Serilog.Core
-open System.ComponentModel.DataAnnotations
-open Dapper
-open Microsoft.Build.Framework
+open System.ComponentModel
 open Newtonsoft.Json
-
 
 module Types = 
 
@@ -160,10 +156,13 @@ module Types =
         [<JsonProperty(Required = Required.Always)>]
         [<Column("name")>] Name: Name
         /// A description of this unit.
+        [<DefaultValue("")>]
         [<Column("description")>] Description: Name
         /// A URL for the website of this unit.
+        [<DefaultValue("")>]
         [<Column("url")>] Url: string
         /// The unique ID of the parent unit of this unit.
+        [<DefaultValue(null)>]
         [<Column("parent_id")>][<Editable(true)>] ParentId: Id option 
           /// The parent unit of this unit
         [<ReadOnly(true)>] Parent: Unit option }
@@ -174,10 +173,13 @@ module Types =
         [<JsonProperty(Required = Required.Always)>]
         Name: Name
         /// A description of this unit.
+        [<DefaultValue("")>]
         Description: Name
         /// A URL for the website of this unit.
+        [<DefaultValue("")>]
         Url: string
         /// The ID of this unit's parent unit.
+        [<DefaultValue(null)>]
         ParentId: Id option }
 
     [<CLIMutable>]
@@ -219,16 +221,20 @@ module Types =
         /// The role of the person in this membership as part of the unit.
         [<JsonProperty(Required = Required.Always)>]
         [<Column("role")>] Role: Role
-        /// The permissions of the person in this membership as part of the unit.
-        [<JsonProperty(Required = Required.Always)>]
+        /// The permissions of the person in this membership as part of the unit. Defaults to 'viewer'.
+        [<DefaultValue(Permissions.Viewer)>]
         [<Column("permissions")>] Permissions: Permissions
         /// The ID of the person record. This can be null if the position is vacant.
+        [<DefaultValue(null)>]
         [<Column("person_id")>][<Editable(true)>] PersonId: PersonId option
         /// The title/position of this membership.
+        [<DefaultValue("")>]
         [<Column("title")>] Title: string
         /// The percentage of time allocated to this position by this person (in case of split appointments).
+        [<DefaultValue(100)>]
         [<Column("percentage")>] Percentage: int
         /// The tools that can be used by the person in this position as part of this unit.
+        [<DefaultValue(Tools.None)>]
         [<Column("tools")>] Tools: Tools
         /// The person related to this membership.
         [<ReadOnly(true)>][<Column("person")>] Person: Person option
@@ -244,16 +250,20 @@ module Types =
         /// The role of the person in this membership as part of the unit.
         [<JsonProperty(Required = Required.Always)>]
         Role: Role
-        /// The permissions of the person in this membership as part of the unit.
-        [<JsonProperty(Required = Required.Always)>]
+        /// The permissions of the person in this membership as part of the unit. Defaults to 'viewer'.
+        [<DefaultValue(Permissions.Viewer)>]
         Permissions: Permissions
         /// The ID of the person record. This can be null if the position is vacant.
+        [<DefaultValue(null)>]
         PersonId: PersonId option
         /// The title/position of this membership.
+        [<DefaultValue("")>]
         Title: string
         /// The percentage of time allocated to this position by this person (in case of split appointments).
+        [<DefaultValue(100)>]
         Percentage: int
         /// The tools that can be used by the person in this position as part of this unit.
+        [<DefaultValue(Tools.None)>]
         Tools: Tools }
 
     // DOMAIN MODELS
