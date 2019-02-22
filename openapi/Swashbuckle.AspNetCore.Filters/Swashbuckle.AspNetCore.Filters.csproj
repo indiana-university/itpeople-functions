@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <PackageVersion>4.5.3</PackageVersion>
+    <Authors>Matt Frear</Authors>
+    <Description>Some additional useful filters for Swashbuckle.AspNetCore. This package replaces Swashbuckle.AspNetCore.Examples.</Description>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageProjectUrl>https://github.com/mattfrear/Swashbuckle.AspNetCore.Filters</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/mattfrear/Swashbuckle.AspNetCore.Filters/blob/master/LICENSE</PackageLicenseUrl>
+    <Copyright>2019</Copyright>
+    <PackageTags>Swagger Swashbuckle</PackageTags>
+    <PackageReleaseNotes>
+      Fix Issue #80 - allow interfaces when resolving generic IExampleProvider
+    </PackageReleaseNotes>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/mattfrear/Swashbuckle.AspNetCoreFilters.git</RepositoryUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <VersionPrefix>4.5.3</VersionPrefix>
+    <VersionSuffix></VersionSuffix>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>key.snk</AssemblyOriginatorKeyFile>
+    <DelaySign>False</DelaySign>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.1.1" />
+    <PackageReference Include="Scrutor" Version="3.0.1" />
+    <PackageReference Include="BH.Swashbuckle.AspNetCore.Annotations" Version="4.0.0"/>
+    <PackageReference Include="BH.Swashbuckle.AspNetCore.Swagger" Version="4.0.0" />
+
+  </ItemGroup>  
+</Project>

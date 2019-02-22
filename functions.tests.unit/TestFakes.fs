@@ -15,7 +15,7 @@ module TestFakes =
     /// NOTE: You can view the contents of these tokens at jwt.io.
    
     // This token payload is: { "user_name":"johndoe", "user_id":1, "exp":1915544643 }
-    let validJwt = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxOTE1NTQ0NjQzIiwidXNlcl9pZCI6IjEiLCJ1c2VyX25hbWUiOiJqb2huZG9lIn0.9uerDlhPKrtBrMMHuRoxbJ5x0QA7KOulDEHx9DKXpnQ"
+    let validJwt = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxOTE1NTQ0NjQzIiwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfaWQiOjF9.bCMuAfRby19tJHCOggz7KESMRxtPl_h7pLTQTx3ui4E"
 
     let jwtSingingSecret = "jwt signing secret"
 

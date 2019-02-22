@@ -8,11 +8,12 @@
       <NoWarn>NU1608</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="PostgresContainer.fs" />
-    <Compile Include="TestFixture.fs" />
-    <Compile Include="TestHost.fs" />
+    <Compile Include="Scaffolding/PostgresContainer.fs" />
+    <Compile Include="Scaffolding/TestHost.fs" />
+    <Compile Include="Scaffolding/TestFixture.fs" />
     <Compile Include="DatabaseTests.fs" />
     <Compile Include="ContractTests.fs" />
+    <Compile Include="ApiErrorTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.5.2" />
@@ -26,11 +27,12 @@
     <PackageReference Include="PactNet.OSX" Version="2.4.4" />
     <PackageReference Include="PactNet.Windows" Version="2.4.4" />
     <PackageReference Include="PactNet.Linux.x64" Version="2.4.4" />
-    <PackageReference Include="Microsoft.Azure.WebJobs.Script.WebHost" Version="2.0.0-rc1-12095" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Script.WebHost" Version="2.0.12246" />
     <PackageReference Include="FsUnit.xUnit" Version="3.4.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../functions/functions.fsproj" />    
-    <ProjectReference Include="../migrations/migrations.fsproj" />
+    <ProjectReference Include="../functions.tests.stateserver/functions.tests.stateserver.fsproj" />    
+    <ProjectReference Include="../database/database.fsproj" />
   </ItemGroup>
 </Project>

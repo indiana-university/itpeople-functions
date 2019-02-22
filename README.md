@@ -27,10 +27,6 @@ brew install azure-functions-core-tools
 
 Authentication is provided by ESI Middleware's [UAA](https://github.iu.edu/iu-uits-es/uaa) service. UAA provides an OAuth layer for CAS. After singing into CAS, UAA issues an OAuth [JWT](https://jwt.io/) that includes the username and an expiration. You will need to get a Client ID and Client Secret from the UAA team in order to integrate your functions with CAS.
 
-## SSL 
-
-In order to host the Functions app locally you must [create and trust a self-signed SSL certificate](https://www.humankode.com/asp-net-core/develop-locally-with-https-self-signed-certificates-and-asp-net-core). This repo includes a self-signed cert if you just want to use it. The password is `Abcd1234!`.  
-
 ## Running the tests:
 
 ### Unit Tests
@@ -54,9 +50,8 @@ $ dotnet test
 ## Running the Functions Locally
 
 1. Clone this repo.
-2. Add the localhost.pfx to your list of trusted certificates, or create your own.
-3. Open the folder in Visual Studio Code.
-4. Create a file, `functions/local.settings.json` with these contents:
+2. Open the folder in Visual Studio Code.
+3. Create a file, `functions/local.settings.json` with these contents:
 
 ```
 {
@@ -73,7 +68,8 @@ $ dotnet test
         "OauthClientId": "<YOUR UAA CLIENT ID>",
         "OauthClientSecret": "<YOUR UAA CLIENT SECRET>",
         "JwtSecret": "8rjYaJehyxd21bp1JrEsRJ7zstN2eT4jhxWU3UiB",
-        "DbConnectionString": "Server=tcp:localhost,1433;User ID=sa;Password=Abcd1234!"
+        "DbConnectionString": "Server=tcp:localhost,1433;User ID=sa;Password=Abcd1234!",
+        "UseFakeData": "false"
     },
     "Host": {
         "LocalHttpPort": 7071,
@@ -93,19 +89,13 @@ A GET endpoint that returns "pong!" if everything is working properly.
 
 *Request*
 ```
-curl https://localhost:7071/api/ping
+curl http://localhost:7071/ping
 ```
 
 *Response*
 ```
 Pong!
 ```
-
-## Proxies
-
-The Azure Functions platform recently introduced [Proxies](https://docs.microsoft.com/en-us/azure/azure-functions/functions-proxies) as a way to discretely route and redirect requests to other web/API services.
-
-Proxies play an important role in serving an SPA from a serverless platform. At a minimum, the client will need an `index.html` file and will potentially need other `.js`/`.css` assets. Proxies allow us to transparently route a request for the function webroot (`http://localhost:<port>/`) to some service (such as Azure Storage) that can satisfy a request for the static files.
 
 ## Error Handling
 
@@ -152,22 +142,6 @@ Browse to Circle CI. If you don't have a Circle CI account, create one now. It's
 
 Circle CI should now have the information it needs to build, test, package, and deploy your Function App + SPA.
 
-## Database 
-
-This repo uses SQL Server as a database layer. If you wish to run the functions you'll need to have a running SQL Server database to which the functions can connect. The easiest way to do this is by running SQL Server in a Docker Container. Make sure you have Docker installed and running, then execute:
-
-On Windows:
-```
-docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=Abcd1234!" -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest
-```
-
-On Mac/Linux:
-```
-docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=Abcd1234!' -p 1433:1433 -d microsoft/mssql-server-linux:2017-latest
-```
-
-This will start the SQL Server. The next step is to apply database migrations. These will get the database schema up to date with the functions.
-
 ### Migrations
 
 SQL Server database migrations are managed by [SimpleMigrations](https://github.com/canton7/Simple.Migrations). A command-line tool is provided by the `database` project. To migrate to the latest database schema, execute the following. _Note: You can use the connection string below for local testing._
@@ -197,7 +171,3 @@ Subcommand can be one of:
 
 You can issue the command `help` instead of `up` to view the available migration commands.
 ```
-
-### Interactive SQL Sessions
-
-[SQL Operations Studio](https://docs.microsoft.com/en-us/sql/azure-data-studio/download?view=sql-server-2017) is a cross-platform tool that allows you to query and add data to your database.

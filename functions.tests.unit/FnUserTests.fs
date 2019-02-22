@@ -11,19 +11,6 @@ open Functions.Json
 open Functions.Api
 open Xunit
 
-module FnUserTests =
-
-    let getUserById id = 
-        Functions.Fakes.getFakeProfile()
-
-
-    // [<Fact>]
-    // let ``getMe requires JWT`` () =
-    //     let expected = Bad ([(Status.Unauthorized, MissingAuthHeader)])
-    //     let req = TestFakes.requestWithNoJwt
-    //     let appConfig = TestFakes.appConfig
-    //     let actual = await authorizeRequest' req appConfig fakeTrial
-    //     Assert.Equal(expected, actual)
 
 module UtilTests =
 

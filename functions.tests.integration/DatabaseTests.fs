@@ -15,10 +15,13 @@ module DatabaseTests=
     open TestFixture
     open PostgresContainer
     open FsUnit.Xunit
+    open Database.Fakes
+
+    let await (asyncResult:Async<Result<'T,_>>) = 
+        asyncResult |> Async.RunSynchronously
 
     let awaitAndUnpack<'T> (asyncResult:Async<Result<'T,_>>) = 
-        let result = asyncResult |> Async.RunSynchronously
-        match result with 
+        match (await asyncResult) with 
         | Ok(value, _) -> value
         | Bad(msgs) -> 
             msgs
@@ -26,102 +29,122 @@ module DatabaseTests=
             |> System.Exception 
             |> raise
 
-    let matchUnit expectedId (expected:Unit) (actual:Unit) =
-        actual.Id |> should equal expectedId
-        actual.Name |> should equal expected.Name
-        actual.Url |> should equal expected.Url
-        actual.Description |> should equal expected.Description
-
-    type Name = Name of string
-    let name = Name(null)
-
-    type InsertionTests(output: ITestOutputHelper)=
+    type AuthTests(output:ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
+        let repo = Functions.Database.People(testConnectionString)
 
         [<Fact>]
-        member __.``Unit ids are non-zero`` () = 
-            cityId |> should be (greaterThan 0)
-            parksAndRecId |> should be (greaterThan 0)
-            fourthFloorId |> should be (greaterThan 0)
+        member __.``Fetches some person ID for valid netid`` () =
+            let (netid, id) = (repo.TryGetId knope.NetId) |> awaitAndUnpack
+            netid |> should equal knope.NetId
+            id |> should equal (Some(knope.Id))
 
         [<Fact>]
-        member __.``People ids are non-zero`` () = 
-            knopeId |> should be (greaterThan 0)
-            swansonId |> should be (greaterThan 0)
-            sebastianId |> should be (greaterThan 0)
+        member __.``Fetches no person ID for invalid netid`` () =
+            let (netid, id) = (repo.TryGetId "zzz") |> awaitAndUnpack
+            netid |> should equal "zzz"
+            id |> should equal (None)
 
-        [<Fact>]
-        member __.``Department ids are non-zero`` () = 
-            parksDeptId |> should be (greaterThan 0)
-
-    type UnitsDto(output: ITestOutputHelper)=
+    type UnitsRead(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
-        let repo = DatabaseRepository(connectionString) :> IDataRepository
-        let actual = repo.GetUnits() |> awaitAndUnpack
+        let repo = DatabaseRepository(testConnectionString)
 
         [<Fact>]
         member __.``Units have non-zero IDs`` () =
+            let actual = (repo.Units.GetAll None) |> awaitAndUnpack
             Assert.True(actual |> Seq.forall (fun a -> a.Id <> 0))
 
         [<Fact>]
-        member __.``Units should only return top-level units`` () = 
-            let actual = actual |> Seq.map (fun f -> f.Name) |> Seq.sort
-            let expected = [city.Name]
-            Assert.Equal(expected, actual)
+        member __.``Get all top-level units`` () = 
+            let actual = repo.Units.GetAll None |> awaitAndUnpack
 
-    type UnitDto(output: ITestOutputHelper)=
+            actual |> Seq.length |> should equal 1
+            actual |> should contain cityOfPawnee
+
+        [<Fact>]
+        member __.``Get one`` () = 
+            let actual = repo.Units.Get cityOfPawnee.Id |> awaitAndUnpack
+
+            actual |> should equal cityOfPawnee
+
+        [<Fact>]
+        member __.``Search`` () = 
+            let actual = repo.Units.GetAll (Some("Fourth")) |> awaitAndUnpack
+
+            actual |> Seq.length |> should equal 1
+            actual |> should contain fourthFloor
+        
+        [<Fact>]
+        member __.``Get members`` () = 
+            let actual = repo.Units.GetMembers parksAndRec |> awaitAndUnpack
+
+            actual |> Seq.length |> should equal 3
+            let ids = actual |> Seq.map (fun a -> a.Id)
+            ids |> should contain swansonMembership.Id
+            ids |> should contain knopeMembership.Id
+            ids |> should contain parksAndRecVacancy.Id
+
+        [<Fact>]
+        member __.``Get children`` () = 
+            let actual = repo.Units.GetChildren cityOfPawnee |> awaitAndUnpack
+
+            actual |> Seq.length |> should equal 2
+            actual |> should contain parksAndRec
+            actual |> should contain fourthFloor
+
+        [<Fact>]
+        member __.``Get supported departments`` () = 
+            let actual = repo.Units.GetSupportedDepartments cityOfPawnee |> awaitAndUnpack
+
+            Seq.length actual |> should equal 1
+            actual |> should contain supportRelationship
+
+    type UnitsWrite(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
-        let repo = DatabaseRepository(connectionString) :> IDataRepository
-        let actual = repo.GetUnit(parksAndRecId) |> awaitAndUnpack
+        let repo = DatabaseRepository(testConnectionString)
 
         [<Fact>]
-        member __.``Properties`` () = 
-            actual.Id |> should equal parksAndRecId
-            actual.Name |> should equal parksAndRec.Name
-            actual.Url |> should equal parksAndRec.Url
-            actual.Description |> should equal parksAndRec.Description
+        member __.``Create`` () = 
+            let expected = { Id=0; Name="Test"; Description="Desc"; Url="Url"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee) }
+
+            let actual = repo.Units.Create expected |> awaitAndUnpack
+            let retrieved = repo.Units.Get actual.Id |> awaitAndUnpack
+
+            actual |> should equal { expected with Id=actual.Id }
+            retrieved |> should equal actual
+
+        [<Fact>]
+        member __.``Update`` () = 
+            let expected = { Id=fourthFloor.Id; Name="Fourth Floor vNext"; Description="Re-org Fourth Flor"; Url="Url"; ParentId=Some(parksAndRec.Id); Parent=Some({parksAndRec with Parent=None}) }
+
+            let actual = repo.Units.Update expected  |> awaitAndUnpack
+            let retrieved = repo.Units.Get expected.Id |> awaitAndUnpack
+            
+            actual |> should equal expected
+            retrieved |> should equal expected
+
+        [<Fact>]
+        member __.``Delete`` () = 
+            let _ = repo.Units.Delete fourthFloor.Id |> awaitAndUnpack
+            
+            let actual = repo.Units.Get fourthFloor.Id |> await
+            match actual with 
+            | Bad([(status, msg)]) -> status |> should equal Status.NotFound
+            | _ -> System.Exception("Should have failed") |> raise
+
+        [<Fact>]
+        member __.``Gets unit when descended from parent`` () = 
+            // This request should return parksAndRec because it is a child unit of the City of Pawnee
+            let actual = repo.Units.GetDescendantOfParent cityOfPawnee.Id parksAndRec.Id |> awaitAndUnpack
+            
+            actual.IsSome |> should be True
+            actual.Value.Name |> should equal (parksAndRec.Name)
+ 
+        [<Fact>]
+        member __.``Doesn't get unit when not descended from parent`` () = 
+            // This request should not return parksAndRec because it is not a child unit the Fourth Floor
+            let actual = repo.Units.GetDescendantOfParent fourthFloor.Id parksAndRec.Id |> awaitAndUnpack
+            
+            actual.IsNone |> should be True
         
-        [<Fact>]
-        member __.``Parent`` () = 
-            actual.Parent |> should equal (Some({city with Id=cityId}))
-        
-        [<Fact>]
-        member __.``Children`` () = 
-            let children = actual.Children |> Seq.toList
-            children |> should haveLength 1
-            matchUnit fourthFloorId fourthFloor (children |> Seq.head)
-
-        [<Fact>]
-        member __.``Members count`` () =
-            actual.Members |> Seq.length |> should equal 3
-
-        [<Fact>]
-        member __.``Member - Swanson`` () =
-            let actual = actual.Members |> Seq.find (fun m -> m.Id = swansonId)
-            actual.Name |> should equal swanson.Name
-            actual.Description |> should equal swanson.NetId
-            actual.Title |> should equal "Director"
-            actual.Role |> should equal Role.Leader
-            actual.Percentage |> should equal 100
-            actual.Tools |> Seq.toList |> should equal [Tools.AccountMgt]
-
-        [<Fact>]
-        member __.``Member - Knope`` () =
-            let actual = actual.Members |> Seq.find (fun m -> m.Id = knopeId)
-            actual.Name |> should equal knope.Name
-            actual.Description |> should equal knope.NetId
-            actual.Title |> should equal "Deputy Director"
-            actual.Role |> should equal Role.Sublead
-            actual.Percentage |> should equal 100
-            actual.Tools |> Seq.toList |> should be Empty
-
-        [<Fact>]
-        member __.``Member - Li'l Sebastian`` () = 
-            let actual = actual.Members |> Seq.find (fun m -> m.Id = sebastianId)
-            actual.Id |> should equal sebastianId
-            actual.Name |> should equal sebastian.Name
-            actual.Description |> should equal sebastian.NetId
-            actual.Title |> should equal "Mascot"
-            actual.Role |> should equal Role.Member
-            actual.Percentage |> should equal 100
-            actual.Tools |> Seq.toList |> should be Empty
+            

@@ -20,6 +20,9 @@ module Util =
         with
         | exn -> None
 
+    let invariantEqual (str:string) arg = 
+        str.Equals(arg, System.StringComparison.InvariantCultureIgnoreCase)
+
     /// Checks whether the string is null or empty
     let isEmpty str = String.IsNullOrWhiteSpace str
 
@@ -30,6 +33,9 @@ module Util =
     // An awaiter for async computation expressions
     let await f x = 
         f x |> Async.RunSynchronously
+
+    let await' f = 
+        f |> Async.RunSynchronously    
 
     // An awaiter for async Tasks
     let awaitTask f  = 

@@ -4,40 +4,70 @@
 namespace ImportOrgData
 
 open Types
-open OrgTree
+open UitsUnitBuilder
 open Database
 open System
 open System.IO
 open System.Collections.Generic
+open Argu
 
 module Program = 
 
-    // let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
-    
-    let getJsonPath (args:string[]) =
-        if args.Length < 1 then
-            raise (Exception "Invalid arguments. Excepted input path as first argument")
-        if not(File.Exists(args.[0])) then
-            raise (Exception (sprintf "File does not exist: %s" args.[0]))
-        args.[0]
 
-    let getConnectionString (args:string[]) =
-        if args.Length < 2 then
-            raise (Exception "Invalid arguments. Excepted PSQL conneciton string as second argument")
-        args.[1]
+
+    // let connectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
+
+    let tryImportPeople (args:ParseResults<CLIArguments>) connection =
+        match args.TryGetResult(People) with
+        | Some (hrCsv) ->
+            Person.Load(hrCsv).Rows |> addOrUpdatePeople connection
+        | None -> ()   
+
+    let tryImportUITSUnits (args:ParseResults<CLIArguments>) connection =
+        match args.TryGetResult(Uits) with
+        | Some (uitsJson) -> 
+            uitsJson 
+            |> UitsUnitBuilder.build 
+            |> addOrUpdateUnits connection
+        | None -> ()
+
+    let tryImportEdgeUnits (args:ParseResults<CLIArguments>) connection =
+        match args.TryGetResult(Edge) with
+        | Some (unitCsv, memberCsv) -> 
+            (unitCsv, memberCsv) 
+            |> EdgeUnitBuilder.build 
+            |> addOrUpdateUnits connection
+        | None -> ()
+
+    let tryImportDepartments (args:ParseResults<CLIArguments>) connection =
+        match args.TryGetResult(Dept) with
+        | Some (deptCsv) -> 
+            Dept.Load(deptCsv).Rows |> addOrUpdateDepartments connection
+        | None -> ()
+
+    let tryImportUnitDepartments (args:ParseResults<CLIArguments>) connection =
+        match args.TryGetResult(UnitDept) with
+        | Some (deptCsv) -> 
+            UnitDept.Load(deptCsv).Rows |> addOrUpdateUnitDepts connection
+        | None -> ()
     
+
     [<EntryPoint>]
     let main argv =
         try
-            let path = argv |> getJsonPath
-            let connectionString = argv |> getConnectionString
+            let parser = ArgumentParser.Create<CLIArguments>(programName = "program.exe")
+            let args = parser.Parse argv
+            let connection = args.GetResult(Connection)
 
-            path
-            |> buildOrgTree
-            |> updateDatabase connectionString
-            |> ignore
-            
-            0        
+            clearDatabase connection
+
+            tryImportDepartments args connection
+            tryImportPeople args connection
+            tryImportUITSUnits args connection
+            tryImportEdgeUnits args connection
+            tryImportUnitDepartments args connection
+
+            0
          with 
          | exn -> 
             printfn "Error occurred: %s" exn.Message

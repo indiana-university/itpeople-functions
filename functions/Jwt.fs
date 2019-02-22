@@ -38,18 +38,18 @@ module Jwt =
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
     /// Create and sign a JWT
-    let encodeAppJwt secret expiration (netId, id) = 
+    let encodeAppJwt secret expiration (netId: string, userId: int option) = 
         let fn() =
-            let jwt = 
+            let builder = 
                 JwtBuilder()
                     .WithAlgorithm(new HMACSHA256Algorithm())
                     .WithSecret(secret)
                     .ExpirationTime(expiration)
-                    .AddClaim(UserIdClaim, (id.ToString()))
                     .AddClaim(UserNameClaim, netId)
-                    // .AddClaim(UserRoleClaim, (role.ToString()))
-                    .Build();
-            { access_token = jwt }
+            if (userId.IsSome)
+            then builder.AddClaim(UserIdClaim, userId.Value) |> ignore
+            let jwt = builder.Build()
+            { access_token = builder.Build() }
         tryf' Status.InternalServerError "Failed to create access token" fn
 
     /// Convert the "exp" unix timestamp into a Datetime
@@ -60,7 +60,7 @@ module Jwt =
         |> (fun unixTicks -> epoch.AddSeconds(unixTicks))
 
     /// Decode a JWT from the UAA service
-    let decodeUaaJwt (jwt:UaaResponse) = 
+    let decodeUaaJwt (jwt:JwtResponse) = 
         try
             // decode the UAA JWT
             let decoded = 

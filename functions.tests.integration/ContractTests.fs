@@ -10,14 +10,8 @@ module ContractTests =
     open Xunit
     open TestFixture
     open TestHost
-    open System
-    open PostgresContainer
-    open Dapper
-    open Npgsql
-    open Functions.Types
     open Functions.Fakes
-    open Functions.Database
-    open Migrations.Program
+    open Database.Fakes
     
     type XUnitOutput(output: ITestOutputHelper)=
         let output = output
@@ -25,40 +19,35 @@ module ContractTests =
             member this.WriteLine(message: string)=
                 message |> output.WriteLine
     
-    let verifyPact functionPort output = 
-        let functionUrl = sprintf "http://localhost:%d" functionPort
-        let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
-        let verifier = PactVerifierConfig(Outputters=outputters, Verbose=true) |> PactVerifier
-        verifier
-            .ServiceProvider("API", functionUrl)
-            .HonoursPactWith("Client")
-            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/develop/contracts/itpeople-app-itpeople-functions.json")
-            .Verify()
 
-    type Pact(output: ITestOutputHelper)=
-        inherit DatabaseIntegrationTestBase()
-        let output = output
+
+    type PactTests(output: ITestOutputHelper)=
+        inherit HttpTestBase(output)
+
+        let stateServerScriptPath = "../../../../functions.tests.stateserver/bin/Debug/netcoreapp2.1"
+        let stateServerPort = 9092
+
+        let verifyPact output = 
+            let stateServerUrl = sprintf "http://localhost:%d/state" stateServerPort
+            let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
+            let verifier = PactVerifierConfig(Outputters=outputters, Verbose=false, PublishVerificationResults=false) |> PactVerifier
+            verifier
+                .ProviderState(stateServerUrl)
+                .ServiceProvider("API", functionServerUrl)
+                .HonoursPactWith("Client")
+                .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/feature/resolve-pact-conflict/contracts/itpeople-app-itpeople-functions.json")
+                .Verify()
 
         [<Fact>]
-        member __.``Test Contracts`` () = async {
-            let functionScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
-            let functionServerPort = 9091
-            let mutable functionServer = None
+        member __.``Verify Contracts`` () = async {
+            let mutable stateServer = None
+            try
+                // "---> Starting state server host..." |> Console.WriteLine
+                stateServer <- startTestServer stateServerPort stateServerScriptPath output |> Async.RunSynchronously
+                verifyPact output
+            finally 
+                // "---> Stopping state server host..." |> Console.WriteLine
+                stopTestServer stateServer
 
-            try            
-                // These config settings are needed for the tests
-                Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
-                Environment.SetEnvironmentVariable("DbConnectionString",connectionString)
-                // These config settings aren't needed for the tests, but the config expects them
-                Environment.SetEnvironmentVariable("OAuthClientId","na")
-                Environment.SetEnvironmentVariable("OAuthClientSecret","na")
-                Environment.SetEnvironmentVariable("OAuthTokenUrl","na")
-                Environment.SetEnvironmentVariable("OAuthRedirectUrl","na")
-
-                "---> Starting functions hst..." |> output.WriteLine
-                let! functionsServer = startTestServer functionServerPort functionScriptPath output
-                "---> Verifying contract..." |> output.WriteLine
-                verifyPact functionServerPort output
-            finally
-                stopTestServer functionServer
         }
+
