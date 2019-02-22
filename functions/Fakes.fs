@@ -171,10 +171,10 @@ module Fakes =
         GetMembers = fun unit -> stub ([ swansonMembership ] |> List.toSeq) 
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
-        GetDescendantOfParent = fun parent childId -> stub None
-        Create = fun unit -> stub parksAndRec
-        Update = fun unit -> stub parksAndRec
-        Delete = fun unit -> stub ()
+        GetDescendantOfParent = fun parentId childId -> stub None
+        Create = fun req -> stub parksAndRec
+        Update = fun req -> stub parksAndRec
+        Delete = fun req -> stub ()
     }
 
     let FakeDepartments = {
@@ -185,19 +185,19 @@ module Fakes =
     }
 
     let FakeMembershipRepository : MembershipRepository = {
-        Get = fun id -> stub swansonMembership 
-        GetAll = fun () -> stub ([ swansonMembership ] |> List.toSeq) 
-        Create = fun membership -> stub membership
-        Update = fun membership -> stub membership
+        Get = fun id -> stub knopeMembership
+        GetAll = fun () -> stub ([ knopeMembership ] |> List.toSeq) 
+        Create = fun req -> stub knopeMembership
+        Update = fun req -> stub knopeMembership
         Delete = fun id -> stub ()
     }
 
     let FakeSupportRelationships : SupportRelationshipRepository = {
         GetAll = fun () -> stub ([ supportRelationship ] |> List.toSeq) 
         Get = fun id -> stub supportRelationship
-        Create = fun supportRelationship -> stub supportRelationship
-        Update = fun supportRelationship -> stub supportRelationship
-        Delete = fun supportRelationship -> stub ()
+        Create = fun req -> stub supportRelationship
+        Update = fun req -> stub supportRelationship
+        Delete = fun id -> stub ()
     }
 
     let FakesRepository = {
@@ -224,8 +224,10 @@ module Fakes =
     type PeopleExample() = inherit ApiEndpointExample<seq<Person>>([knope; knope; wyatt])
     type PersonExample() = inherit ApiEndpointExample<Person>(knope)
     type MembershipRequestExample() = inherit ApiEndpointExample<UnitMemberRequest>(knopeMembershipRequest)
-    type MembershipResponseExample() = inherit ApiEndpointExample<UnitMember>(knopeMembership)
+    type MembershipExample() = inherit ApiEndpointExample<UnitMember>(knopeMembership)
+    type MembershipsExample() = inherit ApiEndpointExample<seq<UnitMember>>([swansonMembership; knopeMembership])
     type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
-    type SupportRelationshipResponseExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
-    type SupportRelationshipsResponseExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])
+    type SupportRelationshipExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
+    type SupportRelationshipsExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])
     type QueryExample() = inherit ApiEndpointExample<string>("term")
+    type ErrorExample() = inherit ApiEndpointExample<ErrorModel>({errors=[|"This message includes detailed error information."|]})

@@ -34,6 +34,9 @@ module Util =
     let await f x = 
         f x |> Async.RunSynchronously
 
+    let await' f = 
+        f |> Async.RunSynchronously    
+
     // An awaiter for async Tasks
     let awaitTask f  = 
         f |> Async.AwaitTask

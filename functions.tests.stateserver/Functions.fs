@@ -30,8 +30,8 @@ module Functions =
                 req.Content.ReadAsAsync<ProviderState>() 
                 |> Async.AwaitTask 
                 |> Async.RunSynchronously
-            System.Console.Write "Resetting database with test fakes... "
+            // System.Console.Write "Resetting database with test fakes... "
             resetDatabaseWithTestFakes()
-            System.Console.WriteLine(" [OK]")
+            // System.Console.WriteLine(" [OK]")
         else System.Console.WriteLine "Serving test takes from memory."
         req.CreateResponse(System.Net.HttpStatusCode.OK)

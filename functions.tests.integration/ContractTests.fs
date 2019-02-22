@@ -10,13 +10,7 @@ module ContractTests =
     open Xunit
     open TestFixture
     open TestHost
-    open System
-    open PostgresContainer
-    open Dapper
-    open Npgsql
-    open Functions.Types
     open Functions.Fakes
-    open Functions.Database
     open Database.Fakes
     
     type XUnitOutput(output: ITestOutputHelper)=
@@ -25,52 +19,35 @@ module ContractTests =
             member this.WriteLine(message: string)=
                 message |> output.WriteLine
     
-    let functionServerScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
-    let functionServerPort = 9091
 
-    let stateServerScriptPath = "../../../../functions.tests.stateserver/bin/Debug/netcoreapp2.1"
-    let stateServerPort = 9092
 
-    let verifyPact output = 
-        let stateServerUrl = sprintf "http://localhost:%d/state" stateServerPort
-        let functionUrl = sprintf "http://localhost:%d" functionServerPort
-        let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
-        let verifier = PactVerifierConfig(Outputters=outputters, Verbose=true) |> PactVerifier
-        verifier
-            .ProviderState(stateServerUrl)
-            .ServiceProvider("API", functionUrl)
-            .HonoursPactWith("Client")
-            .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/develop/contracts/itpeople-app-itpeople-functions.json")
-            .Verify()
+    type PactTests(output: ITestOutputHelper)=
+        inherit HttpTestBase(output)
 
-    type Pact(output: ITestOutputHelper)=
-        inherit DatabaseIntegrationTestBase()
+        let stateServerScriptPath = "../../../../functions.tests.stateserver/bin/Debug/netcoreapp2.1"
+        let stateServerPort = 9092
 
-        let output = output
+        let verifyPact output = 
+            let stateServerUrl = sprintf "http://localhost:%d/state" stateServerPort
+            let outputters = ResizeArray<IOutput> [XUnitOutput(output) :> IOutput]
+            let verifier = PactVerifierConfig(Outputters=outputters, Verbose=false, PublishVerificationResults=false) |> PactVerifier
+            verifier
+                .ProviderState(stateServerUrl)
+                .ServiceProvider("API", functionServerUrl)
+                .HonoursPactWith("Client")
+                .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/feature/resolve-pact-conflict/contracts/itpeople-app-itpeople-functions.json")
+                .Verify()
 
         [<Fact>]
-        member __.``Test Contracts`` () = async {
-            let mutable functionServer = None
+        member __.``Verify Contracts`` () = async {
             let mutable stateServer = None
-
-            try            
-                // These config settings are needed for the tests
-                Environment.SetEnvironmentVariable("UseFakeData", "false")
-                Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
-                Environment.SetEnvironmentVariable("DbConnectionString", testConnectionString)
-                // These config settings aren't needed for the tests, but the config expects them
-                Environment.SetEnvironmentVariable("OAuthClientId","na")
-                Environment.SetEnvironmentVariable("OAuthClientSecret","na")
-                Environment.SetEnvironmentVariable("OAuthTokenUrl","na")
-                Environment.SetEnvironmentVariable("OAuthRedirectUrl","na")
-
-                "---> Starting functions host..." |> Console.WriteLine
-                let! functionsServer = startTestServer functionServerPort functionServerScriptPath output
-                "---> Starting state server host..." |> Console.WriteLine
-                let! stateServer = startTestServer stateServerPort stateServerScriptPath output
-                "---> Verifying contract..." |> Console.WriteLine
+            try
+                // "---> Starting state server host..." |> Console.WriteLine
+                stateServer <- startTestServer stateServerPort stateServerScriptPath output |> Async.RunSynchronously
                 verifyPact output
-            finally
-                stopTestServer functionServer
+            finally 
+                // "---> Stopping state server host..." |> Console.WriteLine
                 stopTestServer stateServer
+
         }
+

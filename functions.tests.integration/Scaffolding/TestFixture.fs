@@ -11,10 +11,10 @@ module TestFixture =
     open Chessie.ErrorHandling
     open Dapper
     open PostgresContainer
-    open Functions.Database
-    open Functions.Fakes
-    open Functions.Types
     open Database.Fakes
+    open System
+    open TestHost
+    
 
     // Generally:
     // 1. Go fetch the postgres docker image.
@@ -42,4 +42,32 @@ module TestFixture =
     [<Collection("Integration collection")>]
     type DatabaseIntegrationTestBase() =
         do resetDatabaseWithTestFakes ()
+
+    let functionServerScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
+    let functionServerPort = 9091
+    let functionServerUrl = sprintf "http://localhost:%d" functionServerPort
+
+    type HttpTestBase (output: ITestOutputHelper) = 
+        inherit DatabaseIntegrationTestBase()
+        let mutable functionsServer = None
+
+        do
+            // These config settings are needed for the tests
+            Environment.SetEnvironmentVariable("UseFakeData", "false")
+            Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
+            Environment.SetEnvironmentVariable("DbConnectionString", testConnectionString)
+            // These config settings aren't needed for the tests, but the config expects them
+            Environment.SetEnvironmentVariable("OAuthClientId","na")
+            Environment.SetEnvironmentVariable("OAuthClientSecret","na")
+            Environment.SetEnvironmentVariable("OAuthTokenUrl","na")
+            Environment.SetEnvironmentVariable("OAuthRedirectUrl","na")
+
+            // "---> Starting functions host..." |> Console.WriteLine
+            functionsServer <- startTestServer functionServerPort functionServerScriptPath output |> Async.RunSynchronously
+
+        interface IDisposable with
+            member this.Dispose() = 
+                // "---> Stopping functions host..." |> Console.WriteLine
+                stopTestServer functionsServer
+         
 

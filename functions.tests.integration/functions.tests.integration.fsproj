@@ -9,10 +9,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Scaffolding/PostgresContainer.fs" />
-    <Compile Include="Scaffolding/TestFixture.fs" />
     <Compile Include="Scaffolding/TestHost.fs" />
+    <Compile Include="Scaffolding/TestFixture.fs" />
     <Compile Include="DatabaseTests.fs" />
     <Compile Include="ContractTests.fs" />
+    <Compile Include="ApiErrorTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.5.2" />
