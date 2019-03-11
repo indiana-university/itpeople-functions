@@ -39,12 +39,12 @@ module Validation =
     }
 
     let inline createValidator data getOne writeValidationPipeline deleteValidationPipeline = 
-        let inline validForUpdate model = async {
+        let validForUpdate model = async {
             return 
                 await getOne (identity model)
                 >>= fun _ -> await (writeValidationPipeline data) model
         }
-        let inline validForDelete id = async {
+        let validForDelete id = async {
             return 
                 await getOne id
                 >>= await (deleteValidationPipeline data)
