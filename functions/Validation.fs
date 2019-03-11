@@ -16,6 +16,7 @@ module Validation =
     type Validator<'T> =
       { ValidForCreate: 'T -> Async<Result<'T,Error>>
         ValidForUpdate: 'T -> Async<Result<'T,Error>>
+        ValidForDelete:Id -> Async<Result<'T,Error>>
         ValidEntity: Id -> Async<Result<'T,Error>> }
 
     let assertRelationExists lookup param model  = async {
@@ -37,15 +38,21 @@ module Validation =
             >>= assertUniqueness
     }
 
-    let inline createValidator data getOne validationPipeline = 
+    let inline createValidator data getOne writeValidationPipeline deleteValidationPipeline = 
         let inline validForUpdate model = async {
             return 
                 await getOne (identity model)
-                >>= fun _ -> await (validationPipeline data) model
+                >>= fun _ -> await (writeValidationPipeline data) model
+        }
+        let inline validForDelete id = async {
+            return 
+                await getOne id
+                >>= await (deleteValidationPipeline data)
         }
 
-        { ValidForCreate = validationPipeline data
+        { ValidForCreate = writeValidationPipeline data
           ValidForUpdate = validForUpdate
+          ValidForDelete = validForDelete
           ValidEntity = getOne }
 
 
@@ -68,14 +75,17 @@ module Validation =
         | None -> ok m |> async.Return
         | Some(id) -> 
             m |> assertUnique (entities id) conflictPredicate msg
-    let membershipValidationPipeline data (membership:UnitMember) = async {
+    let membershipWriteValidationPipeline data membership = async {
         return
             await (membershipUnitExists data) membership
             >>= await (membershipPersonExists data)
             >>= await (membershipIsUnique data)
     }
+    let membershipDeleteValidationPipeline _ membership = async {
+        return ok membership
+    }
     let membershipValidator data = 
-        createValidator data data.Memberships.Get membershipValidationPipeline
+        createValidator data data.Memberships.Get membershipWriteValidationPipeline membershipDeleteValidationPipeline
 
 
     // Support Relationship Validation
@@ -93,15 +103,18 @@ module Validation =
         let msg = "This unit already has a support relationship with this department."
         m |> assertUnique entities conflictPredicate msg
 
-    let inline relationshipValidationPipeline data relationship = async {
+    let relationshipWriteValidationPipeline data relationship = async {
         return
             await (relationshipUnitExists data) relationship
             >>= await (relationshipDepartmentExists data)
             >>= await (relationshipIsUnique data)
     }
+    let relationshipDeleteValidationPipeline _ relationship = async {
+        return ok relationship
+    }
 
     let inline supportRelationshipValidator data = 
-        createValidator data data.SupportRelationships.Get relationshipValidationPipeline
+        createValidator data data.SupportRelationships.Get relationshipWriteValidationPipeline relationshipDeleteValidationPipeline
 
 
     // Unit Validation
@@ -136,7 +149,18 @@ module Validation =
                 >>= assertLinearDependency
     }
 
-    let unitValidationPipeline data model = async {
+    let unitHasNoChildren data (u:Unit) = async {
+        let! result = data.Units.GetChildren u
+        return 
+            match result with
+            | Ok(children, _) -> 
+                match children with
+                | EmptySeq -> ok u
+                | _ -> fail(Status.Conflict, "This unit has children. They must be reassigned before this unit can be deleted.")
+            | Bad(msgs) -> Bad msgs
+    }
+
+    let unitWriteValidationPipeline data model = async {
         return 
             model
             |> await (unitParentExists data)
@@ -144,5 +168,11 @@ module Validation =
             >>= await (unitParentRelationshipIsNotCircular data)
     }
 
+    let unitDeleteValidationPipeline data model = async {
+        return
+            model
+            |> await (unitHasNoChildren data)
+    }
+
     let unitValidator data =
-        createValidator data data.Units.Get unitValidationPipeline
+        createValidator data data.Units.Get unitWriteValidationPipeline unitDeleteValidationPipeline
