@@ -38,7 +38,10 @@ module Json =
     /// 1. Format property names in 'camelCase'.
     /// 2. Convert all enum values to/from their string equivalents.
     /// 3. Format all options as null or the unwrapped type
-    let JsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
+    let JsonSettings = 
+        JsonSerializerSettings(
+            ContractResolver=CamelCasePropertyNamesContractResolver(),
+            DefaultValueHandling=DefaultValueHandling.Populate)
     JsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
     JsonSettings.Converters.Add(OptionConverter())
 
