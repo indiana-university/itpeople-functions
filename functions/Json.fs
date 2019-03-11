@@ -18,7 +18,7 @@ module Json =
 
         override x.WriteJson(writer, value, serializer) =
             let value = 
-                if value = null then null
+                if isNull value then null
                 else 
                     let _,fields = FSharpValue.GetUnionFields(value, value.GetType())
                     fields.[0]  
@@ -31,7 +31,7 @@ module Json =
                 else innerType        
             let value = serializer.Deserialize(reader, innerType)
             let cases = FSharpType.GetUnionCases(t)
-            if value = null then FSharpValue.MakeUnion(cases.[0], [||])
+            if isNull value then FSharpValue.MakeUnion(cases.[0], [||])
             else FSharpValue.MakeUnion(cases.[1], [|value|])
 
     /// JSON Serialization Defaults:
@@ -48,6 +48,5 @@ module Json =
     let mapFlagsToSeq<'T when 'T :> System.Enum> (value: 'T) = 
         JsonConvert.SerializeObject(value, JsonSettings).Trim('"')
         |> fun s -> s.Split([|','|])
-        |> Seq.map (fun s -> s.Trim())
-        |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s) :?> 'T)
+        |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s.Trim()) :?> 'T)
         |> Seq.filter (fun e -> e.ToString() <> "None")
