@@ -267,10 +267,11 @@ module Functions =
     [<SwaggerResponse(204)>]
     [<SwaggerResponse(403, "You do not have permission to modify this unit.", typeof<ErrorModel>)>]
     [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The unit has children. These must be reassigned prior to deletion.", typeof<ErrorModel>)>]
     let unitDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow user =
-            await unitValidator.ValidEntity unitId
+            await unitValidator.ValidForDelete unitId
             >>= authorizeUnitModification user unitId
             >>= fun _ -> await data.Units.Delete unitId
             >>= determineUserPermissions user
@@ -386,7 +387,7 @@ module Functions =
     let memberDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow user = 
-            await membershipValidator.ValidEntity membershipId
+            await membershipValidator.ValidForDelete membershipId
             >>= authorizeCorrespondingUnitModification user
             >>= fun _ -> await data.Memberships.Delete membershipId
             >>= determineUserPermissions user
@@ -517,7 +518,7 @@ module Functions =
     let supportRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow user = 
-            await relationshipValidator.ValidEntity relationshipId
+            await relationshipValidator.ValidForDelete relationshipId
             >>= authorizeCorrespondingUnitModification user
             >>= fun _ -> await data.SupportRelationships.Delete relationshipId
             >>= determineUserPermissions user

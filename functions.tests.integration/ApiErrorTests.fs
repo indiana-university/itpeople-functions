@@ -87,9 +87,17 @@ module ApiErrorTests =
 
         [<Fact>]       
         member __.``Update a unit with circular relationship yields 409 Conflict`` () = 
-            requestFor HttpMethod.Put "units/1"
+            sprintf "units/%d" cityOfPawnee.Id
+            |> requestFor HttpMethod.Put
             |> withAuthentication
             |> withBody { cityOfPawnee with ParentId=Some(parksAndRec.Id) }
+            |> shouldGetResponse HttpStatusCode.Conflict
+
+        [<Fact>]       
+        member __.``Delete a unit with children yields 409 Conflict`` () = 
+            sprintf "units/%d" cityOfPawnee.Id
+            |> requestFor HttpMethod.Delete
+            |> withAuthentication
             |> shouldGetResponse HttpStatusCode.Conflict
 
         [<Fact>]       

@@ -18,7 +18,7 @@ module Json =
 
         override x.WriteJson(writer, value, serializer) =
             let value = 
-                if value = null then null
+                if isNull value then null
                 else 
                     let _,fields = FSharpValue.GetUnionFields(value, value.GetType())
                     fields.[0]  
@@ -31,20 +31,22 @@ module Json =
                 else innerType        
             let value = serializer.Deserialize(reader, innerType)
             let cases = FSharpType.GetUnionCases(t)
-            if value = null then FSharpValue.MakeUnion(cases.[0], [||])
+            if isNull value then FSharpValue.MakeUnion(cases.[0], [||])
             else FSharpValue.MakeUnion(cases.[1], [|value|])
 
     /// JSON Serialization Defaults:
     /// 1. Format property names in 'camelCase'.
     /// 2. Convert all enum values to/from their string equivalents.
     /// 3. Format all options as null or the unwrapped type
-    let JsonSettings = JsonSerializerSettings(ContractResolver=CamelCasePropertyNamesContractResolver())
+    let JsonSettings = 
+        JsonSerializerSettings(
+            ContractResolver=CamelCasePropertyNamesContractResolver(),
+            DefaultValueHandling=DefaultValueHandling.Populate)
     JsonSettings.Converters.Add(Newtonsoft.Json.Converters.StringEnumConverter())
     JsonSettings.Converters.Add(OptionConverter())
 
     let mapFlagsToSeq<'T when 'T :> System.Enum> (value: 'T) = 
         JsonConvert.SerializeObject(value, JsonSettings).Trim('"')
         |> fun s -> s.Split([|','|])
-        |> Seq.map (fun s -> s.Trim())
-        |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s) :?> 'T)
+        |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s.Trim()) :?> 'T)
         |> Seq.filter (fun e -> e.ToString() <> "None")
