@@ -12,7 +12,6 @@ module Logging =
 
     open Serilog
     open Serilog.Core
-    open Serilog.Context
     open Serilog.Sinks.PostgreSQL
     open NpgsqlTypes
 

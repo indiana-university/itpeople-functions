@@ -5,7 +5,6 @@ namespace Functions
 
 open Types
 open Util
-open Chessie.ErrorHandling
 open Dapper
 open Npgsql
 
@@ -93,13 +92,13 @@ module QueryHelpers =
         with 
         | exn -> 
             let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
-            return fail (Status.InternalServerError, msg)
+            return Error (Status.InternalServerError, msg)
     } 
 
     let fetchAll<'T> connStr (mapper:MapMany<'T>) = async {
         return! dbOp connStr "fetch all" (typedefof<'T>.Name) (fun cn -> async {
             let! result = cn |> mapper |> awaitTask
-            return ok result
+            return Ok result
         })
     }
 
@@ -107,50 +106,44 @@ module QueryHelpers =
         return! dbOp connStr "fetch one" (typedefof<'T>.Name) (fun cn -> async {
             let! result = mapper id cn |> awaitTask
             if Seq.isEmpty result 
-            then return fail(Status.NotFound, sprintf "No %s was found with ID %d." (typedefof<'T>.Name) id)
-            else return result |> Seq.head |> ok
+            then return Error(Status.NotFound, sprintf "No %s was found with ID %d." (typedefof<'T>.Name) id)
+            else return result |> Seq.head |> Ok
         })
     }
 
     let insertImpl<'T> connStr (obj:'T) = async {
         return! dbOp connStr "insert" (typedefof<'T>.Name) (fun cn -> async {
             let! result = cn.InsertAsync<'T>(obj) |> awaitTask
-            return ok (result.GetValueOrDefault())
+            return Ok (result.GetValueOrDefault())
         })
     }
 
-    let insert<'T> connStr (obj:'T) writeParams = async {
-        return 
-            obj
-            |> await (insertImpl connStr)
-            >>= await (fetchOne<'T> connStr writeParams)
-    }
+    let insert<'T> connStr writeParams =
+        insertImpl<'T> connStr
+        >=> fetchOne<'T> connStr writeParams
 
     let updateImpl<'T> connStr id (obj:^T) = async {
         return! dbOp connStr "insert" (typedefof<'T>.Name) (fun cn -> async {
             let! _ = cn.UpdateAsync<'T>(obj) |> awaitTask
-            return ok id
+            return Ok id
         })
     }
 
-    let update<'T> connStr id (obj:'T) writeParams = async {
-        return 
-            obj
-            |> await (updateImpl connStr id)
-            >>= await (fetchOne<'T> connStr writeParams)
-    }
+    let update<'T> connStr writeParams id  = 
+        updateImpl<'T> connStr id
+        >=> fetchOne<'T> connStr writeParams
 
     let delete<'T> connStr (id:int) = async {
         return! dbOp connStr "delete" (typedefof<'T>.Name) (fun cn -> async {
             let! _ = cn.DeleteAsync<'T>(id) |> awaitTask
-            return () |> ok
+            return () |> Ok
         })
     }
 
     let execute connStr sql parameters = async {
         return! dbOp connStr "execute" "" (fun cn -> async {
             let! _ = cn.ExecuteAsync(sql, parameters) |> awaitTask
-            return () |> ok
+            return () |> Ok
         })
     }
 
@@ -186,25 +179,20 @@ module Database =
 
     let mapUnitMember id = mapUnitMembers (WhereId("m.id", id))
 
-    let queryMemberships connStr = async {
-        return! fetchAll connStr (mapUnitMembers Unfiltered)
-    }
+    let queryMemberships connStr =
+        fetchAll connStr (mapUnitMembers Unfiltered)
 
-    let queryMembership connStr id = async {
-        return! fetchOne connStr mapUnitMember id 
-    }
+    let queryMembership connStr id =
+        fetchOne connStr mapUnitMember id 
 
-    let insertMembership connStr unitMember = async {
-        return! insert<UnitMember> connStr unitMember mapUnitMember
-    }
+    let insertMembership connStr =
+        insert<UnitMember> connStr mapUnitMember
 
-    let updateMembership connStr (unitMember:UnitMember) = async {
-        return! update<UnitMember> connStr unitMember.Id unitMember mapUnitMember
-    }
+    let updateMembership connStr (unitMember:UnitMember) =
+        update<UnitMember> connStr mapUnitMember unitMember.Id unitMember
 
-    let deleteMembership connStr id = async {
-        return! delete<UnitMember> connStr id
-    }    
+    let deleteMembership connStr id =
+        delete<UnitMember> connStr id 
 
 
     // *********************
@@ -222,27 +210,23 @@ module Database =
         let mapper s d u = {s with Unit=u; Department=d}
         cn.QueryAsync<SupportRelationship, Department, Unit, SupportRelationship>(query, mapper, param)
 
-    let mapSupportRelationship id = mapSupportRelationships (WhereId("s.id", id))
+    let mapSupportRelationship id = 
+        mapSupportRelationships (WhereId("s.id", id))
 
-    let querySupportRelationships connStr = async {
-        return! fetchAll<SupportRelationship> connStr (mapSupportRelationships Unfiltered)
-    }
+    let querySupportRelationships connStr =
+        fetchAll<SupportRelationship> connStr (mapSupportRelationships Unfiltered)
 
-    let querySupportRelationship connStr id = async {
-        return! fetchOne connStr mapSupportRelationship id
-    }
+    let querySupportRelationship connStr id =
+        fetchOne connStr mapSupportRelationship id
 
-    let insertSupportRelationship connStr supportRelationship = async {
-        return! insert<SupportRelationship> connStr supportRelationship mapSupportRelationship
-    }
+    let insertSupportRelationship connStr  =
+        insert<SupportRelationship> connStr mapSupportRelationship
 
-    let updateSupportRelationship connStr (supportRelationship:SupportRelationship) = async {
-        return! update<SupportRelationship> connStr supportRelationship.Id supportRelationship mapSupportRelationship
-    }
+    let updateSupportRelationship connStr (supportRelationship:SupportRelationship) =
+        update<SupportRelationship> connStr mapSupportRelationship supportRelationship.Id supportRelationship
 
-    let deleteSupportRelationship connStr id = async {
-        return! delete<SupportRelationship> connStr id
-    }
+    let deleteSupportRelationship connStr id =
+        delete<SupportRelationship> connStr id
    
 
     // **********
@@ -263,45 +247,39 @@ module Database =
     let mapUnits = mapUnits' queryUnitsSql
     let mapUnit id = mapUnits (WhereId("u.id", id))
 
-    let queryUnits connStr query = async {
+    let queryUnits connStr query =
         let filter = 
             match query with 
             | None -> Where("u.parent_id IS NULL")
             | Some(q) -> WhereParam("u.name ILIKE @Query OR u.description ILIKE @Query", {Query=like q})
-        return! fetchAll<Unit> connStr (mapUnits(filter))
-    }
+        fetchAll<Unit> connStr (mapUnits(filter))
 
-    let queryUnit connStr id = async {
-        return! fetchOne<Unit> connStr mapUnit id
-    }
+    let queryUnit connStr =
+        fetchOne<Unit> connStr mapUnit
 
-    let insertUnit connStr unit = async {
-        return! insert<Unit> connStr unit mapUnit
-    }
+    let insertUnit connStr =
+        insert<Unit> connStr mapUnit
 
-    let updateUnit connStr (unit:Unit) = async {
-        return! update<Unit> connStr unit.Id unit mapUnit
-    }
+    let updateUnit connStr (unit:Unit) =
+        update<Unit> connStr mapUnit unit.Id unit
 
     let deleteUnitSql = """
         DELETE FROM unit_members WHERE unit_id=@Id;
         DELETE FROM support_relationships WHERE unit_id=@Id;
         DELETE FROM units WHERE id=@Id"""
-    let deleteUnit connStr id = async {
-        return! execute connStr deleteUnitSql {Id=id}    
-    }
 
-    let queryUnitChildren connStr (unit:Unit) = async {
-        return! fetchAll<Unit> connStr (mapUnits(WhereId("u.parent_id", unit.Id)))
-    }
+    let deleteUnit connStr id =
+        execute connStr deleteUnitSql {Id=id}
 
-    let queryUnitMembers connStr (unit:Unit) = async {
-        return! fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
-    }
+    let queryUnitChildren connStr (unit:Unit) =
+        fetchAll<Unit> connStr (mapUnits(WhereId("u.parent_id", unit.Id)))
 
-    let queryUnitSupportedDepartments connStr (unit:Unit) = async {
-        return! fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
-    }
+    let queryUnitMembers connStr (unit:Unit) =
+        fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
+
+    let queryUnitSupportedDepartments connStr (unit:Unit) =
+        fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
+    
 
 
     // This query is recursive. (Whoa.)
@@ -312,7 +290,7 @@ module Database =
     //  anywhere in that hierarchy, they query will return
     //  information for the ChildId unit. 
     // Otherwise it returns nothing.
-    let queryUnitParentage = """
+    let queryUnitParentageSql = """
     WITH RECURSIVE parentage AS (
      -- first row
      SELECT id, name, parent_id
@@ -334,15 +312,16 @@ module Database =
     type Descendant = 
       { ParentId: Id
         ChildId: Id }
-    let queryUnitGetDescendantOfParent connStr parentId childId = async {
-        let param = {ParentId=parentId; ChildId=childId}
-        let query (cn:Cn) = cn.QueryAsync<Unit>(queryUnitParentage, param)
-        return     
-            query
-            |> await (fetchAll connStr) 
-            >>= (Seq.tryHead >> ok)
-    }
 
+    let tryGetFirstResult seq = seq |> Seq.tryHead |> Ok |> async.Return
+
+    let queryUnitGetDescendantOfParent connStr  =
+        let makeMapper (parentId, childId) =
+            let param = {ParentId=parentId; ChildId=childId}
+            (fun (cn:Cn) -> cn.QueryAsync<Unit>(queryUnitParentageSql, param)) |> Ok |> async.Return
+        makeMapper    
+        >=> fetchAll connStr
+        >=> tryGetFirstResult
 
     // ***********
     // Departments
@@ -355,34 +334,30 @@ module Database =
         parseQueryAndParam queryDepartmentsSql filter
         |> cn.QueryAsync<Department>
 
-    let mapDepartment id = mapDepartments (WhereId("d.id", id))
+    let mapDepartment id = 
+        mapDepartments (WhereId("d.id", id))
 
-    let queryDepartments connStr query = async {
+    let queryDepartments connStr query =
         let filter = 
             match query with 
             | None -> Unfiltered
             | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query", {Query=like q})
-        return! fetchAll<Department> connStr (mapDepartments filter)
-    }
+        fetchAll<Department> connStr (mapDepartments filter)
 
-    let queryDepartment connStr id = async {
-        return! fetchOne<Department> connStr mapDepartment id
-    }
+    let queryDepartment connStr id =
+        fetchOne<Department> connStr mapDepartment id
 
-    let queryDeptSupportingUnits connStr id = async {
-        return! fetchAll connStr (mapSupportRelationships (WhereId("d.id", id)))
-    }
+    let queryDeptSupportingUnits connStr id = 
+        fetchAll connStr (mapSupportRelationships (WhereId("d.id", id)))
 
     let queryDeptMemberUnitsSql = """
         SELECT DISTINCT ON (u.id) u.*, pu.* FROM units u
         LEFT JOIN units pu on pu.id = u.parent_id
         JOIN unit_members m ON m.unit_id = u.id
         JOIN people p on p.id = m.person_id"""
-    let queryDeptMemberUnits connStr id = async {
+    let queryDeptMemberUnits connStr id =
         let mapDeptMemberUnits = mapUnits' queryDeptMemberUnitsSql
-        return! fetchAll<Unit> connStr (mapDeptMemberUnits(WhereId("p.department_id", id)))
-    }
-
+        fetchAll<Unit> connStr (mapDeptMemberUnits(WhereId("p.department_id", id)))
 
     // ***********
     // People
@@ -398,33 +373,33 @@ module Database =
         let mapper (p:Person) d = {p with Department=d}
         cn.QueryAsync<Person, Department, Person>(query, mapper, param)
 
-    let mapPerson id = mapPeople (WhereId("p.id", id))
+    let mapPerson id = 
+        mapPeople (WhereId("p.id", id))
 
-    let queryPeople connStr query = async {
+    let queryPeople connStr query =
         let filter = 
             match query with
             | None ->  Unfiltered
             | Some(q) -> WhereParam("p.name ILIKE @Query OR p.netid ILIKE @Query", {Query=like q})
-        return! fetchAll connStr (mapPeople(filter))
-    }
+        fetchAll connStr (mapPeople(filter))
 
-    let queryPerson connStr id = async {
-        return! fetchOne<Person> connStr mapPerson id
-    }
+    let queryPerson connStr id =
+        fetchOne<Person> connStr mapPerson id
 
     let queryPersonByNetId connStr netId = async {
         let! people = fetchAll<Person> connStr (mapPeople(WhereParam("netid = @NetId", {NetId=netId})))
-        match people with
-        | Ok(result,_) ->
-            match result |> Seq.tryHead with
-            | Some(p) -> return ok (netId, Some(p.Id))
-            | None -> return ok (netId, None)
-        | Bad(msgs) -> return Bad(msgs)
+        let result = 
+            match people with
+            | Ok result ->
+                match result |> Seq.tryHead with
+                | Some(p) -> Ok (netId, Some(p.Id))
+                | None -> Ok (netId, None)
+            | Error(msgs) -> Error(msgs)
+        return result
     }
 
-    let queryPersonMemberships connStr id = async {
-        return! fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
-    }    
+    let queryPersonMemberships connStr id =
+        fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))  
 
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr

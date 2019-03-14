@@ -4,8 +4,6 @@
 namespace Functions
 
 open Types
-open Json
-open Chessie.ErrorHandling
 open Swashbuckle.AspNetCore.Filters
 
 
@@ -171,7 +169,7 @@ module Fakes =
         GetMembers = fun unit -> stub ([ swansonMembership ] |> List.toSeq) 
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
-        GetDescendantOfParent = fun parentId childId -> stub None
+        GetDescendantOfParent = fun (parentId, childId) -> stub None
         Create = fun req -> stub parksAndRec
         Update = fun req -> stub parksAndRec
         Delete = fun req -> stub ()

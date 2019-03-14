@@ -4,23 +4,15 @@
 namespace Functions
 
 open Types
-open Jwt
 open Database
 open Fakes
 open Logging
 open Util
-open Http
-open System.Collections.Generic
-open System.Diagnostics
-open System.Net
 open System.Net.Http
 open System.Net.Http.Headers
 open System.Reflection
-open Chessie.ErrorHandling
-open Microsoft.Azure.WebJobs
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
-open Serilog.Core
 open Newtonsoft.Json
 
 open Swashbuckle.AspNetCore.Swagger
@@ -159,7 +151,7 @@ module Api =
         | Ok((body,auth), _) ->
             logSuccess log req status
             jsonResponse req config.CorsHosts status body (Some(auth))
-        | Bad((msgs:Error list)) -> 
+        | Error((msgs:Error list)) -> 
             let (status, errors) = failure (msgs)
             logError log req status errors
             jsonResponse req config.CorsHosts status errors None

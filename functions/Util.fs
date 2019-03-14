@@ -5,7 +5,6 @@ namespace Functions
 
 module Util =
 
-    open Types 
     open System
     open Chessie.ErrorHandling
 

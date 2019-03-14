@@ -5,13 +5,25 @@ namespace Functions
 
 open System
 open System.Net
-open Chessie.ErrorHandling
 open Dapper
 open System.ComponentModel
 open Newtonsoft.Json
 
 module Types = 
 
+    let bind (f : 'a -> Async<Result<'b, 'error>>) (a : Async<Result<'a, 'error>>)  : Async<Result<'b, 'error>> = async {
+        let! r = a
+        match r with
+        | Ok value -> return! f value
+        | Error err -> return (Error err)
+    }
+
+    let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) : 'a -> Async<Result<'c, 'e>> =
+        fun x -> bind g (f x)
+
+    let (>>=) a f = bind f a
+    let (>=>) f g = compose f g
+    
     let ROLE_ADMIN = "admin"
     let ROLE_USER = "user"
 
@@ -272,9 +284,6 @@ module Types =
         Message: string
     }
     
-    type FetchById<'T> = Id -> AsyncResult<'T,Error>
-    type FetchAll<'T> = unit -> AsyncResult<'T,Error>
-
     type NoContent = unit
 
     type PeopleRepository = {
@@ -306,7 +315,7 @@ module Types =
         /// Delete a unit
         Delete: Id -> Async<Result<unit,Error>>
         /// 
-        GetDescendantOfParent: Id -> Id -> Async<Result<Unit option,Error>>
+        GetDescendantOfParent: (Id * Id) -> Async<Result<Unit option,Error>>
     }
 
     type DepartmentRepository = {
@@ -354,7 +363,7 @@ module Types =
         SupportRelationships: SupportRelationshipRepository
     }
     
-    let stub a = async { return! a |> ok |> async.Return }
+    let stub a = a |> Ok |> async.Return
 
     type JwtResponse = {
         /// The OAuth JSON Web Token (JWT) that represents the logged-in user. The JWT must be passed in an HTTP Authentication header in the form: 'Bearer <JWT>'
