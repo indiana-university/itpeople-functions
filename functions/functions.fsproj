@@ -9,10 +9,9 @@
   <ItemGroup>
     <Compile Include="Types.fs" />
     <Compile Include="Logging.fs" />
-    <Compile Include="Json.fs" />
     <Compile Include="Util.fs" />
+    <Compile Include="Json.fs" />
     <Compile Include="Jwt.fs" />
-    <Compile Include="Http.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Fakes.fs" />
     <Compile Include="Api.fs" />

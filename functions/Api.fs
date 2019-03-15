@@ -4,13 +4,15 @@
 namespace Functions
 
 open Types
+open Json
 open Database
 open Fakes
 open Logging
-open Util
+
 open System.Net.Http
 open System.Net.Http.Headers
 open System.Reflection
+open Microsoft.AspNetCore.WebUtilities
 open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Newtonsoft.Json
@@ -19,12 +21,9 @@ open Swashbuckle.AspNetCore.Swagger
 open Swashbuckle.AspNetCore.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Extensions
 
-
 module Api =
 
-    ///
     /// CONFIGURATION 
-    ///
     
     let getRequiredValue<'T> (config:IConfigurationRoot) key =
         if config.GetChildren() |> Seq.exists (fun c -> c.Key = key)
@@ -63,9 +62,38 @@ module Api =
             Functions.Database.init()
             DatabaseRepository(config.DbConnectionString)
 
-    ///
+    /// HTTP REQUEST
+    let client = new HttpClient()
+
+    /// Attempt to retrieve a query parameter of the given name
+    let tryQueryParam paramName (req: HttpRequestMessage) =
+        let query = req.RequestUri.Query |> QueryHelpers.ParseQuery
+        let param =
+            if query.ContainsKey(paramName)
+            then query.[paramName].ToString() |> Some
+            else None
+        param |> Ok |> async.Return
+
+    /// Require a query parameter of the given name
+    let queryParam paramName (req: HttpRequestMessage) =
+        let query = req.RequestUri.Query |> QueryHelpers.ParseQuery
+        if query.ContainsKey(paramName)
+        then query.[paramName].ToString() |> Ok |> async.Return
+        else Error (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName)) |> async.Return
+        
+    /// Attempt to post an HTTP request and deserialize the ressponse
+    let postAsync<'T> (url:string) (content:HttpContent) = async {
+        try
+            let! response = client.PostAsync(url, content) |> Async.AwaitTask
+            let! content = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+            if (response.IsSuccessStatusCode)
+            then return tryDeserialize<'T> Status.InternalServerError content
+            else return Error (response.StatusCode, content)
+        with 
+        | exn -> return Error (Status.InternalServerError, exn.Message)
+    }
+
     /// CORS
-    ///
 
     let addCORSHeader (res:HttpResponseMessage) (origin) (corsHosts) =
         match corsHosts with
@@ -95,9 +123,7 @@ module Api =
         then req.Headers.GetValues("origin") |> Seq.head
         else ""
 
-    ///
     /// HTTP RESPONSE
-    ///
 
     /// Given an API function, get a response.  
     let optionsResponse req config  = 
@@ -134,8 +160,6 @@ module Api =
             logError log req status msg
             jsonResponse req config.CorsHosts status msg
 
-    // open Microsoft.OpenApi.Models
-
     /// OpenAPI SPEC
     let apiInfo = 
         Info(
@@ -143,8 +167,6 @@ module Api =
             Version="v1",
             Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
             Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
-
-    open System.IO
 
     let generateOpenAPISpec () = 
         let services = ServiceCollection()
