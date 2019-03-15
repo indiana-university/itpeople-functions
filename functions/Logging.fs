@@ -83,17 +83,6 @@ module Logging =
             .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 
-    let logInfo (log:Logger) req msg =
-        log.Information(
-            "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query}: {Detail}.", 
-            req |> tryGetIPAddress, 
-            req |> tryGetAuthenticatedUser,
-            req.Method, 
-            req |> funcName, 
-            req |> funcParams, 
-            req |> query, 
-            msg)
-
     let logSuccess (log:Logger) req (status:Status) =
         log.Information(
             "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} finished in {Elapsed} ms with status {Status}.", 

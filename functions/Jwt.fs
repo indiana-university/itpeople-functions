@@ -31,7 +31,6 @@ module Jwt =
     let ExpClaim = "exp"
     let UserIdClaim = "user_id"
     let UserNameClaim = "user_name"
-    let UserRoleClaim = "user_role"
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
     /// Create and sign a JWT

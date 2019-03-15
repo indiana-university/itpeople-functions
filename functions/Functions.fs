@@ -90,8 +90,6 @@ module Functions =
     let update req workflow = execute Status.OK req workflow
     let delete req workflow = execute Status.NoContent req workflow
 
-    let isAuthenticated model _ = Ok model |> async.Return
-
     let canCreateUnit model user  =
         if isAdmin user
         then Ok model |> async.Return
