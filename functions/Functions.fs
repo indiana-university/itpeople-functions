@@ -12,7 +12,6 @@ open Logging
 open Validation
 open Fakes
 
-open Chessie.ErrorHandling
 open Microsoft.Azure.WebJobs
 open System
 open System.Net.Http
@@ -21,7 +20,6 @@ open Microsoft.Azure.WebJobs.Extensions.Http
 open Swashbuckle.AspNetCore.Annotations
 open Swashbuckle.AspNetCore.Filters
 open Swashbuckle.AspNetCore.AzureFunctions.Annotations
-
 
 /// This module defines the bindings and triggers for all functions in the project
 module Functions =    
@@ -42,56 +40,74 @@ module Functions =
     /// Logging: Add a timestamp to the request properties.
     let timestamp req = 
         addProperty req WorkflowTimestamp DateTime.UtcNow
-        req
-
+        Ok req |> async.Return
+        
     /// Logging: Add the authenticated user to the request properties
-    let recordAuthenticatedUser req user =
+    let recordAuthenticatedUser (req:HttpRequestMessage) (user:JwtClaims) =
         addProperty req WorkflowUser user.UserName
-        ok user
+        Ok user |> async.Return
     
-    /// Log and rethrow an unhandled exception.
-    let handle req exn = 
-        logFatal log req exn
-        raise exn
-
-    /// Execute a workflow for an anonymous user and return a response.
-    let anonymous workflow successStatus req =
-        try
-            req
-            |> timestamp
-            |> workflow
-            |> createResponse req config log successStatus
-        with exn -> handle req exn
-
-    /// Execute a workflow for an authenticated user and return a response.
-    let authenticate workflow successStatus req =
-        try
-            req
-            |> timestamp
-            |> authenticateRequest config
-            >>= recordAuthenticatedUser req
-            >>= workflow
-            |> createResponse req config log successStatus
-        with exn -> handle req exn
-
     /// Temporary: a list of IT people admins.
     let isAdmin (user:JwtClaims) =
         let admins = [ "jhoerr"; "kendjone"; "jerussel"; "brrund"; "mattzink"; "johndoe" ]
         admins |> List.contains user.UserName
 
-    let authorizeUnitModification (user:JwtClaims) id model  =
-        if isAdmin user
-        then ok model
-        else fail (Status.Forbidden, "You are not authorized to modify this resource.")
-
-    let inline authorizeCorrespondingUnitModification user model = 
-        authorizeUnitModification user (unitId model) model
-
     /// Temporary: if this user is an admin, give them read/write access, else read-only.
-    let determineUserPermissions user a =
+    let determineUserPermissions (req:HttpRequestMessage) (user:JwtClaims) =
+        let perms = 
+            if isAdmin user
+            then [GET; POST; PUT; DELETE]
+            else [GET;]
+        addProperty req WorkflowPermissions perms
+        Ok user |> async.Return
+
+    /// Log and rethrow an unhandled exception.
+    let handle req exn = 
+        logFatal log req exn
+        raise exn
+
+    let authenticate req = 
+        authenticateRequest config req
+        >>= recordAuthenticatedUser req
+
+    let authorize<'T> req (authFn: 'T -> JwtClaims -> Async<Result<'T,Error>>) (model:'T) =
+        authenticate req
+        >>= determineUserPermissions req
+        >>= authFn model
+
+    /// Execute a workflow for an authenticated user and return a response.
+    let execute (successStatus:Status) (req:HttpRequestMessage) workflow  = 
+        async {
+            try
+                let workflow = timestamp >=> workflow
+                let! result = workflow(req)
+                return createResponse req config log successStatus result
+            with exn -> return handle req exn
+        } |> Async.StartAsTask
+
+    let get req workflow = execute Status.OK req workflow
+    let create req workflow = execute Status.Created req workflow
+    let update req workflow = execute Status.OK req workflow
+    let delete req workflow = execute Status.NoContent req workflow
+
+    let isAuthenticated model _ = Ok model |> async.Return
+
+    let canCreateUnit model user  =
         if isAdmin user
-        then ok (a, [GET; POST; PUT; DELETE])
-        else ok (a, [GET])
+        then Ok model |> async.Return
+        else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> async.Return
+
+    let canModifyUnit model user =
+        if isAdmin user
+        then Ok model |> async.Return
+        else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> async.Return
+ 
+    let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'a,Error>> = async {
+        let! result = getter (identity model)
+        match result with 
+        | Ok _ -> return Ok model
+        | Error msg -> return Error msg
+    } 
 
     // VALIDATION 
 
@@ -110,16 +126,14 @@ module Functions =
         let (content, status) = 
             try (new StringContent(openApiSpec.Value), Status.OK)
             with exn -> (new StringContent(exn.ToString()), Status.InternalServerError)
-        contentResponse req "*" status None content
+        contentResponse req "*" status content
 
     [<FunctionName("PingGet")>]
     [<SwaggerIgnore>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req) =
         new StringContent("Pong!") 
-        |> contentResponse req "*" Status.OK None
-
-
+        |> contentResponse req "*" Status.OK
 
     // *****************
     // ** Authentication
@@ -129,7 +143,7 @@ module Functions =
     [<SwaggerOperation(Summary="Get OAuth JWT", Description="Exchanges a UAA OAuth code for an application-scoped JWT. The JWT is required to make authenticated requests to this API.", Tags=[|"Authentication"|])>]
     [<SwaggerResponse(200, "A JWT access token scoped for the IT People API.", typeof<JwtResponse>)>]
     [<SwaggerResponse(400, "The provided code was missing, invalid, or expired.", typeof<ErrorModel>)>]
-    let auth
+    let authGet
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth")>] req) =
 
         // workflow partials
@@ -139,23 +153,22 @@ module Functions =
         let encodeAppJwt = encodeAppJwt config.JwtSecret (now().AddHours(8.))
 
         // workflow definition
-        let workflow req =  
-            req
-            |> queryParam "oauth_code"
-            >>= createUaaTokenRequest
-            >>= await requestTokenFromUaa
-            >>= decodeUaaJwt
-            >>= recordAuthenticatedUser req
-            >>= await resolveAppUserId
-            >>= encodeAppJwt
-            >>= fun user -> ok (user, [GET])
+        let workflow =  
+            queryParam "oauth_code"
+            >=> createUaaTokenRequest
+            >=> requestTokenFromUaa
+            >=> decodeUaaJwt
+            >=> recordAuthenticatedUser req
+            >=> resolveAppUserId
+            >=> encodeAppJwt
 
-        req |> anonymous workflow Status.OK
+        get req workflow
 
     // *****************
     // ** People
     // *****************
 
+    let getPerson personId _ = data.People.Get personId
 
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="List all people", Description="Search for people by name and/or username (netid).", Tags=[|"People"|])>]
@@ -163,12 +176,11 @@ module Functions =
     [<OptionalQueryParameter("q", typeof<string>)>]
     let peopleGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people")>] req) =
-        let workflow user = 
-            req
-            |> tryQueryParam "q"
-            |> await data.People.GetAll
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate 
+            >=> fun _ -> tryQueryParam "q" req
+            >=> data.People.GetAll
+        get req workflow
 
     [<FunctionName("PeopleGetById")>]
     [<SwaggerOperation(Summary="Find a person by ID", Tags=[|"People"|])>]
@@ -176,10 +188,10 @@ module Functions =
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
-        let workflow user = 
-            await data.People.Get personId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow =
+            authenticate
+            >=> fun _ -> data.People.Get personId
+        get req workflow
 
     [<FunctionName("PeopleGetAllMemberships")>]
     [<SwaggerOperation(Summary="List a person's unit memberships", Description="List all units for which this person does IT work.", Tags=[|"People"|])>]
@@ -187,18 +199,18 @@ module Functions =
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
-        let workflow user = 
-            await data.People.Get personId
-            >>= (fun p -> await data.People.GetMemberships p.Id)
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
-
+        let getPersonMemberships p = data.People.GetMemberships (identity p)
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.People.Get personId
+            >=> getPersonMemberships
+        get req workflow
 
     // *****************
     // ** Units
     // *****************
 
-    let setUnitId id (a:Unit) = ok { a with Id=id }
+    let setUnitId id (a:Unit) = Ok { a with Id=id } |> async.Return
 
     let unitValidator = unitValidator(data)
 
@@ -208,12 +220,11 @@ module Functions =
     [<OptionalQueryParameter("q", typeof<string>)>]
     let unitGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units")>] req) =
-        let workflow user = 
-            req
-            |> tryQueryParam "q"
-            |> await data.Units.GetAll
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate 
+            >=> fun _ -> tryQueryParam "q" req
+            >=> data.Units.GetAll
+        get req workflow
 
     [<FunctionName("UnitGetId")>]
     [<SwaggerOperation(Summary="Find a unit by ID.", Tags=[|"Units"|])>]
@@ -221,10 +232,10 @@ module Functions =
     [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}")>] req, unitId) =
-        let workflow user = 
-            await data.Units.Get unitId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.Units.Get unitId 
+        get req workflow
             
     [<FunctionName("UnitPost")>]
     [<SwaggerOperation(Summary="Create a unit.", Tags=[|"Units"|])>]
@@ -234,14 +245,13 @@ module Functions =
     [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
-        let workflow user =
-            deserializeBody<Unit> req
-            >>= setUnitId 0      
-            >>= authorizeUnitModification user 0           
-            >>= await unitValidator.ValidForCreate
-            >>= await data.Units.Create
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.Created
+        let workflow =
+            deserializeBody<Unit>
+            >=> setUnitId 0      
+            >=> authorize req canCreateUnit
+            >=> unitValidator.ValidForCreate
+            >=> data.Units.Create
+        create req workflow
 
     [<FunctionName("UnitPut")>]
     [<SwaggerOperation(Summary="Update a unit.", Tags=[|"Units"|])>]
@@ -253,14 +263,14 @@ module Functions =
     [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
-        let workflow user = 
-            deserializeBody<Unit> req      
-            >>= setUnitId unitId      
-            >>= authorizeUnitModification user unitId
-            >>= await unitValidator.ValidForUpdate
-            >>= await data.Units.Update
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow =
+            deserializeBody<Unit>
+            >=> setUnitId unitId
+            >=> ensureEntityExistsForModel data.Units.Get      
+            >=> authorize req canModifyUnit
+            >=> unitValidator.ValidForUpdate
+            >=> data.Units.Update
+        update req workflow
 
     [<FunctionName("UnitDelete")>]
     [<SwaggerOperation(Summary="Delete a unit.", Tags=[|"Units"|])>]
@@ -270,12 +280,12 @@ module Functions =
     [<SwaggerResponse(409, "The unit has children. These must be reassigned prior to deletion.", typeof<ErrorModel>)>]
     let unitDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
-        let workflow user =
-            await unitValidator.ValidForDelete unitId
-            >>= authorizeUnitModification user unitId
-            >>= fun _ -> await data.Units.Delete unitId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.NoContent
+        let workflow =
+            fun _ -> data.Units.Get unitId
+            >=> authorize req canModifyUnit
+            >=> unitValidator.ValidForDelete
+            >=> data.Units.Delete
+        delete req workflow
 
     [<FunctionName("UnitGetAllMembers")>]
     [<SwaggerOperation(Summary="List all unit members", Description="List all people who do IT work for this unit along with any vacant positions.", Tags=[|"Units"|])>]
@@ -283,11 +293,11 @@ module Functions =
     [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetAllMembers
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
-        let workflow user =
-            await unitValidator.ValidEntity unitId
-            >>= await data.Units.GetMembers
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow =
+            authenticate
+            >=> fun _ ->  data.Units.Get unitId
+            >=> data.Units.GetMembers
+        get req workflow
 
     [<FunctionName("UnitGetAllSupportedDepartments")>]
     [<SwaggerOperation(Summary="List all supported departments", Description="List all departments that receive IT support from this unit.", Tags=[|"Units"|])>]
@@ -295,11 +305,11 @@ module Functions =
     [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetAllSupportedDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/supportedDepartments")>] req, unitId) =
-        let workflow user = 
-            await unitValidator.ValidEntity unitId
-            >>= await data.Units.GetSupportedDepartments
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate
+            >=> fun _ ->  data.Units.Get unitId
+            >=> data.Units.GetSupportedDepartments
+        get req workflow
 
     [<FunctionName("UnitGetAllChildren")>]
     [<SwaggerOperation(Summary="List all unit children", Description="List all units that fall below this unit in an organizational hierarchy.", Tags=[|"Units"|])>]
@@ -307,11 +317,11 @@ module Functions =
     [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetAllChildren
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/children")>] req, unitId) =
-        let workflow user = 
-            await unitValidator.ValidEntity unitId
-            >>= await data.Units.GetChildren
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate
+            >=> fun _ ->  data.Units.Get unitId
+            >=> data.Units.GetChildren
+        get req workflow
 
 
     // *******************
@@ -319,17 +329,17 @@ module Functions =
     // *******************
 
     let membershipValidator = membershipValidator(data)
-    let setMembershipId id (a:UnitMember) = ok { a with Id=id }
+    let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
 
     [<FunctionName("MemberGetAll")>]
     [<SwaggerOperation(Summary="List all unit memberships", Tags=[|"Unit Memberships"|])>]
     [<SwaggerResponse(200, "A collection of unit membership records", typeof<seq<UnitMember>>)>]
     let memberGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships")>] req) =
-        let workflow user = 
-            await data.Memberships.GetAll ()
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.Memberships.GetAll ()
+        get req workflow
 
     [<FunctionName("MemberGetById")>]
     [<SwaggerOperation(Summary="Find a unit membership by ID", Tags=[|"Unit Memberships"|])>]
@@ -337,10 +347,10 @@ module Functions =
     [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
     let memberGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships/{membershipId}")>] req, membershipId) =
-        let workflow user = 
-            await data.Memberships.Get membershipId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.Memberships.Get membershipId
+        get req workflow
 
     [<FunctionName("MemberCreate")>]
     [<SwaggerOperation(Summary="Create a unit membership.", Tags=[|"Unit Memberships"|])>]
@@ -351,14 +361,13 @@ module Functions =
     [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "memberships")>] req) =
-        let workflow user = 
-            deserializeBody<UnitMember> req
-            >>= setMembershipId 0
-            >>= authorizeCorrespondingUnitModification user
-            >>= await membershipValidator.ValidForCreate
-            >>= await data.Memberships.Create
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.Created
+        let workflow = 
+            deserializeBody<UnitMember>
+            >=> setMembershipId 0
+            >=> authorize req canModifyUnit
+            >=> membershipValidator.ValidForCreate
+            >=> data.Memberships.Create
+        create req workflow
 
     [<FunctionName("MemberUpdate")>]
     [<SwaggerOperation(Summary="Update a unit membership.", Tags=[|"Unit Memberships"|])>]
@@ -370,14 +379,14 @@ module Functions =
     [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
-        let workflow user = 
-            deserializeBody<UnitMember> req
-            >>= setMembershipId membershipId
-            >>= authorizeCorrespondingUnitModification user
-            >>= await membershipValidator.ValidForUpdate
-            >>= await data.Memberships.Update
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            deserializeBody<UnitMember>
+            >=> setMembershipId membershipId
+            >=> ensureEntityExistsForModel data.Memberships.Get
+            >=> authorize req canModifyUnit
+            >=> membershipValidator.ValidForUpdate
+            >=> data.Memberships.Update
+        update req workflow
   
     [<FunctionName("MemberDelete")>]
     [<SwaggerOperation(Summary="Delete a unit membership.", Tags=[|"Unit Memberships"|])>]
@@ -386,17 +395,18 @@ module Functions =
     [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
     let memberDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
-        let workflow user = 
-            await membershipValidator.ValidForDelete membershipId
-            >>= authorizeCorrespondingUnitModification user
-            >>= fun _ -> await data.Memberships.Delete membershipId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.NoContent
+        let workflow =
+            fun _ -> data.Memberships.Get membershipId
+            >=> authorize req canModifyUnit
+            >=> membershipValidator.ValidForDelete
+            >=> data.Memberships.Delete
+        delete req workflow
 
 
     // *****************
     // ** Departments
     // *****************
+
 
     [<FunctionName("DepartmentGetAll")>]
     [<SwaggerOperation(Summary="List all departments.", Description="Search for departments by name and/or description.", Tags=[|"Departments"|])>]
@@ -404,12 +414,11 @@ module Functions =
     [<OptionalQueryParameter("q", typeof<string>)>]
     let departmentGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments")>] req) =
-        let workflow user = 
-            req
-            |> tryQueryParam "q"
-            |> await data.Departments.GetAll
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate
+            >=> fun _ -> tryQueryParam "q" req
+            >=> data.Departments.GetAll
+        get req workflow
 
     [<FunctionName("DepartmentGetId")>]
     [<SwaggerOperation(Summary="Find a department by ID.", Tags=[|"Departments"|])>]
@@ -417,10 +426,10 @@ module Functions =
     [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}")>] req, departmentId) =
-        let workflow user = 
-            await data.Departments.Get departmentId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow =
+            authenticate
+            >=> fun _ -> data.Departments.Get departmentId
+        get req workflow
 
     [<FunctionName("DepartmentGetAllMemberUnits")>]
     [<SwaggerOperation(Summary="List a department's member units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
@@ -428,10 +437,11 @@ module Functions =
     [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetMemberUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/memberUnits")>] req, departmentId) =
-        let workflow user = 
-            await data.Departments.GetMemberUnits departmentId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.Departments.Get departmentId
+            >=> data.Departments.GetMemberUnits
+        get req workflow
 
     [<FunctionName("DepartmentGetAllSupportingUnits")>]
     [<SwaggerOperation(Summary="List a department's supporting units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
@@ -439,17 +449,18 @@ module Functions =
     [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
-        let workflow user = 
-            await data.Departments.GetSupportingUnits departmentId
-            >>= determineUserPermissions user    
-        req |> authenticate workflow Status.OK
+        let workflow =
+            authenticate
+            >=> fun _ -> data.Departments.Get departmentId
+            >=> data.Departments.GetSupportingUnits
+        get req workflow
 
 
     // ************************
     // ** Support Relationships
     // ************************
 
-    let setRelationshipId id (a:SupportRelationship) = ok { a with Id=id }
+    let setRelationshipId id (a:SupportRelationship) = Ok { a with Id=id } |> async.Return
     let relationshipValidator = supportRelationshipValidator data
 
     [<FunctionName("SupportRelationshipsGetAll")>]
@@ -457,10 +468,10 @@ module Functions =
     [<SwaggerResponse(200, "A collection of support relationship records", typeof<SupportRelationship seq>)>]
     let supportRelationshipsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "supportRelationships")>] req) =
-        let workflow user = 
-            await data.SupportRelationships.GetAll ()
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.SupportRelationships.GetAll ()
+        get req workflow
 
     [<FunctionName("SupportRelationshipsGetId")>]
     [<SwaggerOperation(Summary="Find a unit-department support relationships by ID", Tags=[|"Support Relationships"|])>]
@@ -468,10 +479,10 @@ module Functions =
     [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
     let supportRelationshipsGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
-        let workflow user = 
-            await data.SupportRelationships.Get relationshipId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow =
+            authenticate
+            >=> fun _ -> data.SupportRelationships.Get relationshipId
+        get req workflow
 
     [<FunctionName("SupportRelationshipsCreate")>]
     [<SwaggerOperation(Summary="Create a unit-department support relationship", Tags=[|"Support Relationships"|])>]
@@ -482,14 +493,13 @@ module Functions =
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided department.", typeof<ErrorModel>)>]
     let supportRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "supportRelationships")>] req) =
-        let workflow user = 
-            deserializeBody<SupportRelationship> req
-            >>= setRelationshipId 0
-            >>= await relationshipValidator.ValidForCreate
-            >>= authorizeCorrespondingUnitModification user
-            >>= await data.SupportRelationships.Create          
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.Created
+        let workflow = 
+            deserializeBody<SupportRelationship>
+            >=> setRelationshipId 0
+            >=> authorize req canModifyUnit
+            >=> relationshipValidator.ValidForCreate
+            >=> data.SupportRelationships.Create          
+        create req workflow
 
     [<FunctionName("SupportRelationshipsUpdate")>]
     [<SwaggerOperation(Summary="Update a unit-department support relationship", Tags=[|"Support Relationships"|])>]
@@ -501,14 +511,14 @@ module Functions =
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided department.", typeof<ErrorModel>)>]
     let supportRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
-        let workflow user = 
-            deserializeBody<SupportRelationship> req
-            >>= setRelationshipId relationshipId
-            >>= await relationshipValidator.ValidForUpdate
-            >>= authorizeCorrespondingUnitModification user
-            >>= await data.SupportRelationships.Update
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.OK
+        let workflow = 
+            deserializeBody<SupportRelationship>
+            >=> setRelationshipId relationshipId
+            >=> ensureEntityExistsForModel data.SupportRelationships.Get
+            >=> authorize req canModifyUnit
+            >=> relationshipValidator.ValidForUpdate
+            >=> data.SupportRelationships.Update
+        update req workflow
 
     [<FunctionName("SupportRelationshipsDelete")>]
     [<SwaggerOperation(Summary="Delete a unit-department support relationship", Tags=[|"Support Relationships"|])>]
@@ -517,9 +527,9 @@ module Functions =
     [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
     let supportRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
-        let workflow user = 
-            await relationshipValidator.ValidForDelete relationshipId
-            >>= authorizeCorrespondingUnitModification user
-            >>= fun _ -> await data.SupportRelationships.Delete relationshipId
-            >>= determineUserPermissions user
-        req |> authenticate workflow Status.NoContent
+        let workflow = 
+            fun _ -> data.SupportRelationships.Get relationshipId
+            >=> authorize req canModifyUnit
+            >=> relationshipValidator.ValidForDelete
+            >=> data.SupportRelationships.Delete
+        delete req workflow

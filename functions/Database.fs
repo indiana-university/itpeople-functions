@@ -85,37 +85,35 @@ module QueryHelpers =
         | WhereId (clause,id)-> ((where sql clause+"=@Id"), {Id=id}:>obj)
         | WhereParam (clause,param)-> ((where sql clause), param)
 
-    let dbOp connStr name resource op = async {
-        try
-            use cn = new NpgsqlConnection(connStr)
-            return! op cn
-        with 
-        | exn -> 
-            let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
-            return Error (Status.InternalServerError, msg)
-    } 
+    let handleDbExn name resource (exn:System.Exception) = 
+        let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
+        Error (Status.InternalServerError, msg)
+
 
     let fetchAll<'T> connStr (mapper:MapMany<'T>) = async {
-        return! dbOp connStr "fetch all" (typedefof<'T>.Name) (fun cn -> async {
-            let! result = cn |> mapper |> awaitTask
+        try
+            use cn = new NpgsqlConnection(connStr)
+            let! result = cn |> mapper |> Async.AwaitTask
             return Ok result
-        })
+        with exn -> return handleDbExn "fetch all" (typedefof<'T>.Name) exn
     }
 
     let fetchOne<'T> connStr (mapper:MapOne<'T>) id  = async {
-        return! dbOp connStr "fetch one" (typedefof<'T>.Name) (fun cn -> async {
-            let! result = mapper id cn |> awaitTask
+        try
+            use cn = new NpgsqlConnection(connStr)
+            let! result = mapper id cn |> Async.AwaitTask
             if Seq.isEmpty result 
             then return Error(Status.NotFound, sprintf "No %s was found with ID %d." (typedefof<'T>.Name) id)
             else return result |> Seq.head |> Ok
-        })
+        with exn -> return handleDbExn "fetch one" (typedefof<'T>.Name) exn
     }
 
     let insertImpl<'T> connStr (obj:'T) = async {
-        return! dbOp connStr "insert" (typedefof<'T>.Name) (fun cn -> async {
-            let! result = cn.InsertAsync<'T>(obj) |> awaitTask
+        try
+            use cn = new NpgsqlConnection(connStr)
+            let! result = cn.InsertAsync<'T>(obj) |> Async.AwaitTask
             return Ok (result.GetValueOrDefault())
-        })
+        with exn -> return handleDbExn "insert" (typedefof<'T>.Name) exn
     }
 
     let insert<'T> connStr writeParams =
@@ -123,10 +121,11 @@ module QueryHelpers =
         >=> fetchOne<'T> connStr writeParams
 
     let updateImpl<'T> connStr id (obj:^T) = async {
-        return! dbOp connStr "insert" (typedefof<'T>.Name) (fun cn -> async {
-            let! _ = cn.UpdateAsync<'T>(obj) |> awaitTask
+        try
+            use cn = new NpgsqlConnection(connStr)
+            let! _ = cn.UpdateAsync<'T>(obj) |> Async.AwaitTask
             return Ok id
-        })
+        with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
     }
 
     let update<'T> connStr writeParams id  = 
@@ -134,17 +133,19 @@ module QueryHelpers =
         >=> fetchOne<'T> connStr writeParams
 
     let delete<'T> connStr (id:int) = async {
-        return! dbOp connStr "delete" (typedefof<'T>.Name) (fun cn -> async {
-            let! _ = cn.DeleteAsync<'T>(id) |> awaitTask
+        try
+            use cn = new NpgsqlConnection(connStr)
+            let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
             return () |> Ok
-        })
+        with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
     }
 
     let execute connStr sql parameters = async {
-        return! dbOp connStr "execute" "" (fun cn -> async {
-            let! _ = cn.ExecuteAsync(sql, parameters) |> awaitTask
+        try
+            use cn = new NpgsqlConnection(connStr)
+            let! _ = cn.ExecuteAsync(sql, parameters) |> Async.AwaitTask
             return () |> Ok
-        })
+        with exn -> return handleDbExn "execute" "" exn
     }
 
 module Database =
@@ -191,8 +192,8 @@ module Database =
     let updateMembership connStr (unitMember:UnitMember) =
         update<UnitMember> connStr mapUnitMember unitMember.Id unitMember
 
-    let deleteMembership connStr id =
-        delete<UnitMember> connStr id 
+    let deleteMembership connStr unitMember =
+        delete<UnitMember> connStr (identity unitMember)
 
 
     // *********************
@@ -225,8 +226,8 @@ module Database =
     let updateSupportRelationship connStr (supportRelationship:SupportRelationship) =
         update<SupportRelationship> connStr mapSupportRelationship supportRelationship.Id supportRelationship
 
-    let deleteSupportRelationship connStr id =
-        delete<SupportRelationship> connStr id
+    let deleteSupportRelationship connStr supportRelationship =
+        delete<SupportRelationship> connStr (identity supportRelationship)
    
 
     // **********
@@ -268,8 +269,8 @@ module Database =
         DELETE FROM support_relationships WHERE unit_id=@Id;
         DELETE FROM units WHERE id=@Id"""
 
-    let deleteUnit connStr id =
-        execute connStr deleteUnitSql {Id=id}
+    let deleteUnit connStr (unit:Unit) =
+        execute connStr deleteUnitSql {Id=unit.Id}
 
     let queryUnitChildren connStr (unit:Unit) =
         fetchAll<Unit> connStr (mapUnits(WhereId("u.parent_id", unit.Id)))
@@ -347,17 +348,17 @@ module Database =
     let queryDepartment connStr id =
         fetchOne<Department> connStr mapDepartment id
 
-    let queryDeptSupportingUnits connStr id = 
-        fetchAll connStr (mapSupportRelationships (WhereId("d.id", id)))
+    let queryDeptSupportingUnits connStr department = 
+        fetchAll connStr (mapSupportRelationships (WhereId("d.id", (identity department))))
 
     let queryDeptMemberUnitsSql = """
         SELECT DISTINCT ON (u.id) u.*, pu.* FROM units u
         LEFT JOIN units pu on pu.id = u.parent_id
         JOIN unit_members m ON m.unit_id = u.id
         JOIN people p on p.id = m.person_id"""
-    let queryDeptMemberUnits connStr id =
+    let queryDeptMemberUnits connStr department =
         let mapDeptMemberUnits = mapUnits' queryDeptMemberUnitsSql
-        fetchAll<Unit> connStr (mapDeptMemberUnits(WhereId("p.department_id", id)))
+        fetchAll<Unit> connStr (mapDeptMemberUnits(WhereId("p.department_id", (identity department))))
 
     // ***********
     // People

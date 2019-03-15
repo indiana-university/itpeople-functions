@@ -29,6 +29,7 @@ module Types =
 
     let WorkflowTimestamp = "WORKFLOW_TIMESTAMP"
     let WorkflowUser = "WORKFLOW_USER"
+    let WorkflowPermissions = "WORKFLOW_PERMISSIONS"
 
     type Status = HttpStatusCode
     type Message = string
@@ -313,7 +314,7 @@ module Types =
         /// Update a unit
         Update: Unit -> Async<Result<Unit,Error>>
         /// Delete a unit
-        Delete: Id -> Async<Result<unit,Error>>
+        Delete: Unit -> Async<Result<unit,Error>>
         /// 
         GetDescendantOfParent: (Id * Id) -> Async<Result<Unit option,Error>>
     }
@@ -324,9 +325,9 @@ module Types =
         /// Get a single department by ID
         Get: DepartmentId -> Async<Result<Department,Error>>
         /// Get a list of a department's member units
-        GetMemberUnits: DepartmentId -> Async<Result<Unit seq,Error>>
+        GetMemberUnits: Department -> Async<Result<Unit seq,Error>>
         /// Get a list of a department's supporting units        
-        GetSupportingUnits: DepartmentId -> Async<Result<SupportRelationship seq,Error>>
+        GetSupportingUnits: Department -> Async<Result<SupportRelationship seq,Error>>
     }
 
     type MembershipRepository = {
@@ -339,7 +340,7 @@ module Types =
         /// Update a unit membership
         Update: UnitMember -> Async<Result<UnitMember,Error>>
         /// Delete a unit membership
-        Delete: Id -> Async<Result<unit,Error>>
+        Delete: UnitMember -> Async<Result<unit,Error>>
     }
 
     type SupportRelationshipRepository = {
@@ -352,7 +353,7 @@ module Types =
         /// Update a support relationship
         Update: SupportRelationship -> Async<Result<SupportRelationship,Error>>
         /// Delete a support relationsihps
-        Delete : Id -> Async<Result<unit,Error>>
+        Delete : SupportRelationship -> Async<Result<unit,Error>>
     }
 
     type DataRepository = {

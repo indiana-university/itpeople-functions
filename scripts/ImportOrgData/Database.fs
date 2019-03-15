@@ -3,7 +3,6 @@
 
 namespace ImportOrgData
 
-open Chessie.ErrorHandling
 open Dapper
 open Npgsql
 open System

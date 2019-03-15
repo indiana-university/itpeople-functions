@@ -3,11 +3,8 @@
 
 namespace Tests
 
-open Chessie.ErrorHandling
-open Functions.Util
 open Functions.Types
 open Functions.Jwt
-open Functions.Fakes
 open System
 open Xunit
 
@@ -23,33 +20,33 @@ module JwtUtilTests =
 
     [<Fact>]
     let ``Decode UAA JWT`` () =
-        let expected = Ok ({ UserName=name; UserId=0; Expiration=expiration; }, [])
-        let actual = decodeUaaJwt {access_token = TestFakes.validJwt}
+        let expected = Ok ({ UserName=name; UserId=0; Expiration=expiration; })
+        let actual = decodeUaaJwt {access_token = TestFakes.validJwt} |> Async.RunSynchronously
         Assert.Equal(expected, actual)
 
     [<Fact>]
     let ``Encode app JWT`` () =
         let person = (name, Some(id))
-        let expected = Ok ({access_token = TestFakes.validJwt}, [])
-        let actual = encodeAppJwt TestFakes.jwtSingingSecret expiration person
+        let expected = Ok ({access_token = TestFakes.validJwt})
+        let actual = encodeAppJwt TestFakes.jwtSingingSecret expiration person |> Async.RunSynchronously
         Assert.Equal(expected, actual)
 
     [<Fact>]
     let ``Decode app JWT`` () =
-        let expected = Ok ({ UserName=name; UserId=1; Expiration=expiration }, [])
-        let actual = decodeAppJwt TestFakes.jwtSingingSecret TestFakes.validJwt
+        let expected = Ok ({ UserName=name; UserId=1; Expiration=expiration })
+        let actual = decodeAppJwt TestFakes.jwtSingingSecret TestFakes.validJwt |> Async.RunSynchronously
         Assert.Equal(expected, actual)
 
     [<Fact>]
     let ``Decode app JWT validates signature`` () =
-        let expected = Bad ([(Status.Unauthorized, "Access token has invalid signature")])
-        let actual = decodeAppJwt "different signing secret" TestFakes.validJwt
+        let expected = Error ((Status.Unauthorized, "Access token has invalid signature"))
+        let actual = decodeAppJwt "different signing secret" TestFakes.validJwt |> Async.RunSynchronously
         Assert.Equal(expected, actual)
 
     [<Fact>]
     let ``Decode app JWT validates expiration`` () =
-        let expected = Bad ([(Status.Unauthorized, "Access token has expired")])
-        let actual = decodeAppJwt TestFakes.jwtSingingSecret expiredJwt
+        let expected = Error ((Status.Unauthorized, "Access token has expired"))
+        let actual = decodeAppJwt TestFakes.jwtSingingSecret expiredJwt |> Async.RunSynchronously
         Assert.Equal(expected, actual)
 
 

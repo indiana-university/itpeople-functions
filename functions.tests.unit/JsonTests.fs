@@ -3,7 +3,6 @@
 
 namespace Tests
 
-open Chessie.ErrorHandling
 open Functions.Types
 open Functions.Http
 open Functions.Fakes

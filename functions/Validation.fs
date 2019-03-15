@@ -15,8 +15,7 @@ module Validation =
     type Validator<'T> =
       { ValidForCreate: 'T -> Async<Result<'T,Error>>
         ValidForUpdate: 'T -> Async<Result<'T,Error>>
-        ValidForDelete:Id -> Async<Result<'T,Error>>
-        ValidEntity: Id -> Async<Result<'T,Error>> }
+        ValidForDelete:'T -> Async<Result<'T,Error>> }
 
     let assertRelationExists lookup param model  = async {
         let! result = lookup param
@@ -37,20 +36,6 @@ module Validation =
                 else Ok model
             | Error msg -> Error msg
     }
-
-    let inline createValidator data getOne writeValidationPipeline deleteValidationPipeline = 
-        let validForUpdate = 
-            let getOne' model = getOne (identity model)
-            getOne' >=> writeValidationPipeline data
-
-        let validForDelete = 
-            getOne >=> deleteValidationPipeline data
-
-        { ValidForCreate = writeValidationPipeline data
-          ValidForUpdate = validForUpdate
-          ValidForDelete = validForDelete
-          ValidEntity = getOne }
-
 
     // Unit Membership Validation
 
@@ -77,11 +62,12 @@ module Validation =
         >=> membershipPersonExists data
         >=> membershipIsUnique data
     
-    let membershipDeleteValidationPipeline data m = m |> Ok |> async.Return  
+    let membershipDeleteValidationPipeline m = m |> Ok |> async.Return  
     
-    let membershipValidator data = 
-        createValidator data data.Memberships.Get membershipWriteValidationPipeline membershipDeleteValidationPipeline
-
+    let membershipValidator data : Validator<UnitMember> =
+        { ValidForCreate = membershipWriteValidationPipeline data
+          ValidForUpdate = membershipWriteValidationPipeline data
+          ValidForDelete = membershipDeleteValidationPipeline } 
 
     // Support Relationship Validation
 
@@ -103,11 +89,12 @@ module Validation =
         >=> relationshipDepartmentExists repository
         >=> relationshipIsUnique repository
 
-    let relationshipDeleteValidationPipeline data m = m |> Ok |> async.Return  
+    let relationshipDeleteValidationPipeline m = m |> Ok |> async.Return  
 
-    let inline supportRelationshipValidator data = 
-        createValidator data data.SupportRelationships.Get relationshipWriteValidationPipeline relationshipDeleteValidationPipeline
-
+    let inline supportRelationshipValidator data : Validator<SupportRelationship> = 
+        { ValidForCreate = relationshipWriteValidationPipeline data
+          ValidForUpdate = relationshipWriteValidationPipeline data
+          ValidForDelete = relationshipDeleteValidationPipeline } 
 
     // Unit Validation
 
@@ -159,5 +146,7 @@ module Validation =
     let unitDeleteValidationPipeline data = 
         unitHasNoChildren data
 
-    let unitValidator data =
-        createValidator data data.Units.Get unitWriteValidationPipeline unitDeleteValidationPipeline
+    let unitValidator data : Validator<Unit>  =
+        { ValidForCreate = unitWriteValidationPipeline data
+          ValidForUpdate = unitWriteValidationPipeline data
+          ValidForDelete = unitDeleteValidationPipeline data }

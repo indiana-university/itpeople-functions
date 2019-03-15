@@ -16,17 +16,17 @@ module Jwt =
 
     /// Generate a form url-encoded request to exchange the code for a JWT.
     let createUaaTokenRequest (appConfig:AppConfig) code =
-        let fn () = 
-            dict[
-                "grant_type", "authorization_code"
-                "code", code
-                "client_id", appConfig.OAuth2ClientId
-                "client_secret", appConfig.OAuth2ClientSecret
-                "redirect_uri", appConfig.OAuth2RedirectUrl
-            ]
-            |> Dictionary
-            |> (fun d-> new FormUrlEncodedContent(d))
-        tryf Status.InternalServerError fn
+        dict[
+            "grant_type", "authorization_code"
+            "code", code
+            "client_id", appConfig.OAuth2ClientId
+            "client_secret", appConfig.OAuth2ClientSecret
+            "redirect_uri", appConfig.OAuth2RedirectUrl
+        ]
+        |> Dictionary
+        |> (fun d-> new FormUrlEncodedContent(d))
+        |> Ok
+        |> async.Return
 
     let ExpClaim = "exp"
     let UserIdClaim = "user_id"
@@ -36,18 +36,17 @@ module Jwt =
 
     /// Create and sign a JWT
     let encodeAppJwt secret expiration (netId: string, userId: int option) = 
-        let fn() =
+        try
             let builder = 
                 JwtBuilder()
-                    .WithAlgorithm(new HMACSHA256Algorithm())
+                    .WithAlgorithm(HMACSHA256Algorithm())
                     .WithSecret(secret)
                     .ExpirationTime(expiration)
                     .AddClaim(UserNameClaim, netId)
             if (userId.IsSome)
             then builder.AddClaim(UserIdClaim, userId.Value) |> ignore
-            let jwt = builder.Build()
-            { access_token = builder.Build() }
-        tryf' Status.InternalServerError "Failed to create access token" fn
+            { access_token = builder.Build() } |> Ok |> async.Return
+        with _ -> Error (Status.InternalServerError, "Failed to create access token.") |> async.Return
 
     /// Convert the "exp" unix timestamp into a Datetime
     let decodeExp exp = 
@@ -69,12 +68,12 @@ module Jwt =
                 UserName = decoded.[UserNameClaim] |> string
                 Expiration = decoded.[ExpClaim] |> decodeExp
             }
-            Ok claims
+            Ok claims |> async.Return
         with 
         | :? TokenExpiredException as ex -> 
-            Error (Status.Unauthorized, "Access token has expired")
+            Error (Status.Unauthorized, "Access token has expired") |> async.Return
         | exn ->
-            Error (Status.Unauthorized, sprintf "Failed to decode access token: %s" (exn.Message))
+            Error (Status.Unauthorized, sprintf "Failed to decode access token: %s" (exn.Message)) |> async.Return
 
     /// Decode a JWT issued by the Api.Auth.get function.
     let decodeAppJwt secret jwt =

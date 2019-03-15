@@ -29,16 +29,19 @@ module Http =
     /// Attempt to retrieve a query parameter of the given name
     let tryQueryParam paramName (req: HttpRequestMessage) =
         let query = req.RequestUri.Query |> QueryHelpers.ParseQuery
-        if query.ContainsKey(paramName)
-        then query.[paramName].ToString() |> Some
-        else None
+        let param =
+            if query.ContainsKey(paramName)
+            then query.[paramName].ToString() |> Some
+            else None
+        param |> Ok |> async.Return
 
     /// Require a query parameter of the given name
     let queryParam paramName (req: HttpRequestMessage) =
-        match tryQueryParam paramName req with
-        | Some (q) -> Ok q
-        | None -> Error (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName))
-
+        let query = req.RequestUri.Query |> QueryHelpers.ParseQuery
+        if query.ContainsKey(paramName)
+        then query.[paramName].ToString() |> Ok |> async.Return
+        else Error (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName)) |> async.Return
+        
     /// Attempt to post an HTTP request and deserialize the ressponse
     let postAsync<'T> (url:string) (content:HttpContent) = async {
         try
