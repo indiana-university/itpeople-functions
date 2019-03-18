@@ -4,8 +4,6 @@
 namespace Tests
 
 open Functions.Types
-open Functions.Http
-open Functions.Fakes
 open Functions.Json
 open System
 open Xunit
