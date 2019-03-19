@@ -69,10 +69,10 @@ module Functions =
     let authenticate req = 
         authenticateRequest config req
         >>= recordAuthenticatedUser req
+        >>= determineUserPermissions req
 
     let authorize<'T> req (authFn: 'T -> JwtClaims -> Async<Result<'T,Error>>) (model:'T) =
         authenticate req
-        >>= determineUserPermissions req
         >>= authFn model
 
     /// Execute a workflow for an authenticated user and return a response.
