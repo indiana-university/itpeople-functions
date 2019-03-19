@@ -3,7 +3,6 @@
 
 namespace Tests
 
-open Chessie.ErrorHandling
 open Functions.Api
 open Xunit
 

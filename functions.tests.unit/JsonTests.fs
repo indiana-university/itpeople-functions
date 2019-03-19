@@ -3,10 +3,7 @@
 
 namespace Tests
 
-open Chessie.ErrorHandling
 open Functions.Types
-open Functions.Http
-open Functions.Fakes
 open Functions.Json
 open System
 open Xunit
@@ -24,7 +21,7 @@ module JsonTests =
             ParentId= Some(1)
             Parent=None
             Url= "url"
-          }, [])
+          })
         let actual = tryDeserialize Status.BadRequest """{
           "id": 0,
           "name": "name",

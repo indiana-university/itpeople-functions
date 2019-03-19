@@ -5,18 +5,31 @@ namespace Functions
 
 open System
 open System.Net
-open Chessie.ErrorHandling
 open Dapper
 open System.ComponentModel
 open Newtonsoft.Json
 
 module Types = 
 
+    let bind (f : 'a -> Async<Result<'b, 'error>>) (a : Async<Result<'a, 'error>>)  : Async<Result<'b, 'error>> = async {
+        let! r = a
+        match r with
+        | Ok value -> return! f value
+        | Error err -> return (Error err)
+    }
+
+    let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) : 'a -> Async<Result<'c, 'e>> =
+        fun x -> bind g (f x)
+
+    let (>>=) a f = bind f a
+    let (>=>) f g = compose f g
+    
     let ROLE_ADMIN = "admin"
     let ROLE_USER = "user"
 
     let WorkflowTimestamp = "WORKFLOW_TIMESTAMP"
     let WorkflowUser = "WORKFLOW_USER"
+    let WorkflowPermissions = "WORKFLOW_PERMISSIONS"
 
     type Status = HttpStatusCode
     type Message = string
@@ -272,9 +285,6 @@ module Types =
         Message: string
     }
     
-    type FetchById<'T> = Id -> AsyncResult<'T,Error>
-    type FetchAll<'T> = unit -> AsyncResult<'T,Error>
-
     type NoContent = unit
 
     type PeopleRepository = {
@@ -304,9 +314,9 @@ module Types =
         /// Update a unit
         Update: Unit -> Async<Result<Unit,Error>>
         /// Delete a unit
-        Delete: Id -> Async<Result<unit,Error>>
+        Delete: Unit -> Async<Result<unit,Error>>
         /// 
-        GetDescendantOfParent: Id -> Id -> Async<Result<Unit option,Error>>
+        GetDescendantOfParent: (Id * Id) -> Async<Result<Unit option,Error>>
     }
 
     type DepartmentRepository = {
@@ -315,9 +325,9 @@ module Types =
         /// Get a single department by ID
         Get: DepartmentId -> Async<Result<Department,Error>>
         /// Get a list of a department's member units
-        GetMemberUnits: DepartmentId -> Async<Result<Unit seq,Error>>
+        GetMemberUnits: Department -> Async<Result<Unit seq,Error>>
         /// Get a list of a department's supporting units        
-        GetSupportingUnits: DepartmentId -> Async<Result<SupportRelationship seq,Error>>
+        GetSupportingUnits: Department -> Async<Result<SupportRelationship seq,Error>>
     }
 
     type MembershipRepository = {
@@ -330,7 +340,7 @@ module Types =
         /// Update a unit membership
         Update: UnitMember -> Async<Result<UnitMember,Error>>
         /// Delete a unit membership
-        Delete: Id -> Async<Result<unit,Error>>
+        Delete: UnitMember -> Async<Result<unit,Error>>
     }
 
     type SupportRelationshipRepository = {
@@ -343,7 +353,7 @@ module Types =
         /// Update a support relationship
         Update: SupportRelationship -> Async<Result<SupportRelationship,Error>>
         /// Delete a support relationsihps
-        Delete : Id -> Async<Result<unit,Error>>
+        Delete : SupportRelationship -> Async<Result<unit,Error>>
     }
 
     type DataRepository = {
@@ -354,7 +364,7 @@ module Types =
         SupportRelationships: SupportRelationshipRepository
     }
     
-    let stub a = async { return! a |> ok |> async.Return }
+    let stub a = a |> Ok |> async.Return
 
     type JwtResponse = {
         /// The OAuth JSON Web Token (JWT) that represents the logged-in user. The JWT must be passed in an HTTP Authentication header in the form: 'Bearer <JWT>'

@@ -23,7 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Chessie" Version="0.6.0" />
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCrud" Version="2.0.1" />
     <PackageReference Include="FSharp.Core" Version="4.5.2" />

@@ -6,12 +6,10 @@ namespace Database
 module Fakes =
 
     open Npgsql
-    open System.Reflection
     open Dapper
     
     open Functions.Types    
     open Functions.Fakes
-    open Functions.Database
     open Migration
 
     let testConnectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"

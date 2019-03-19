@@ -3,12 +3,8 @@
 
 namespace Tests
 
-open Chessie.ErrorHandling
 open Functions.Types
-open Functions.Jwt
-open Functions.Util
 open Functions.Json
-open Functions.Api
 open Xunit
 
 

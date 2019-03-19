@@ -99,7 +99,7 @@ Pong!
 
 ## Error Handling
 
-This project uses [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) to manage execution and handle errors. ROP is a pattern that keeps code clean and ensures all errors are handled and meaningfully reported. The F# implementation of ROP used in this project is [Chessie](https://github.com/fsprojects/Chessie). (It's a train pun.)
+This project uses [Railway Oriented Programming](https://fsharpforfunandprofit.com/rop/) to manage execution and handle errors. ROP is a pattern that keeps code clean and ensures all errors are handled and meaningfully reported. 
 
 ## Deploying to Azure
 

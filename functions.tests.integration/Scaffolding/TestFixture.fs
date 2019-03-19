@@ -7,9 +7,6 @@ module TestFixture =
 
     open Xunit
     open Xunit.Abstractions
-    open Xunit.Sdk
-    open Chessie.ErrorHandling
-    open Dapper
     open PostgresContainer
     open Database.Fakes
     open System

@@ -29,7 +29,6 @@ module Functions =
             let state = 
                 req.Content.ReadAsAsync<ProviderState>() 
                 |> Async.AwaitTask 
-                |> Async.RunSynchronously
             // System.Console.Write "Resetting database with test fakes... "
             resetDatabaseWithTestFakes()
             // System.Console.WriteLine(" [OK]")
