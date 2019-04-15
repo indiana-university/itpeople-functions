@@ -35,7 +35,6 @@ module Fakes =
         Expertise="Woodworking; Honor"
         Notes=""
         PhotoUrl="http://flavorwire.files.wordpress.com/2011/11/ron-swanson.jpg"
-        Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership
         DepartmentId=parksDept.Id
         Department=parksDept
@@ -54,7 +53,6 @@ module Fakes =
         Expertise="Canvasing; Waffles"
         Notes=""
         PhotoUrl="https://en.wikipedia.org/wiki/Leslie_Knope#/media/File:Leslie_Knope_(played_by_Amy_Poehler).png"
-        Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
         DepartmentId=parksDept.Id
         Department=parksDept
@@ -73,11 +71,23 @@ module Fakes =
         Expertise="Board Games; Comic Books"
         Notes=""
         PhotoUrl="https://sasquatchbrewery.com/wp-content/uploads/2018/06/lil.jpg"
-        Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItProjectMgt
         DepartmentId=parksDept.Id
         Department=parksDept
     }
+
+    let toolGroup:ToolGroup = {
+        Id=1
+        Name="Woodworking Tools"
+        Description=""
+    }
+
+    let tool: Tool = {
+        Id=1
+        Name="Hammer"
+        Description=""
+        ToolGroupId=toolGroup.Id
+        ToolGroup=toolGroup }
 
     let knopeMembershipRequest:UnitMemberRequest = {
         UnitId=parksAndRec.Id
@@ -85,7 +95,6 @@ module Fakes =
         Role=Role.Sublead
         Permissions=Permissions.Viewer
         Title="Deputy Director"
-        Tools=Tools.None
         Percentage=100
     }
 
@@ -99,7 +108,7 @@ module Fakes =
         Role=Role.Leader
         Permissions=Permissions.Owner
         Percentage=100
-        Tools=Tools.SuperPass
+        MemberTools=[ {Id=1; MembershipId=1; ToolId=1} ]
     }
 
     let knopeMembership = {
@@ -109,10 +118,10 @@ module Fakes =
         Role=Role.Sublead
         Permissions=Permissions.Viewer
         Title="Deputy Director"
-        Tools=Tools.None
         Percentage=100
         Person=Some(knope)
         Unit=parksAndRec
+        MemberTools=Seq.empty
     }
 
     let parksAndRecVacancy = {
@@ -122,10 +131,10 @@ module Fakes =
         Role=Role.Member
         Permissions=Permissions.Viewer
         Title="Assistant to the Manager"
-        Tools=Tools.None
         Percentage=100
         Person=None
         Unit=parksAndRec
+        MemberTools=Seq.empty
     }
 
     let wyattMembership:UnitMember = {
@@ -138,7 +147,7 @@ module Fakes =
         Role=Role.Leader
         Permissions=Permissions.Owner
         Percentage=100
-        Tools=Tools.SuperPass
+        MemberTools=Seq.empty
     }
 
     let supportRelationshipRequest:SupportRelationshipRequest = {

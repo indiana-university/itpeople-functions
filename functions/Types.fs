@@ -81,19 +81,6 @@ module Types =
     type Query = string
 
     [<Flags>]
-    type Tools =
-        | None          = 0b000000000
-        | ItProWeb      = 0b000000001
-        | ItProMail     = 0b000000010
-        | IUware        = 0b000000100
-        | MAS           = 0b000001000
-        | ProductKeys   = 0b000010000
-        | AccountMgt    = 0b000100000
-        | AMSAdmin      = 0b001000000
-        | UIPOUnblocker = 0b010000000
-        | SuperPass     = 0b100000000
-
-    [<Flags>]
     type Responsibilities =
         | None                  = 0b00000000000000000
         | ItLeadership          = 0b00000000000000001
@@ -152,8 +139,6 @@ module Types =
         [<Column("photo_url")>] PhotoUrl: string
         /// A collection of IT-related responsibilites of this person.
         [<Column("responsibilities")>] Responsibilities: Responsibilities
-        /// A collection of IT-related tools accessible by this person.
-        [<Column("tools")>] Tools: Tools
         /// The HR department to which this person belongs.
         [<Column("department_id")>] DepartmentId: Id
         /// The department in this relationship.
@@ -220,8 +205,49 @@ module Types =
         UnitId: Id
         /// The ID of the department in this relationship
         [<JsonProperty(Required = Required.Always)>]
-        DepartmentId: Id 
-      }
+        DepartmentId: Id }
+
+    [<CLIMutable>]
+    [<Table("tool_groups")>]
+    type ToolGroup =
+      { /// The unique ID of this tool group record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The name of this tool group.
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("name")>] Name: Name
+        /// A description of this tool group.
+        [<DefaultValue("")>]
+        [<Column("description")>] Description: Name }
+
+    [<CLIMutable>]
+    [<Table("tools")>]
+    type Tool =
+      { /// The unique ID of this tool record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The ID of the group to which this tool belongs
+        [<JsonProperty(Required = Required.Always)>]
+        ToolGroupId: Id
+        /// The name of this tool.
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("name")>] Name: Name
+        /// A description of this tool.
+        [<DefaultValue("")>]
+        [<Column("description")>] Description: Name 
+        /// The group to which this tool belongs
+        [<ReadOnly(true)>][<Column("tool_group")>] ToolGroup: ToolGroup }
+
+
+    [<CLIMutable>]
+    [<Table("unit_member_tools")>]
+    type MemberTool =
+      { /// The unique ID of this member tool record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The ID of the member in this relationship
+        [<JsonProperty(Required = Required.Always)>]
+        MembershipId: Id
+        /// The ID of the tool in this relationship
+        [<JsonProperty(Required = Required.Always)>]
+        ToolId: Id }
 
     [<CLIMutable>]
     [<Table("unit_members")>]
@@ -246,13 +272,12 @@ module Types =
         /// The percentage of time allocated to this position by this person (in case of split appointments).
         [<DefaultValue(100)>]
         [<Column("percentage")>] Percentage: int
-        /// The tools that can be used by the person in this position as part of this unit.
-        [<DefaultValue(Tools.None)>]
-        [<Column("tools")>] Tools: Tools
         /// The person related to this membership.
         [<ReadOnly(true)>][<Column("person")>] Person: Person option
         /// The unit related to this membership.
-        [<ReadOnly(true)>][<Column("unit")>] Unit: Unit }
+        [<ReadOnly(true)>][<Column("unit")>] Unit: Unit
+        /// The tools that can be used by the person in this position as part of this unit.
+        [<ReadOnly(true)>][<Column("member_tools")>] MemberTools: seq<MemberTool> }
 
     [<CLIMutable>]
     [<Table("unit_members")>]
@@ -274,10 +299,7 @@ module Types =
         Title: string
         /// The percentage of time allocated to this position by this person (in case of split appointments).
         [<DefaultValue(100)>]
-        Percentage: int
-        /// The tools that can be used by the person in this position as part of this unit.
-        [<DefaultValue(Tools.None)>]
-        Tools: Tools }
+        Percentage: int }
 
     // DOMAIN MODELS
 
@@ -309,6 +331,8 @@ module Types =
         GetSupportedDepartments: Unit -> Async<Result<SupportRelationship seq,Error>>
         // Get a unit's child units by parent unit Id
         GetChildren: Unit -> Async<Result<Unit seq,Error>>
+        // Get a unit's tool groups unit Id
+        GetToolGroups: Unit -> Async<Result<ToolGroup seq,Error>>
         /// Create a unit
         Create: Unit -> Async<Result<Unit,Error>>
         /// Update a unit
