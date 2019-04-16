@@ -60,11 +60,15 @@ module Types =
         /// This person has primary responsibility for and authority over this unit. 
         | Leader=4
 
-    type Permissions =
+    type UnitPermissions =
         /// This person has read/write permissions on this entity
         | Owner=1
         /// This person has read-only permissions on this entity
         | Viewer=2
+        /// This person can modify unit membership/composition
+        | ManageMembers=3
+        /// This person can modify unit tools
+        | ManageTools=4
 
     /// The unique ID of a record
     type Id = int
@@ -260,8 +264,8 @@ module Types =
         [<JsonProperty(Required = Required.Always)>]
         [<Column("role")>] Role: Role
         /// The permissions of the person in this membership as part of the unit. Defaults to 'viewer'.
-        [<DefaultValue(Permissions.Viewer)>]
-        [<Column("permissions")>] Permissions: Permissions
+        [<DefaultValue(UnitPermissions.Viewer)>]
+        [<Column("permissions")>] Permissions: UnitPermissions
         /// The ID of the person record. This can be null if the position is vacant.
         [<DefaultValue(null)>]
         [<Column("person_id")>][<Editable(true)>] PersonId: PersonId option
@@ -288,8 +292,8 @@ module Types =
         [<JsonProperty(Required = Required.Always)>]
         Role: Role
         /// The permissions of the person in this membership as part of the unit. Defaults to 'viewer'.
-        [<DefaultValue(Permissions.Viewer)>]
-        Permissions: Permissions
+        [<DefaultValue(UnitPermissions.Viewer)>]
+        Permissions: UnitPermissions
         /// The ID of the person record. This can be null if the position is vacant.
         [<DefaultValue(null)>]
         PersonId: PersonId option

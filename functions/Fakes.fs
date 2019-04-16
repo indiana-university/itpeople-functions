@@ -97,7 +97,7 @@ module Fakes =
         UnitId=parksAndRec.Id
         PersonId=Some(knope.Id)
         Role=Role.Sublead
-        Permissions=Permissions.Viewer
+        Permissions=UnitPermissions.Viewer
         Title="Deputy Director"
         Percentage=100
     }
@@ -110,7 +110,7 @@ module Fakes =
         Person=Some(swanson)
         Title="Director"
         Role=Role.Leader
-        Permissions=Permissions.Owner
+        Permissions=UnitPermissions.Owner
         Percentage=100
         MemberTools=[ memberTool ]
     }
@@ -120,7 +120,7 @@ module Fakes =
         UnitId=parksAndRec.Id
         PersonId=Some(knope.Id)
         Role=Role.Sublead
-        Permissions=Permissions.Viewer
+        Permissions=UnitPermissions.Viewer
         Title="Deputy Director"
         Percentage=100
         Person=Some(knope)
@@ -133,7 +133,7 @@ module Fakes =
         UnitId=parksAndRec.Id
         PersonId=None
         Role=Role.Member
-        Permissions=Permissions.Viewer
+        Permissions=UnitPermissions.Viewer
         Title="Assistant to the Manager"
         Percentage=100
         Person=None
@@ -149,7 +149,7 @@ module Fakes =
         Person=Some(wyatt)
         Title="Auditor"
         Role=Role.Leader
-        Permissions=Permissions.Owner
+        Permissions=UnitPermissions.Owner
         Percentage=100
         MemberTools=Seq.empty
     }
@@ -210,6 +210,10 @@ module Fakes =
         Create = fun req -> stub memberTool
         Update = fun req -> stub memberTool
         Delete = fun id -> stub ()
+    }
+
+    let FakeToolsRepository : ToolsRepository = {
+        Get = fun id -> stub tool
     }
 
     let FakeSupportRelationships : SupportRelationshipRepository = {
