@@ -69,6 +69,34 @@ module Validation =
           ValidForUpdate = membershipWriteValidationPipeline data
           ValidForDelete = membershipDeleteValidationPipeline } 
 
+    // Unit Member Tool Validation
+
+    let membershipExists data m = 
+        assertRelationExists data.Memberships.Get m.MembershipId m 
+    let toolExists (data:DataRepository) (m:MemberTool) = 
+        assertRelationExists data.Tools.Get m.ToolId m 
+
+    let memberToolIsUnique data (m:MemberTool) = 
+        let entities = data.MemberTools.GetAll
+        let conflictPredicate (mx:MemberTool) = 
+            (m.Id = 0 || m.Id <> mx.Id)
+            && m.MembershipId = mx.MembershipId
+            && m.ToolId = mx.ToolId
+        let msg = "This person already belongs to this unit."
+        assertUnique entities conflictPredicate msg m
+
+    let memberToolWriteValidationPipeline data =
+        membershipExists data
+        >=> toolExists data
+        >=> memberToolIsUnique data
+    
+    let memberToolDeleteValidationPipeline m = m |> Ok |> async.Return  
+    
+    let memberToolValidator data : Validator<MemberTool> =
+        { ValidForCreate = memberToolWriteValidationPipeline data
+          ValidForUpdate = memberToolWriteValidationPipeline data
+          ValidForDelete = memberToolDeleteValidationPipeline } 
+
     // Support Relationship Validation
 
     let inline relationshipUnitExists data m = 

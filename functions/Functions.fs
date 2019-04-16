@@ -416,7 +416,7 @@ module Functions =
     // ** Unit Member Tools
     // *******************
 
-    // let membershipValidator = membershipValidator(data)
+    let memberToolValidator = memberToolValidator(data)
     let setMemberToolId id (a:MemberTool) = Ok { a with Id=id } |> async.Return
 
     [<FunctionName("MemberToolsGetAll")>]
@@ -453,7 +453,7 @@ module Functions =
             deserializeBody<MemberTool>
             >=> setMemberToolId 0
             // >=> authorize req canModifyUnit
-            // >=> membershipValidator.ValidForCreate
+            >=> memberToolValidator.ValidForCreate
             >=> data.MemberTools.Create
         create req workflow
 
@@ -472,7 +472,7 @@ module Functions =
             >=> setMemberToolId memberToolId
             >=> ensureEntityExistsForModel data.MemberTools.Get
             // >=> authorize req canModifyUnit
-            // >=> membershipValidator.ValidForUpdate
+            >=> memberToolValidator.ValidForUpdate
             >=> data.MemberTools.Update
         update req workflow
 
@@ -487,7 +487,7 @@ module Functions =
         let workflow =
             fun _ -> data.MemberTools.Get memberToolId
             // >=> authorize req canModifyUnit
-            // >=> membershipValidator.ValidForDelete
+            >=> memberToolValidator.ValidForDelete
             >=> data.MemberTools.Delete
         delete req workflow
     // *****************
