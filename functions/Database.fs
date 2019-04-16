@@ -419,6 +419,7 @@ module Database =
         GetMembers = queryUnitMembers connStr
         GetSupportedDepartments = queryUnitSupportedDepartments connStr
         GetDescendantOfParent = queryUnitGetDescendantOfParent connStr
+        GetToolGroups = fun unit -> stub Seq.empty
     }
 
     let Departments (connStr) = {
@@ -436,6 +437,14 @@ module Database =
         Delete = deleteMembership connStr
     }
 
+    let MemberToolsRepository (connStr) : MemberToolsRepository = {
+        // Get = fun id -> stub knopeMembership
+        GetAll = fun () -> stub Seq.empty
+        // Create = fun req -> stub knopeMembership
+        // Update = fun req -> stub knopeMembership
+        // Delete = fun id -> stub ()
+    }
+
     let SupportRelationshipsRepository(connStr) = {
         GetAll = fun () -> querySupportRelationships connStr 
         Get = querySupportRelationship connStr
@@ -449,5 +458,6 @@ module Database =
         Departments = Departments(connStr)
         Units = Units(connStr)
         Memberships = Memberships(connStr)
+        MemberTools = MemberToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
     }

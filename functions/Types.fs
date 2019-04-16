@@ -208,18 +208,6 @@ module Types =
         DepartmentId: Id }
 
     [<CLIMutable>]
-    [<Table("tool_groups")>]
-    type ToolGroup =
-      { /// The unique ID of this tool group record.
-        [<Key>][<Column("id")>] Id: Id
-        /// The name of this tool group.
-        [<JsonProperty(Required = Required.Always)>]
-        [<Column("name")>] Name: Name
-        /// A description of this tool group.
-        [<DefaultValue("")>]
-        [<Column("description")>] Description: Name }
-
-    [<CLIMutable>]
     [<Table("tools")>]
     type Tool =
       { /// The unique ID of this tool record.
@@ -232,10 +220,21 @@ module Types =
         [<Column("name")>] Name: Name
         /// A description of this tool.
         [<DefaultValue("")>]
-        [<Column("description")>] Description: Name 
-        /// The group to which this tool belongs
-        [<ReadOnly(true)>][<Column("tool_group")>] ToolGroup: ToolGroup }
+        [<Column("description")>] Description: Name }
 
+    [<CLIMutable>]
+    [<Table("tool_groups")>]
+    type ToolGroup =
+      { /// The unique ID of this tool group record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The name of this tool group.
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("name")>] Name: Name
+        /// A description of this tool group.
+        [<DefaultValue("")>]
+        [<Column("description")>] Description: Name
+        /// The tools that can be used by the person in this position as part of this unit.
+        [<ReadOnly(true)>][<Column("tools")>] Tools: seq<Tool> }
 
     [<CLIMutable>]
     [<Table("unit_member_tools")>]
@@ -367,6 +366,19 @@ module Types =
         Delete: UnitMember -> Async<Result<unit,Error>>
     }
 
+    type MemberToolsRepository = {
+        /// Get a membership by ID        
+        GetAll: unit -> Async<Result<MemberTool seq,Error>>
+        /// Get a membership by ID        
+        // Get: Id -> Async<Result<UnitMember,Error>>
+        /// Create a unit membership
+        // Create: UnitMember -> Async<Result<UnitMember,Error>>
+        /// Update a unit membership
+        // Update: UnitMember -> Async<Result<UnitMember,Error>>
+        /// Delete a unit membership
+        // Delete: UnitMember -> Async<Result<unit,Error>>
+    }
+
     type SupportRelationshipRepository = {
         /// Get a list of all support relationships
         GetAll: unit -> Async<Result<SupportRelationship seq,Error>>
@@ -385,6 +397,7 @@ module Types =
         Units: UnitRepository
         Departments: DepartmentRepository
         Memberships: MembershipRepository
+        MemberTools: MemberToolsRepository
         SupportRelationships: SupportRelationshipRepository
     }
     

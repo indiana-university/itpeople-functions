@@ -412,6 +412,23 @@ module Functions =
         delete req workflow
 
 
+    // *******************
+    // ** Unit Member Tools
+    // *******************
+
+    // let membershipValidator = membershipValidator(data)
+    // let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
+
+    [<FunctionName("MemberToolsGetAll")>]
+    [<SwaggerOperation(Summary="List all unit member tools", Tags=[|"Unit Member Tools"|])>]
+    [<SwaggerResponse(200, "A collection of unit member tool records", typeof<seq<MemberTool>>)>]
+    let memberToolsGetAll
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "membertools")>] req) =
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.MemberTools.GetAll ()
+        get req workflow
+
     // *****************
     // ** Departments
     // *****************

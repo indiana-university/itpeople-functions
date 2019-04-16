@@ -76,18 +76,22 @@ module Fakes =
         Department=parksDept
     }
 
-    let toolGroup:ToolGroup = {
-        Id=1
-        Name="Woodworking Tools"
-        Description=""
-    }
-
-    let tool: Tool = {
-        Id=1
+    let tool: Tool = 
+      { Id=1
         Name="Hammer"
         Description=""
-        ToolGroupId=toolGroup.Id
-        ToolGroup=toolGroup }
+        ToolGroupId=1 }
+
+    let toolGroup:ToolGroup = 
+      { Id=1
+        Name="Woodworking Tools"
+        Description=""
+        Tools=[tool] }
+
+    let memberTool:MemberTool = 
+      { Id=1
+        MembershipId=1
+        ToolId=1 }
 
     let knopeMembershipRequest:UnitMemberRequest = {
         UnitId=parksAndRec.Id
@@ -108,7 +112,7 @@ module Fakes =
         Role=Role.Leader
         Permissions=Permissions.Owner
         Percentage=100
-        MemberTools=[ {Id=1; MembershipId=1; ToolId=1} ]
+        MemberTools=[ memberTool ]
     }
 
     let knopeMembership = {
@@ -179,6 +183,7 @@ module Fakes =
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
         GetDescendantOfParent = fun (parentId, childId) -> stub None
+        GetToolGroups = fun unit -> stub ([toolGroup] |> List.toSeq)
         Create = fun req -> stub parksAndRec
         Update = fun req -> stub parksAndRec
         Delete = fun req -> stub ()
@@ -199,6 +204,14 @@ module Fakes =
         Delete = fun id -> stub ()
     }
 
+    let FakeMemberToolsRepository : MemberToolsRepository = {
+        // Get = fun id -> stub knopeMembership
+        GetAll = fun () -> stub ([ memberTool ] |> List.toSeq) 
+        // Create = fun req -> stub knopeMembership
+        // Update = fun req -> stub knopeMembership
+        // Delete = fun id -> stub ()
+    }
+
     let FakeSupportRelationships : SupportRelationshipRepository = {
         GetAll = fun () -> stub ([ supportRelationship ] |> List.toSeq) 
         Get = fun id -> stub supportRelationship
@@ -212,6 +225,7 @@ module Fakes =
         Units = FakeUnits
         Departments = FakeDepartments
         Memberships = FakeMembershipRepository
+        MemberTools = FakeMemberToolsRepository
         SupportRelationships = FakeSupportRelationships
     }
 
