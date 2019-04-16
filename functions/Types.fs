@@ -218,7 +218,7 @@ module Types =
         [<Key>][<Column("id")>] Id: Id
         /// The ID of the group to which this tool belongs
         [<JsonProperty(Required = Required.Always)>]
-        ToolGroupId: Id
+        [<Column("tool_group_id")>] ToolGroupId: Id
         /// The name of this tool.
         [<JsonProperty(Required = Required.Always)>]
         [<Column("name")>] Name: Name
@@ -241,16 +241,28 @@ module Types =
         [<ReadOnly(true)>][<Column("tools")>] Tools: seq<Tool> }
 
     [<CLIMutable>]
+    [<Table("unit_tool_groups")>]
+    type UnitToolGroups =
+      { /// The unique ID of this member tool record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The ID of the unit in this relationship
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("unit_id")>] UnitId: Id
+        /// The ID of the tool group in this relationship
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("tool_group_id")>] ToolGroupId: Id }
+
+    [<CLIMutable>]
     [<Table("unit_member_tools")>]
     type MemberTool =
       { /// The unique ID of this member tool record.
         [<Key>][<Column("id")>] Id: Id
         /// The ID of the member in this relationship
         [<JsonProperty(Required = Required.Always)>]
-        MembershipId: Id
+        [<Column("membership_id")>] MembershipId: Id
         /// The ID of the tool in this relationship
         [<JsonProperty(Required = Required.Always)>]
-        ToolId: Id }
+        [<Column("tool_id")>] ToolId: Id }
 
     [<CLIMutable>]
     [<Table("unit_members")>]
@@ -370,6 +382,11 @@ module Types =
         Delete: UnitMember -> Async<Result<unit,Error>>
     }
 
+    type ToolsRepository = {
+        /// Get all member tools
+        Get: Id -> Async<Result<Tool,Error>>
+    }
+
     type MemberToolsRepository = {
         /// Get all member tools
         GetAll: unit -> Async<Result<MemberTool seq,Error>>
@@ -402,6 +419,7 @@ module Types =
         Departments: DepartmentRepository
         Memberships: MembershipRepository
         MemberTools: MemberToolsRepository
+        Tools: ToolsRepository
         SupportRelationships: SupportRelationshipRepository
     }
     

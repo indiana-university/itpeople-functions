@@ -154,6 +154,7 @@ module Fakes =
         MemberTools=Seq.empty
     }
 
+
     let supportRelationshipRequest:SupportRelationshipRequest = {
         UnitId=cityOfPawnee.Id
         DepartmentId=parksDept.Id
@@ -230,6 +231,7 @@ module Fakes =
         Departments = FakeDepartments
         Memberships = FakeMembershipRepository
         MemberTools = FakeMemberToolsRepository
+        Tools = FakeToolsRepository
         SupportRelationships = FakeSupportRelationships
     }
 

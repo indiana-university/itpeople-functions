@@ -402,6 +402,21 @@ module Database =
     let queryPersonMemberships connStr id =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))  
 
+    // ***********
+    // Tools
+    // ***********
+
+    let mapTools filter (cn:Cn) = 
+        parseQueryAndParam queryPersonSql filter
+        |> cn.QueryAsync<Tool>
+
+    let mapTool id = 
+        mapTools (WhereId("p.id", id))
+
+    let queryTool connStr id =
+        fetchOne<Tool> connStr mapTool id
+
+
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr
         GetAll = queryPeople connStr
@@ -445,6 +460,10 @@ module Database =
         Delete = fun id -> stub ()
     }
 
+    let ToolsRepository (connStr) : ToolsRepository = {
+        Get = queryTool connStr
+    }
+
     let SupportRelationshipsRepository(connStr) = {
         GetAll = fun () -> querySupportRelationships connStr 
         Get = querySupportRelationship connStr
@@ -459,5 +478,6 @@ module Database =
         Units = Units(connStr)
         Memberships = Memberships(connStr)
         MemberTools = MemberToolsRepository(connStr)
+        Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
     }
