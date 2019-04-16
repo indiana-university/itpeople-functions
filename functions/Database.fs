@@ -438,11 +438,11 @@ module Database =
     }
 
     let MemberToolsRepository (connStr) : MemberToolsRepository = {
-        // Get = fun id -> stub knopeMembership
+        Get = fun id -> stub {Id=0; MembershipId=0; ToolId=0 }
         GetAll = fun () -> stub Seq.empty
-        // Create = fun req -> stub knopeMembership
-        // Update = fun req -> stub knopeMembership
-        // Delete = fun id -> stub ()
+        Create = fun req -> stub {Id=0; MembershipId=0; ToolId=0 }
+        Update = fun req -> stub {Id=0; MembershipId=0; ToolId=0 }
+        Delete = fun id -> stub ()
     }
 
     let SupportRelationshipsRepository(connStr) = {

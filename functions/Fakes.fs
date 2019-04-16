@@ -205,11 +205,11 @@ module Fakes =
     }
 
     let FakeMemberToolsRepository : MemberToolsRepository = {
-        // Get = fun id -> stub knopeMembership
+        Get = fun id -> stub memberTool
         GetAll = fun () -> stub ([ memberTool ] |> List.toSeq) 
-        // Create = fun req -> stub knopeMembership
-        // Update = fun req -> stub knopeMembership
-        // Delete = fun id -> stub ()
+        Create = fun req -> stub memberTool
+        Update = fun req -> stub memberTool
+        Delete = fun id -> stub ()
     }
 
     let FakeSupportRelationships : SupportRelationshipRepository = {
@@ -247,6 +247,7 @@ module Fakes =
     type MembershipRequestExample() = inherit ApiEndpointExample<UnitMemberRequest>(knopeMembershipRequest)
     type MembershipExample() = inherit ApiEndpointExample<UnitMember>(knopeMembership)
     type MembershipsExample() = inherit ApiEndpointExample<seq<UnitMember>>([swansonMembership; knopeMembership])
+    type MembertoolExample() = inherit ApiEndpointExample<MemberTool>(memberTool)
     type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
     type SupportRelationshipExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
     type SupportRelationshipsExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])

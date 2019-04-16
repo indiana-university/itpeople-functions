@@ -417,7 +417,7 @@ module Functions =
     // *******************
 
     // let membershipValidator = membershipValidator(data)
-    // let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
+    let setMemberToolId id (a:MemberTool) = Ok { a with Id=id } |> async.Return
 
     [<FunctionName("MemberToolsGetAll")>]
     [<SwaggerOperation(Summary="List all unit member tools", Tags=[|"Unit Member Tools"|])>]
@@ -429,6 +429,67 @@ module Functions =
             >=> fun _ -> data.MemberTools.GetAll ()
         get req workflow
 
+    [<FunctionName("MemberToolGetById")>]
+    [<SwaggerOperation(Summary="Find a unit member tool by ID", Tags=[|"Unit Member Tools"|])>]
+    [<SwaggerResponse(200, "A unit member tool record", typeof<MemberTool>)>]
+    [<SwaggerResponse(404, "No member tool record was found with the ID provided.", typeof<ErrorModel>)>]
+    let memberToolGetById
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "membertools/{memberToolId}")>] req, memberToolId) =
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.MemberTools.Get memberToolId
+        get req workflow
+
+    [<FunctionName("MemberToolCreate")>]
+    [<SwaggerOperation(Summary="Create a unit member tool.", Tags=[|"Unit Member Tools"|])>]
+    [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembershipRequestExample>)>]
+    [<SwaggerResponse(201, "The newly created unit member tool record", typeof<MemberTool>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You are not authorized to modify tools for this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The provided member already has access to the provided tool.", typeof<ErrorModel>)>]
+    let memberToolCreate
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "membertools")>] req) =
+        let workflow =
+            deserializeBody<MemberTool>
+            >=> setMemberToolId 0
+            // >=> authorize req canModifyUnit
+            // >=> membershipValidator.ValidForCreate
+            >=> data.MemberTools.Create
+        create req workflow
+
+    [<FunctionName("MemberToolUpdate")>]
+    [<SwaggerOperation(Summary="Update a unit member tool.", Tags=[|"Unit Member Tools"|])>]
+    [<SwaggerRequestExample(typeof<MemberTool>, typeof<MemberTool>)>]
+    [<SwaggerResponse(200, "The update unit member tool record.", typeof<MemberTool>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You are not authorized to modify tools for this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No member tool was found with the provided ID.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(409, "The provided member already has access to the provided tool.", typeof<ErrorModel>)>]
+    let memberToolUpdate
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "membertools/{memberToolId}")>] req, memberToolId) =
+        let workflow = 
+            deserializeBody<MemberTool>
+            >=> setMemberToolId memberToolId
+            >=> ensureEntityExistsForModel data.MemberTools.Get
+            // >=> authorize req canModifyUnit
+            // >=> membershipValidator.ValidForUpdate
+            >=> data.MemberTools.Update
+        update req workflow
+
+
+    [<FunctionName("MemberToolDelete")>]
+    [<SwaggerOperation(Summary="Delete a member.", Tags=[|"Unit Member Tools"|])>]
+    [<SwaggerResponse(204)>]
+    [<SwaggerResponse(403, "You are not authorized to modify this member tool.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No member tool was found with the ID provided.", typeof<ErrorModel>)>]
+    let memberToolDelete
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "membertools/{memberToolId}")>] req, memberToolId) =
+        let workflow =
+            fun _ -> data.MemberTools.Get memberToolId
+            // >=> authorize req canModifyUnit
+            // >=> membershipValidator.ValidForDelete
+            >=> data.MemberTools.Delete
+        delete req workflow
     // *****************
     // ** Departments
     // *****************

@@ -367,16 +367,16 @@ module Types =
     }
 
     type MemberToolsRepository = {
-        /// Get a membership by ID        
+        /// Get all member tools
         GetAll: unit -> Async<Result<MemberTool seq,Error>>
-        /// Get a membership by ID        
-        // Get: Id -> Async<Result<UnitMember,Error>>
+        /// Get a member tool by ID        
+        Get: Id -> Async<Result<MemberTool,Error>>
         /// Create a unit membership
-        // Create: UnitMember -> Async<Result<UnitMember,Error>>
+        Create: MemberTool -> Async<Result<MemberTool,Error>>
         /// Update a unit membership
-        // Update: UnitMember -> Async<Result<UnitMember,Error>>
+        Update: MemberTool -> Async<Result<MemberTool,Error>>
         /// Delete a unit membership
-        // Delete: UnitMember -> Async<Result<unit,Error>>
+        Delete: MemberTool -> Async<Result<unit,Error>>
     }
 
     type SupportRelationshipRepository = {
