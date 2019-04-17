@@ -90,7 +90,7 @@ module Functions =
     let update req workflow = execute Status.OK req workflow
     let delete req workflow = execute Status.NoContent req workflow
 
-    let canCreateUnit model user  =
+    let canCreateDeleteUnit model user  =
         if isAdmin user
         then Ok model |> async.Return
         else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> async.Return
@@ -251,7 +251,7 @@ module Functions =
         let workflow =
             deserializeBody<Unit>
             >=> setUnitId 0      
-            >=> authorize req canCreateUnit
+            >=> authorize req canCreateDeleteUnit
             >=> unitValidator.ValidForCreate
             >=> data.Units.Create
         create req workflow
@@ -285,7 +285,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow =
             fun _ -> data.Units.Get unitId
-            >=> authorize req canModifyUnit
+            >=> authorize req canCreateDeleteUnit
             >=> unitValidator.ValidForDelete
             >=> data.Units.Delete
         delete req workflow
