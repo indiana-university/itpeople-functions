@@ -53,8 +53,9 @@ module Fakes =
         // tools 
         db.Insert<Tool>(tool) |> ignore
         // unit tools
-        db.Insert<UnitToolGroup>(unitToolGroup) |> ignore
+        db.Insert<UnitToolGroup>({Id=1; UnitId=cityOfPawnee.Id; ToolGroupId=toolGroup.Id}) |> ignore
+        db.Insert<UnitToolGroup>({Id=2; UnitId=parksAndRec.Id; ToolGroupId=toolGroup.Id}) |> ignore
         // member tools 
-        db.Insert<MemberTool>(memberTool) |> ignore
+        db.Insert<MemberTool>({Id=1; MembershipId=wyattMembership.Id; ToolId=tool.Id}) |> ignore
         
         ()

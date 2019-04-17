@@ -148,6 +148,12 @@ module QueryHelpers =
         with exn -> return handleDbExn "execute" "" exn
     }
 
+    let append nullableList item  = 
+        if isNull nullableList
+        then [item] |> List.toSeq
+        else Seq.append nullableList [item]
+
+
 module Database =
 
     open QueryHelpers
@@ -166,17 +172,19 @@ module Database =
     // Memberships
     // ***********
     let queryUnitMemberSql = """
-        SELECT m.*, u.*, p.*
+        SELECT m.*, u.*, p.*, umt.*
         FROM unit_members m
         JOIN units u on u.id = m.unit_id
-        LEFT JOIN people p on p.id = m.person_id """
+        LEFT JOIN people p on p.id = m.person_id
+        LEFT JOIN unit_member_tools umt on umt.membership_id=m.id"""
 
     let mapUnitMembers filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryUnitMemberSql filter
-        let mapper m u p = 
+        let mapper (m:UnitMember) u p umt = 
             let person = if isNull (box p) then None else Some(p)
-            {m with Unit=u; Person=person}
-        cn.QueryAsync<UnitMember, Unit, Person, UnitMember>(query, mapper, param)
+            let tools = append m.MemberTools umt
+            {m with Unit=u; Person=person; MemberTools=tools}
+        cn.QueryAsync<UnitMember, Unit, Person, MemberTool, UnitMember>(query, mapper, param)
 
     let mapUnitMember id = mapUnitMembers (WhereId("m.id", id))
 
@@ -192,8 +200,12 @@ module Database =
     let updateMembership connStr (unitMember:UnitMember) =
         update<UnitMember> connStr mapUnitMember unitMember.Id unitMember
 
-    let deleteMembership connStr unitMember =
-        delete<UnitMember> connStr (identity unitMember)
+    let deleteMembershipSql = """
+        DELETE FROM unit_member_tools WHERE membership_id=@Id;
+        DELETE FROM unit_members WHERE id=@Id;"""
+
+    let deleteMembership connStr (unitMember:UnitMember) =
+        execute connStr deleteMembershipSql {Id=unitMember.Id}
 
 
     // *********************
@@ -328,10 +340,11 @@ module Database =
         JOIN tool_groups g on g.id = utg.tool_group_id
         JOIN tools t on t.tool_group_id = g.id"""
 
+
     let mapToolGroups filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryUnitToolGroupsSql filter
-        let mapper (toolGroup:ToolGroup) tool = 
-            let tools = Seq.append toolGroup.Tools [tool]
+        let mapper (toolGroup:ToolGroup) tool =
+            let tools = append toolGroup.Tools tool
             {toolGroup with Tools=tools}
         cn.QueryAsync<ToolGroup, Tool, ToolGroup>(query, mapper, param)
 
