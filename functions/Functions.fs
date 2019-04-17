@@ -447,7 +447,7 @@ module Functions =
 
     [<FunctionName("MemberToolCreate")>]
     [<SwaggerOperation(Summary="Create a unit member tool.", Tags=[|"Unit Member Tools"|])>]
-    [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembershipRequestExample>)>]
+    [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembertoolExample>)>]
     [<SwaggerResponse(201, "The newly created unit member tool record", typeof<MemberTool>)>]
     [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify tools for this unit.", typeof<ErrorModel>)>]
@@ -464,7 +464,7 @@ module Functions =
 
     [<FunctionName("MemberToolUpdate")>]
     [<SwaggerOperation(Summary="Update a unit member tool.", Tags=[|"Unit Member Tools"|])>]
-    [<SwaggerRequestExample(typeof<MemberTool>, typeof<MemberTool>)>]
+    [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembertoolExample>)>]
     [<SwaggerResponse(200, "The update unit member tool record.", typeof<MemberTool>)>]
     [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify tools for this unit.", typeof<ErrorModel>)>]

@@ -259,6 +259,7 @@ module Fakes =
     type MembershipExample() = inherit ApiEndpointExample<UnitMember>(knopeMembership)
     type MembershipsExample() = inherit ApiEndpointExample<seq<UnitMember>>([swansonMembership; knopeMembership])
     type MembertoolExample() = inherit ApiEndpointExample<MemberTool>(memberTool)
+    type MembertoolsExample() = inherit ApiEndpointExample<seq<MemberTool>>([memberTool])
     type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
     type SupportRelationshipExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
     type SupportRelationshipsExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])
