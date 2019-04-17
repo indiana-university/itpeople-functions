@@ -9,25 +9,10 @@ type CreateToolTables() =
   inherit Migration()
   override __.Up() =
     base.Execute("""
-    CREATE TABLE tool_groups ( 
-      id SERIAL NOT NULL,
-      name TEXT NOT NULL UNIQUE,
-      description TEXT NOT NULL,
-      PRIMARY KEY (id)
-    );
-
     CREATE TABLE tools ( 
       id SERIAL NOT NULL,
       name TEXT NOT NULL,
       description TEXT NOT NULL,
-      tool_group_id INTEGER NULL REFERENCES tool_groups(id),
-      PRIMARY KEY (id)
-    );
-
-    CREATE TABLE unit_tool_groups (
-      id SERIAL NOT NULL,
-      unit_id INTEGER NULL REFERENCES units(id),
-      tool_group_id INTEGER NULL REFERENCES tool_groups(id),
       PRIMARY KEY (id)
     );
 
@@ -42,7 +27,5 @@ type CreateToolTables() =
   override __.Down() =
     base.Execute("""
     DROP TABLE IF EXISTS unit_member_tools CASCADE;
-    DROP TABLE IF EXISTS unit_tool_groups CASCADE;
     DROP TABLE IF EXISTS tools CASCADE;
-    DROP TABLE IF EXISTS tool_groups CASCADE;
 """)

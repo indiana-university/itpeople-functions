@@ -48,13 +48,8 @@ module Fakes =
         db.Insert<UnitMember>(wyattMembership) |> ignore
         // support relationship
         db.Insert<SupportRelationship>(supportRelationship) |> ignore
-        // tool groups
-        db.Insert<ToolGroup>(toolGroup) |> ignore
         // tools 
         db.Insert<Tool>(tool) |> ignore
-        // unit tools
-        db.Insert<UnitToolGroup>({Id=1; UnitId=cityOfPawnee.Id; ToolGroupId=toolGroup.Id}) |> ignore
-        db.Insert<UnitToolGroup>({Id=2; UnitId=parksAndRec.Id; ToolGroupId=toolGroup.Id}) |> ignore
         // member tools 
         db.Insert<MemberTool>({Id=1; MembershipId=wyattMembership.Id; ToolId=tool.Id}) |> ignore
         

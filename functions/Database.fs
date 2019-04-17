@@ -334,22 +334,6 @@ module Database =
         >=> fetchAll connStr
         >=> tryGetFirstResult
 
-    let queryUnitToolGroupsSql = """
-    SELECT g.*, t.*
-    FROM unit_tool_groups utg
-        JOIN tool_groups g on g.id = utg.tool_group_id
-        JOIN tools t on t.tool_group_id = g.id"""
-
-
-    let mapToolGroups filter (cn:Cn) = 
-        let (query, param) = parseQueryAndParam queryUnitToolGroupsSql filter
-        let mapper (toolGroup:ToolGroup) tool =
-            let tools = append toolGroup.Tools tool
-            {toolGroup with Tools=tools}
-        cn.QueryAsync<ToolGroup, Tool, ToolGroup>(query, mapper, param)
-
-    let queryUnitToolGroups connStr (unit:Unit) =
-        fetchAll connStr (mapToolGroups(WhereId("utg.unit_id", unit.Id)))
 
     // ***********
     // Departments
@@ -440,6 +424,9 @@ module Database =
     let mapTool id = 
         mapTools (WhereId("p.id", id))
 
+    let queryTools connStr =
+        fetchAll<Tool> connStr (mapTools(Unfiltered))
+
     let queryTool connStr id =
         fetchOne<Tool> connStr mapTool id
 
@@ -491,7 +478,6 @@ module Database =
         GetMembers = queryUnitMembers connStr
         GetSupportedDepartments = queryUnitSupportedDepartments connStr
         GetDescendantOfParent = queryUnitGetDescendantOfParent connStr
-        GetToolGroups = queryUnitToolGroups connStr
     }
 
     let Departments (connStr) = {
@@ -518,6 +504,7 @@ module Database =
     }
 
     let ToolsRepository (connStr) : ToolsRepository = {
+        GetAll = fun () -> queryTools connStr
         Get = queryTool connStr
     }
 

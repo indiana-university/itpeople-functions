@@ -328,14 +328,14 @@ module Functions =
 
     [<FunctionName("UnitGetAllTools")>]
     [<SwaggerOperation(Summary="List all unit tools", Description="List all tools that are available to this unit.", Tags=[|"Units"|])>]
-    [<SwaggerResponse(200, "A collection of tool records.", typeof<seq<ToolGroup>>)>]
+    [<SwaggerResponse(200, "A collection of tool records.", typeof<seq<Tool>>)>]
     [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetAllTools
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/tools")>] req, unitId) =
         let workflow = 
             authenticate
             >=> fun _ ->  data.Units.Get unitId
-            >=> data.Units.GetToolGroups
+            >=> fun _ -> data.Tools.GetAll ()
         get req workflow
 
     // *******************

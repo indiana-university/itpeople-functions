@@ -79,24 +79,12 @@ module Fakes =
     let tool: Tool = 
       { Id=1
         Name="Hammer"
-        Description=""
-        ToolGroupId=1 }
-
-    let toolGroup:ToolGroup = 
-      { Id=1
-        Name="Woodworking Tools"
-        Description=""
-        Tools=[tool] }
+        Description=""}
 
     let memberTool:MemberTool = 
       { Id=1
         MembershipId=1
         ToolId=1 }
-
-    let unitToolGroup:UnitToolGroup =
-      { Id=1
-        UnitId=parksAndRec.Id
-        ToolGroupId=toolGroup.Id }
 
     let knopeMembershipRequest:UnitMemberRequest = {
         UnitId=parksAndRec.Id
@@ -189,7 +177,6 @@ module Fakes =
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
         GetDescendantOfParent = fun (parentId, childId) -> stub None
-        GetToolGroups = fun unit -> stub ([toolGroup] |> List.toSeq)
         Create = fun req -> stub parksAndRec
         Update = fun req -> stub parksAndRec
         Delete = fun req -> stub ()
@@ -219,6 +206,7 @@ module Fakes =
     }
 
     let FakeToolsRepository : ToolsRepository = {
+        GetAll = fun () -> stub ([ tool ] |> List.toSeq)
         Get = fun id -> stub tool
     }
 

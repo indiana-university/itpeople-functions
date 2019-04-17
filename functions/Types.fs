@@ -216,41 +216,12 @@ module Types =
     type Tool =
       { /// The unique ID of this tool record.
         [<Key>][<Column("id")>] Id: Id
-        /// The ID of the group to which this tool belongs
-        [<JsonProperty(Required = Required.Always)>]
-        [<Column("tool_group_id")>] ToolGroupId: Id
         /// The name of this tool.
         [<JsonProperty(Required = Required.Always)>]
         [<Column("name")>] Name: Name
         /// A description of this tool.
         [<DefaultValue("")>]
         [<Column("description")>] Description: Name }
-
-    [<CLIMutable>]
-    [<Table("tool_groups")>]
-    type ToolGroup =
-      { /// The unique ID of this tool group record.
-        [<Key>][<Column("id")>] Id: Id
-        /// The name of this tool group.
-        [<JsonProperty(Required = Required.Always)>]
-        [<Column("name")>] Name: Name
-        /// A description of this tool group.
-        [<DefaultValue("")>]
-        [<Column("description")>] Description: Name
-        /// The tools that can be used by the person in this position as part of this unit.
-        [<ReadOnly(true)>][<Column("tools")>] Tools: seq<Tool> }
-
-    [<CLIMutable>]
-    [<Table("unit_tool_groups")>]
-    type UnitToolGroup =
-      { /// The unique ID of this member tool record.
-        [<Key>][<Column("id")>] Id: Id
-        /// The ID of the unit in this relationship
-        [<JsonProperty(Required = Required.Always)>]
-        [<Column("unit_id")>] UnitId: Id
-        /// The ID of the tool group in this relationship
-        [<JsonProperty(Required = Required.Always)>]
-        [<Column("tool_group_id")>] ToolGroupId: Id }
 
     [<CLIMutable>]
     [<Table("unit_member_tools")>]
@@ -346,8 +317,6 @@ module Types =
         GetSupportedDepartments: Unit -> Async<Result<SupportRelationship seq,Error>>
         // Get a unit's child units by parent unit Id
         GetChildren: Unit -> Async<Result<Unit seq,Error>>
-        // Get a unit's tool groups unit Id
-        GetToolGroups: Unit -> Async<Result<ToolGroup seq,Error>>
         /// Create a unit
         Create: Unit -> Async<Result<Unit,Error>>
         /// Update a unit
@@ -383,6 +352,8 @@ module Types =
     }
 
     type ToolsRepository = {
+        /// Get a membership by ID        
+        GetAll: unit -> Async<Result<Tool seq,Error>>
         /// Get all member tools
         Get: Id -> Async<Result<Tool,Error>>
     }
