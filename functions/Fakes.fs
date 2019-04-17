@@ -93,6 +93,11 @@ module Fakes =
         MembershipId=1
         ToolId=1 }
 
+    let unitToolGroup:UnitToolGroup =
+      { Id=1
+        UnitId=parksAndRec.Id
+        ToolGroupId=toolGroup.Id }
+
     let knopeMembershipRequest:UnitMemberRequest = {
         UnitId=parksAndRec.Id
         PersonId=Some(knope.Id)

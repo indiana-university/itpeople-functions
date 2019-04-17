@@ -52,6 +52,8 @@ module Fakes =
         db.Insert<ToolGroup>(toolGroup) |> ignore
         // tools 
         db.Insert<Tool>(tool) |> ignore
+        // unit tools
+        db.Insert<UnitToolGroup>(unitToolGroup) |> ignore
         // member tools 
         db.Insert<MemberTool>(memberTool) |> ignore
         

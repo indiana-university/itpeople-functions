@@ -242,7 +242,7 @@ module Types =
 
     [<CLIMutable>]
     [<Table("unit_tool_groups")>]
-    type UnitToolGroups =
+    type UnitToolGroup =
       { /// The unique ID of this member tool record.
         [<Key>][<Column("id")>] Id: Id
         /// The ID of the unit in this relationship

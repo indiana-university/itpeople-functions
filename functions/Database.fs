@@ -281,8 +281,6 @@ module Database =
     let queryUnitSupportedDepartments connStr (unit:Unit) =
         fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
     
-
-
     // This query is recursive. (Whoa.)
     // Given some unit id (ChildId) it will recurse to 
     //  find every parent, grandparent, etc of that unit
@@ -323,6 +321,22 @@ module Database =
         makeMapper    
         >=> fetchAll connStr
         >=> tryGetFirstResult
+
+    let queryUnitToolGroupsSql = """
+    SELECT g.*, t.*
+    FROM unit_tool_groups utg
+        JOIN tool_groups g on g.id = utg.tool_group_id
+        JOIN tools t on t.tool_group_id = g.id"""
+
+    let mapToolGroups filter (cn:Cn) = 
+        let (query, param) = parseQueryAndParam queryUnitToolGroupsSql filter
+        let mapper (toolGroup:ToolGroup) tool = 
+            let tools = Seq.append toolGroup.Tools [tool]
+            {toolGroup with Tools=tools}
+        cn.QueryAsync<ToolGroup, Tool, ToolGroup>(query, mapper, param)
+
+    let queryUnitToolGroups connStr (unit:Unit) =
+        fetchAll connStr (mapToolGroups(WhereId("utg.unit_id", unit.Id)))
 
     // ***********
     // Departments
@@ -416,6 +430,36 @@ module Database =
     let queryTool connStr id =
         fetchOne<Tool> connStr mapTool id
 
+    // *********************
+    // Member Tools
+    // *********************
+
+    let queryMemberToolsSql = """
+        SELECT * from unit_member_tools umt"""
+
+    let mapMemberTools filter (cn:Cn) = 
+        parseQueryAndParam queryMemberToolsSql filter
+        |> cn.QueryAsync<MemberTool>
+
+    let mapMemberTool id = 
+        mapMemberTools (WhereId("umt.id", id))
+
+    let queryMemberTools connStr =
+        fetchAll<MemberTool> connStr (mapMemberTools Unfiltered)
+
+    let queryMemberTool connStr id =
+        fetchOne connStr mapMemberTool id
+
+    let insertMemberTool connStr  =
+        insert<MemberTool> connStr mapMemberTool
+
+    let updateMemberTool connStr (memberTool:MemberTool) =
+        update<MemberTool> connStr mapMemberTool memberTool.Id memberTool
+
+    let deleteMemberTool connStr memberTool =
+        delete<MemberTool> connStr (identity memberTool)
+   
+
 
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr
@@ -434,7 +478,7 @@ module Database =
         GetMembers = queryUnitMembers connStr
         GetSupportedDepartments = queryUnitSupportedDepartments connStr
         GetDescendantOfParent = queryUnitGetDescendantOfParent connStr
-        GetToolGroups = fun unit -> stub Seq.empty
+        GetToolGroups = queryUnitToolGroups connStr
     }
 
     let Departments (connStr) = {
@@ -453,11 +497,11 @@ module Database =
     }
 
     let MemberToolsRepository (connStr) : MemberToolsRepository = {
-        Get = fun id -> stub {Id=0; MembershipId=0; ToolId=0 }
-        GetAll = fun () -> stub Seq.empty
-        Create = fun req -> stub {Id=0; MembershipId=0; ToolId=0 }
-        Update = fun req -> stub {Id=0; MembershipId=0; ToolId=0 }
-        Delete = fun id -> stub ()
+        GetAll = fun () -> queryMemberTools connStr
+        Get = queryMemberTool connStr
+        Create = insertMemberTool connStr
+        Update = updateMemberTool connStr
+        Delete = deleteMemberTool connStr
     }
 
     let ToolsRepository (connStr) : ToolsRepository = {
