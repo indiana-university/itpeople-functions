@@ -99,7 +99,12 @@ module Functions =
         if isAdmin user
         then Ok model |> async.Return
         else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> async.Return
- 
+
+    let canModifyUnitMemberTools model user =
+        if isAdmin user
+        then Ok model |> async.Return
+        else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> async.Return
+
     let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'a,Error>> = async {
         let! result = getter (identity model)
         match result with 
@@ -452,7 +457,7 @@ module Functions =
         let workflow =
             deserializeBody<MemberTool>
             >=> setMemberToolId 0
-            // >=> authorize req canModifyUnit
+            >=> authorize req canModifyUnitMemberTools
             >=> memberToolValidator.ValidForCreate
             >=> data.MemberTools.Create
         create req workflow
@@ -471,7 +476,7 @@ module Functions =
             deserializeBody<MemberTool>
             >=> setMemberToolId memberToolId
             >=> ensureEntityExistsForModel data.MemberTools.Get
-            // >=> authorize req canModifyUnit
+            >=> authorize req canModifyUnitMemberTools
             >=> memberToolValidator.ValidForUpdate
             >=> data.MemberTools.Update
         update req workflow
@@ -486,10 +491,12 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "membertools/{memberToolId}")>] req, memberToolId) =
         let workflow =
             fun _ -> data.MemberTools.Get memberToolId
-            // >=> authorize req canModifyUnit
+            >=> authorize req canModifyUnitMemberTools
             >=> memberToolValidator.ValidForDelete
             >=> data.MemberTools.Delete
         delete req workflow
+
+
     // *****************
     // ** Departments
     // *****************
