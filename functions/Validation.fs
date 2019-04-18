@@ -82,7 +82,7 @@ module Validation =
             (m.Id = 0 || m.Id <> mx.Id)
             && m.MembershipId = mx.MembershipId
             && m.ToolId = mx.ToolId
-        let msg = "This person already belongs to this unit."
+        let msg = "This person already has permission to use this tool."
         assertUnique entities conflictPredicate msg m
 
     let memberToolWriteValidationPipeline data =
