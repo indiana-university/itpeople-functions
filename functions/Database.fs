@@ -417,12 +417,14 @@ module Database =
     // Tools
     // ***********
 
+    let queryToolsSql = """SELECT * from tools t"""    
+
     let mapTools filter (cn:Cn) = 
-        parseQueryAndParam queryPersonSql filter
+        parseQueryAndParam queryToolsSql filter
         |> cn.QueryAsync<Tool>
 
     let mapTool id = 
-        mapTools (WhereId("p.id", id))
+        mapTools (WhereId("t.id", id))
 
     let queryTools connStr =
         fetchAll<Tool> connStr (mapTools(Unfiltered))
