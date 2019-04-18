@@ -157,6 +157,14 @@ module QueryHelpers =
         | (null, _) -> Seq.ofList [item]
         | (_, _) -> Seq.append seq [item]
 
+    let getOrAddToDict<'TKey,'TItem> (dict:System.Collections.Generic.Dictionary<'TKey,'TItem>) (key:'TKey) (item:'TItem) =
+        if dict.ContainsKey key
+        then 
+            dict.[key]
+        else 
+            dict.Add(key, item)
+            item
+    
 
 module Database =
 
@@ -182,12 +190,16 @@ module Database =
         LEFT JOIN people p on p.id = m.person_id
         LEFT JOIN unit_member_tools umt on umt.membership_id=m.id"""
 
+
+
     let mapUnitMembers filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryUnitMemberSql filter
+        let mutableDict = System.Collections.Generic.Dictionary<Id,UnitMember>()
         let mapper (m:UnitMember) u p umt = 
+            let m' = getOrAddToDict mutableDict m.Id m
             let person = if isNull (box p) then None else Some(p)
             let tools = append m.MemberTools umt
-            {m with Unit=u; Person=person; MemberTools=tools}
+            {m' with Unit=u; Person=person; MemberTools=tools}
         cn.QueryAsync<UnitMember, Unit, Person, MemberTool, UnitMember>(query, mapper, param)
 
     let mapUnitMember id = mapUnitMembers (WhereId("m.id", id))
