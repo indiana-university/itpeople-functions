@@ -199,14 +199,12 @@ module Database =
 
     let head seq = Seq.head seq |> Ok |> async.Return
 
-    let mapUnitMember id = mapUnitMembers (WhereId("m.id", id))
-
     let queryMemberships connStr =
         fetchAll connStr (mapUnitMembers(Unfiltered))
         >>= collectMemberTools
 
     let queryMembership connStr id =
-        fetchAll connStr (mapUnitMember id)
+        fetchAll connStr (mapUnitMembers (WhereId("m.id", id)))
         >>= requireOne
         >>= collectMemberTools
         >>= head
@@ -308,6 +306,7 @@ module Database =
 
     let queryUnitMembers connStr (unit:Unit) =
         fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
+        >>= collectMemberTools
 
     let queryUnitSupportedDepartments connStr (unit:Unit) =
         fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
@@ -430,7 +429,8 @@ module Database =
     }
 
     let queryPersonMemberships connStr id =
-        fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))  
+        fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
+        >>= collectMemberTools
 
     // ***********
     // Tools
