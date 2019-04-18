@@ -78,8 +78,8 @@ module Fakes =
 
     let tool: Tool = 
       { Id=1
-        Name="Hammer"
-        Description=""}
+        Name="Superpass"
+        Description="Reset constituent passphrases"}
 
     let memberTool:MemberTool = 
       { Id=1
@@ -251,5 +251,7 @@ module Fakes =
     type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
     type SupportRelationshipExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
     type SupportRelationshipsExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])
+    type ToolsExample() = inherit ApiEndpointExample<seq<Tool>>([tool])
+    type ToolExample() = inherit ApiEndpointExample<Tool>(tool)
     type QueryExample() = inherit ApiEndpointExample<string>("term")
     type ErrorExample() = inherit ApiEndpointExample<ErrorModel>({errors=[|"This message includes detailed error information."|]})
