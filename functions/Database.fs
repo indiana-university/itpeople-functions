@@ -148,10 +148,14 @@ module QueryHelpers =
         with exn -> return handleDbExn "execute" "" exn
     }
 
-    let append nullableList item  = 
-        if isNull nullableList
-        then [item] |> List.toSeq
-        else Seq.append nullableList [item]
+    // We're streaming records from a SQL query, so
+    // both the passed list and item might be null.
+    let append seq item  =
+        match ((box seq), (box item)) with
+        | (null, null) -> Seq.empty
+        | (_, null) -> seq
+        | (null, _) -> Seq.ofList [item]
+        | (_, _) -> Seq.append seq [item]
 
 
 module Database =
