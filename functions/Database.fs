@@ -148,23 +148,6 @@ module QueryHelpers =
         with exn -> return handleDbExn "execute" "" exn
     }
 
-    // We're streaming records from a SQL query, so
-    // both the passed list and item might be null.
-    let append seq item  =
-        match ((box seq), (box item)) with
-        | (null, null) -> Seq.empty
-        | (_, null) -> seq
-        | (null, _) -> Seq.ofList [item]
-        | (_, _) -> Seq.append seq [item]
-
-    let getOrAddToDict<'TKey,'TItem> (dict:System.Collections.Generic.Dictionary<'TKey,'TItem>) (key:'TKey) (item:'TItem) =
-        if dict.ContainsKey key
-        then 
-            dict.[key]
-        else 
-            dict.Add(key, item)
-            item
-    
 
 module Database =
 
@@ -191,30 +174,50 @@ module Database =
         LEFT JOIN unit_member_tools umt on umt.membership_id=m.id"""
 
 
-
     let mapUnitMembers filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryUnitMemberSql filter
-        let mutableDict = System.Collections.Generic.Dictionary<Id,UnitMember>()
         let mapper (m:UnitMember) u p umt = 
-            let m' = getOrAddToDict mutableDict m.Id m
             let person = if isNull (box p) then None else Some(p)
-            let tools = append m.MemberTools umt
-            {m' with Unit=u; Person=person; MemberTools=tools}
+            let tools = if isNull (box umt) then Seq.empty else Seq.ofList [umt]
+            {m with Unit=u; Person=person; MemberTools=tools}
         cn.QueryAsync<UnitMember, Unit, Person, MemberTool, UnitMember>(query, mapper, param)
+
+    let collectMemberTools (unitMembers:seq<UnitMember>) = 
+        unitMembers
+        |> Seq.groupBy (fun um -> um.Id)
+        |> Seq.map (fun (_,vals) -> 
+            let um = vals |> Seq.head
+            let tools = vals |> Seq.collect (fun v -> v.MemberTools)
+            {um with MemberTools=tools})
+        |> Ok
+        |> async.Return
+
+    let requireOne seq = 
+        if Seq.isEmpty seq
+        then Error (Status.NotFound, "No membership was found with that ID") |> async.Return
+        else Ok seq |> async.Return
+
+    let head seq = Seq.head seq |> Ok |> async.Return
 
     let mapUnitMember id = mapUnitMembers (WhereId("m.id", id))
 
     let queryMemberships connStr =
-        fetchAll connStr (mapUnitMembers Unfiltered)
+        fetchAll connStr (mapUnitMembers(Unfiltered))
+        >>= collectMemberTools
 
     let queryMembership connStr id =
-        fetchOne connStr mapUnitMember id 
-
-    let insertMembership connStr =
-        insert<UnitMember> connStr mapUnitMember
+        fetchAll connStr (mapUnitMember id)
+        >>= requireOne
+        >>= collectMemberTools
+        >>= head
+        
+    let insertMembership connStr unitMember =
+        insertImpl<UnitMember> connStr unitMember
+        >>= queryMembership connStr
 
     let updateMembership connStr (unitMember:UnitMember) =
-        update<UnitMember> connStr mapUnitMember unitMember.Id unitMember
+        updateImpl<UnitMember> connStr unitMember.Id unitMember
+        >>= queryMembership connStr
 
     let deleteMembershipSql = """
         DELETE FROM unit_member_tools WHERE membership_id=@Id;
