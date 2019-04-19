@@ -6,12 +6,10 @@ namespace Database
 module Fakes =
 
     open Npgsql
-    open System.Reflection
     open Dapper
     
     open Functions.Types    
     open Functions.Fakes
-    open Functions.Database
     open Migration
 
     let testConnectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
@@ -50,5 +48,9 @@ module Fakes =
         db.Insert<UnitMember>(wyattMembership) |> ignore
         // support relationship
         db.Insert<SupportRelationship>(supportRelationship) |> ignore
+        // tools 
+        db.Insert<Tool>(tool) |> ignore
+        // member tools 
+        db.Insert<MemberTool>({Id=1; MembershipId=wyattMembership.Id; ToolId=tool.Id}) |> ignore
         
         ()

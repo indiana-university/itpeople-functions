@@ -5,7 +5,10 @@ namespace Functions
 
 module Json =
 
+    open Types
+    open Util
     open System
+    open System.Net.Http
     open Microsoft.FSharp.Reflection
     open Newtonsoft.Json
     open Newtonsoft.Json.Serialization
@@ -50,3 +53,16 @@ module Json =
         |> fun s -> s.Split([|','|])
         |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s.Trim()) :?> 'T)
         |> Seq.filter (fun e -> e.ToString() <> "None")
+
+    let tryDeserialize<'T> status str =
+        try JsonConvert.DeserializeObject<'T>(str, JsonSettings) |> Ok
+        with exn -> Error (status, exn.Message)
+
+    /// Attempt to deserialize the request body as an object of the given type.
+    let deserializeBody<'T> (req:HttpRequestMessage) = async { 
+        let! body = req.Content.ReadAsStringAsync() |> Async.AwaitTask 
+        return 
+            if isEmpty body
+            then Error (Status.BadRequest, "Expected a request body but received nothing")
+            else tryDeserialize<'T> Status.BadRequest body 
+    }

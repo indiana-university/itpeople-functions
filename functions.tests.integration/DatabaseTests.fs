@@ -7,13 +7,10 @@ module DatabaseTests=
 
     open Xunit
     open Xunit.Abstractions
-    open Dapper
-    open Chessie.ErrorHandling
     open Functions.Types
     open Functions.Fakes
     open Functions.Database
     open TestFixture
-    open PostgresContainer
     open FsUnit.Xunit
     open Database.Fakes
 
@@ -22,9 +19,9 @@ module DatabaseTests=
 
     let awaitAndUnpack<'T> (asyncResult:Async<Result<'T,_>>) = 
         match (await asyncResult) with 
-        | Ok(value, _) -> value
-        | Bad(msgs) -> 
-            msgs
+        | Ok value  -> value
+        | Error msg -> 
+            msg
             |> sprintf "Failed to unpack result of type %s: %A" typedefof<'T>.Name 
             |> System.Exception 
             |> raise
@@ -125,17 +122,17 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Delete`` () = 
-            let _ = repo.Units.Delete fourthFloor.Id |> awaitAndUnpack
+            let _ = repo.Units.Delete fourthFloor |> awaitAndUnpack
             
             let actual = repo.Units.Get fourthFloor.Id |> await
             match actual with 
-            | Bad([(status, msg)]) -> status |> should equal Status.NotFound
+            | Error (status, msg) -> status |> should equal Status.NotFound
             | _ -> System.Exception("Should have failed") |> raise
 
         [<Fact>]
         member __.``Gets unit when descended from parent`` () = 
             // This request should return parksAndRec because it is a child unit of the City of Pawnee
-            let actual = repo.Units.GetDescendantOfParent cityOfPawnee.Id parksAndRec.Id |> awaitAndUnpack
+            let actual = repo.Units.GetDescendantOfParent (cityOfPawnee.Id, parksAndRec.Id) |> awaitAndUnpack
             
             actual.IsSome |> should be True
             actual.Value.Name |> should equal (parksAndRec.Name)
@@ -143,7 +140,7 @@ module DatabaseTests=
         [<Fact>]
         member __.``Doesn't get unit when not descended from parent`` () = 
             // This request should not return parksAndRec because it is not a child unit the Fourth Floor
-            let actual = repo.Units.GetDescendantOfParent fourthFloor.Id parksAndRec.Id |> awaitAndUnpack
+            let actual = repo.Units.GetDescendantOfParent (fourthFloor.Id, parksAndRec.Id) |> awaitAndUnpack
             
             actual.IsNone |> should be True
         

@@ -5,18 +5,31 @@ namespace Functions
 
 open System
 open System.Net
-open Chessie.ErrorHandling
 open Dapper
 open System.ComponentModel
 open Newtonsoft.Json
 
 module Types = 
 
+    let bind (f : 'a -> Async<Result<'b, 'error>>) (a : Async<Result<'a, 'error>>)  : Async<Result<'b, 'error>> = async {
+        let! r = a
+        match r with
+        | Ok value -> return! f value
+        | Error err -> return (Error err)
+    }
+
+    let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) : 'a -> Async<Result<'c, 'e>> =
+        fun x -> bind g (f x)
+
+    let (>>=) a f = bind f a
+    let (>=>) f g = compose f g
+    
     let ROLE_ADMIN = "admin"
     let ROLE_USER = "user"
 
     let WorkflowTimestamp = "WORKFLOW_TIMESTAMP"
     let WorkflowUser = "WORKFLOW_USER"
+    let WorkflowPermissions = "WORKFLOW_PERMISSIONS"
 
     type Status = HttpStatusCode
     type Message = string
@@ -47,11 +60,15 @@ module Types =
         /// This person has primary responsibility for and authority over this unit. 
         | Leader=4
 
-    type Permissions =
+    type UnitPermissions =
         /// This person has read/write permissions on this entity
         | Owner=1
         /// This person has read-only permissions on this entity
         | Viewer=2
+        /// This person can modify unit membership/composition
+        | ManageMembers=3
+        /// This person can modify unit tools
+        | ManageTools=4
 
     /// The unique ID of a record
     type Id = int
@@ -66,19 +83,6 @@ module Types =
     type Name = string
     type NetId = string
     type Query = string
-
-    [<Flags>]
-    type Tools =
-        | None          = 0b000000000
-        | ItProWeb      = 0b000000001
-        | ItProMail     = 0b000000010
-        | IUware        = 0b000000100
-        | MAS           = 0b000001000
-        | ProductKeys   = 0b000010000
-        | AccountMgt    = 0b000100000
-        | AMSAdmin      = 0b001000000
-        | UIPOUnblocker = 0b010000000
-        | SuperPass     = 0b100000000
 
     [<Flags>]
     type Responsibilities =
@@ -139,8 +143,6 @@ module Types =
         [<Column("photo_url")>] PhotoUrl: string
         /// A collection of IT-related responsibilites of this person.
         [<Column("responsibilities")>] Responsibilities: Responsibilities
-        /// A collection of IT-related tools accessible by this person.
-        [<Column("tools")>] Tools: Tools
         /// The HR department to which this person belongs.
         [<Column("department_id")>] DepartmentId: Id
         /// The department in this relationship.
@@ -207,8 +209,31 @@ module Types =
         UnitId: Id
         /// The ID of the department in this relationship
         [<JsonProperty(Required = Required.Always)>]
-        DepartmentId: Id 
-      }
+        DepartmentId: Id }
+
+    [<CLIMutable>]
+    [<Table("tools")>]
+    type Tool =
+      { /// The unique ID of this tool record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The name of this tool.
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("name")>] Name: Name
+        /// A description of this tool.
+        [<DefaultValue("")>]
+        [<Column("description")>] Description: Name }
+
+    [<CLIMutable>]
+    [<Table("unit_member_tools")>]
+    type MemberTool =
+      { /// The unique ID of this member tool record.
+        [<Key>][<Column("id")>] Id: Id
+        /// The ID of the member in this relationship
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("membership_id")>] MembershipId: Id
+        /// The ID of the tool in this relationship
+        [<JsonProperty(Required = Required.Always)>]
+        [<Column("tool_id")>] ToolId: Id }
 
     [<CLIMutable>]
     [<Table("unit_members")>]
@@ -222,8 +247,8 @@ module Types =
         [<JsonProperty(Required = Required.Always)>]
         [<Column("role")>] Role: Role
         /// The permissions of the person in this membership as part of the unit. Defaults to 'viewer'.
-        [<DefaultValue(Permissions.Viewer)>]
-        [<Column("permissions")>] Permissions: Permissions
+        [<DefaultValue(UnitPermissions.Viewer)>]
+        [<Column("permissions")>] Permissions: UnitPermissions
         /// The ID of the person record. This can be null if the position is vacant.
         [<DefaultValue(null)>]
         [<Column("person_id")>][<Editable(true)>] PersonId: PersonId option
@@ -233,13 +258,12 @@ module Types =
         /// The percentage of time allocated to this position by this person (in case of split appointments).
         [<DefaultValue(100)>]
         [<Column("percentage")>] Percentage: int
-        /// The tools that can be used by the person in this position as part of this unit.
-        [<DefaultValue(Tools.None)>]
-        [<Column("tools")>] Tools: Tools
         /// The person related to this membership.
         [<ReadOnly(true)>][<Column("person")>] Person: Person option
         /// The unit related to this membership.
-        [<ReadOnly(true)>][<Column("unit")>] Unit: Unit }
+        [<ReadOnly(true)>][<Column("unit")>] Unit: Unit
+        /// The tools that can be used by the person in this position as part of this unit.
+        [<ReadOnly(true)>][<Column("member_tools")>] MemberTools: seq<MemberTool> }
 
     [<CLIMutable>]
     [<Table("unit_members")>]
@@ -251,8 +275,8 @@ module Types =
         [<JsonProperty(Required = Required.Always)>]
         Role: Role
         /// The permissions of the person in this membership as part of the unit. Defaults to 'viewer'.
-        [<DefaultValue(Permissions.Viewer)>]
-        Permissions: Permissions
+        [<DefaultValue(UnitPermissions.Viewer)>]
+        Permissions: UnitPermissions
         /// The ID of the person record. This can be null if the position is vacant.
         [<DefaultValue(null)>]
         PersonId: PersonId option
@@ -261,10 +285,7 @@ module Types =
         Title: string
         /// The percentage of time allocated to this position by this person (in case of split appointments).
         [<DefaultValue(100)>]
-        Percentage: int
-        /// The tools that can be used by the person in this position as part of this unit.
-        [<DefaultValue(Tools.None)>]
-        Tools: Tools }
+        Percentage: int }
 
     // DOMAIN MODELS
 
@@ -272,9 +293,6 @@ module Types =
         Message: string
     }
     
-    type FetchById<'T> = Id -> AsyncResult<'T,Error>
-    type FetchAll<'T> = unit -> AsyncResult<'T,Error>
-
     type NoContent = unit
 
     type PeopleRepository = {
@@ -304,9 +322,9 @@ module Types =
         /// Update a unit
         Update: Unit -> Async<Result<Unit,Error>>
         /// Delete a unit
-        Delete: Id -> Async<Result<unit,Error>>
+        Delete: Unit -> Async<Result<unit,Error>>
         /// 
-        GetDescendantOfParent: Id -> Id -> Async<Result<Unit option,Error>>
+        GetDescendantOfParent: (Id * Id) -> Async<Result<Unit option,Error>>
     }
 
     type DepartmentRepository = {
@@ -315,9 +333,9 @@ module Types =
         /// Get a single department by ID
         Get: DepartmentId -> Async<Result<Department,Error>>
         /// Get a list of a department's member units
-        GetMemberUnits: DepartmentId -> Async<Result<Unit seq,Error>>
+        GetMemberUnits: Department -> Async<Result<Unit seq,Error>>
         /// Get a list of a department's supporting units        
-        GetSupportingUnits: DepartmentId -> Async<Result<SupportRelationship seq,Error>>
+        GetSupportingUnits: Department -> Async<Result<SupportRelationship seq,Error>>
     }
 
     type MembershipRepository = {
@@ -330,7 +348,27 @@ module Types =
         /// Update a unit membership
         Update: UnitMember -> Async<Result<UnitMember,Error>>
         /// Delete a unit membership
-        Delete: Id -> Async<Result<unit,Error>>
+        Delete: UnitMember -> Async<Result<unit,Error>>
+    }
+
+    type ToolsRepository = {
+        /// Get a membership by ID        
+        GetAll: unit -> Async<Result<Tool seq,Error>>
+        /// Get all member tools
+        Get: Id -> Async<Result<Tool,Error>>
+    }
+
+    type MemberToolsRepository = {
+        /// Get all member tools
+        GetAll: unit -> Async<Result<MemberTool seq,Error>>
+        /// Get a member tool by ID        
+        Get: Id -> Async<Result<MemberTool,Error>>
+        /// Create a unit membership
+        Create: MemberTool -> Async<Result<MemberTool,Error>>
+        /// Update a unit membership
+        Update: MemberTool -> Async<Result<MemberTool,Error>>
+        /// Delete a unit membership
+        Delete: MemberTool -> Async<Result<unit,Error>>
     }
 
     type SupportRelationshipRepository = {
@@ -343,7 +381,7 @@ module Types =
         /// Update a support relationship
         Update: SupportRelationship -> Async<Result<SupportRelationship,Error>>
         /// Delete a support relationsihps
-        Delete : Id -> Async<Result<unit,Error>>
+        Delete : SupportRelationship -> Async<Result<unit,Error>>
     }
 
     type DataRepository = {
@@ -351,10 +389,12 @@ module Types =
         Units: UnitRepository
         Departments: DepartmentRepository
         Memberships: MembershipRepository
+        MemberTools: MemberToolsRepository
+        Tools: ToolsRepository
         SupportRelationships: SupportRelationshipRepository
     }
     
-    let stub a = async { return! a |> ok |> async.Return }
+    let stub a = a |> Ok |> async.Return
 
     type JwtResponse = {
         /// The OAuth JSON Web Token (JWT) that represents the logged-in user. The JWT must be passed in an HTTP Authentication header in the form: 'Bearer <JWT>'

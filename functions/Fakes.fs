@@ -4,8 +4,6 @@
 namespace Functions
 
 open Types
-open Json
-open Chessie.ErrorHandling
 open Swashbuckle.AspNetCore.Filters
 
 
@@ -37,7 +35,6 @@ module Fakes =
         Expertise="Woodworking; Honor"
         Notes=""
         PhotoUrl="http://flavorwire.files.wordpress.com/2011/11/ron-swanson.jpg"
-        Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership
         DepartmentId=parksDept.Id
         Department=parksDept
@@ -56,7 +53,6 @@ module Fakes =
         Expertise="Canvasing; Waffles"
         Notes=""
         PhotoUrl="https://en.wikipedia.org/wiki/Leslie_Knope#/media/File:Leslie_Knope_(played_by_Amy_Poehler).png"
-        Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
         DepartmentId=parksDept.Id
         Department=parksDept
@@ -75,19 +71,27 @@ module Fakes =
         Expertise="Board Games; Comic Books"
         Notes=""
         PhotoUrl="https://sasquatchbrewery.com/wp-content/uploads/2018/06/lil.jpg"
-        Tools = Tools.ItProMail ||| Tools.ItProWeb
         Responsibilities = Responsibilities.ItProjectMgt
         DepartmentId=parksDept.Id
         Department=parksDept
     }
 
+    let tool: Tool = 
+      { Id=1
+        Name="Superpass"
+        Description="Reset constituent passphrases"}
+
+    let memberTool:MemberTool = 
+      { Id=1
+        MembershipId=1
+        ToolId=1 }
+
     let knopeMembershipRequest:UnitMemberRequest = {
         UnitId=parksAndRec.Id
         PersonId=Some(knope.Id)
         Role=Role.Sublead
-        Permissions=Permissions.Viewer
+        Permissions=UnitPermissions.Viewer
         Title="Deputy Director"
-        Tools=Tools.None
         Percentage=100
     }
 
@@ -99,9 +103,9 @@ module Fakes =
         Person=Some(swanson)
         Title="Director"
         Role=Role.Leader
-        Permissions=Permissions.Owner
+        Permissions=UnitPermissions.Owner
         Percentage=100
-        Tools=Tools.SuperPass
+        MemberTools=[ memberTool ]
     }
 
     let knopeMembership = {
@@ -109,12 +113,12 @@ module Fakes =
         UnitId=parksAndRec.Id
         PersonId=Some(knope.Id)
         Role=Role.Sublead
-        Permissions=Permissions.Viewer
+        Permissions=UnitPermissions.Viewer
         Title="Deputy Director"
-        Tools=Tools.None
         Percentage=100
         Person=Some(knope)
         Unit=parksAndRec
+        MemberTools=Seq.empty
     }
 
     let parksAndRecVacancy = {
@@ -122,12 +126,12 @@ module Fakes =
         UnitId=parksAndRec.Id
         PersonId=None
         Role=Role.Member
-        Permissions=Permissions.Viewer
+        Permissions=UnitPermissions.Viewer
         Title="Assistant to the Manager"
-        Tools=Tools.None
         Percentage=100
         Person=None
         Unit=parksAndRec
+        MemberTools=Seq.empty
     }
 
     let wyattMembership:UnitMember = {
@@ -138,10 +142,11 @@ module Fakes =
         Person=Some(wyatt)
         Title="Auditor"
         Role=Role.Leader
-        Permissions=Permissions.Owner
+        Permissions=UnitPermissions.Owner
         Percentage=100
-        Tools=Tools.SuperPass
+        MemberTools=Seq.empty
     }
+
 
     let supportRelationshipRequest:SupportRelationshipRequest = {
         UnitId=cityOfPawnee.Id
@@ -171,7 +176,7 @@ module Fakes =
         GetMembers = fun unit -> stub ([ swansonMembership ] |> List.toSeq) 
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
-        GetDescendantOfParent = fun parentId childId -> stub None
+        GetDescendantOfParent = fun (parentId, childId) -> stub None
         Create = fun req -> stub parksAndRec
         Update = fun req -> stub parksAndRec
         Delete = fun req -> stub ()
@@ -192,6 +197,19 @@ module Fakes =
         Delete = fun id -> stub ()
     }
 
+    let FakeMemberToolsRepository : MemberToolsRepository = {
+        Get = fun id -> stub memberTool
+        GetAll = fun () -> stub ([ memberTool ] |> List.toSeq) 
+        Create = fun req -> stub memberTool
+        Update = fun req -> stub memberTool
+        Delete = fun id -> stub ()
+    }
+
+    let FakeToolsRepository : ToolsRepository = {
+        GetAll = fun () -> stub ([ tool ] |> List.toSeq)
+        Get = fun id -> stub tool
+    }
+
     let FakeSupportRelationships : SupportRelationshipRepository = {
         GetAll = fun () -> stub ([ supportRelationship ] |> List.toSeq) 
         Get = fun id -> stub supportRelationship
@@ -205,6 +223,8 @@ module Fakes =
         Units = FakeUnits
         Departments = FakeDepartments
         Memberships = FakeMembershipRepository
+        MemberTools = FakeMemberToolsRepository
+        Tools = FakeToolsRepository
         SupportRelationships = FakeSupportRelationships
     }
 
@@ -226,8 +246,12 @@ module Fakes =
     type MembershipRequestExample() = inherit ApiEndpointExample<UnitMemberRequest>(knopeMembershipRequest)
     type MembershipExample() = inherit ApiEndpointExample<UnitMember>(knopeMembership)
     type MembershipsExample() = inherit ApiEndpointExample<seq<UnitMember>>([swansonMembership; knopeMembership])
+    type MembertoolExample() = inherit ApiEndpointExample<MemberTool>(memberTool)
+    type MembertoolsExample() = inherit ApiEndpointExample<seq<MemberTool>>([memberTool])
     type SupportRelationshipRequestExample() = inherit ApiEndpointExample<SupportRelationshipRequest>(supportRelationshipRequest)
     type SupportRelationshipExample() = inherit ApiEndpointExample<SupportRelationship>(supportRelationship)
     type SupportRelationshipsExample() = inherit ApiEndpointExample<seq<SupportRelationship>>([supportRelationship])
+    type ToolsExample() = inherit ApiEndpointExample<seq<Tool>>([tool])
+    type ToolExample() = inherit ApiEndpointExample<Tool>(tool)
     type QueryExample() = inherit ApiEndpointExample<string>("term")
     type ErrorExample() = inherit ApiEndpointExample<ErrorModel>({errors=[|"This message includes detailed error information."|]})

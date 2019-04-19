@@ -12,7 +12,6 @@ module Logging =
 
     open Serilog
     open Serilog.Core
-    open Serilog.Context
     open Serilog.Sinks.PostgreSQL
     open NpgsqlTypes
 
@@ -83,17 +82,6 @@ module Logging =
             .WriteTo.PostgreSQL(config.DbConnectionString, "logs", (dict loggingColumns))
             .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
-
-    let logInfo (log:Logger) req msg =
-        log.Information(
-            "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query}: {Detail}.", 
-            req |> tryGetIPAddress, 
-            req |> tryGetAuthenticatedUser,
-            req.Method, 
-            req |> funcName, 
-            req |> funcParams, 
-            req |> query, 
-            msg)
 
     let logSuccess (log:Logger) req (status:Status) =
         log.Information(
