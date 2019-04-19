@@ -46,6 +46,7 @@ module ApiErrorTests =
         [<InlineDataAttribute("units")>]
         [<InlineDataAttribute("departments")>]
         [<InlineDataAttribute("memberships")>]
+        [<InlineDataAttribute("membertools")>]
         [<InlineDataAttribute("supportRelationships")>]
         [<InlineDataAttribute("people")>]
         member __.``Get non-existent resource yields 404 Not Found`` (resource: string) = 
@@ -57,6 +58,7 @@ module ApiErrorTests =
         [<Theory>]
         [<InlineDataAttribute("units")>]
         [<InlineDataAttribute("memberships")>]
+        [<InlineDataAttribute("membertools")>]
         [<InlineDataAttribute("supportRelationships")>]
         member __.``Delete non-existent resource yields 404 Not Found`` (resource: string) = 
             sprintf "units/%s/1000" resource
@@ -64,8 +66,12 @@ module ApiErrorTests =
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.NotFound
 
+        // *********************
+        // Units
+        // *********************
+
         [<Fact>]       
-        member __.``Create resource with missing required field in request body yields 400 Bad Request`` () = 
+        member __.``Create a unit with missing required field in request body yields 400 Bad Request`` () = 
             requestFor HttpMethod.Post "units"
             |> withAuthentication
             |> withRawBody """{"description":"d", "url":"u", "parentId":undefined}"""
@@ -100,6 +106,10 @@ module ApiErrorTests =
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.Conflict
 
+        // *********************
+        // Unit Memberships
+        // *********************
+
         [<Fact>]       
         member __.``Create a membership with non existent unit yields 400 Bad Request`` () = 
             requestFor HttpMethod.Post "memberships"
@@ -129,6 +139,9 @@ module ApiErrorTests =
             |> withBody knopeMembership
             |> shouldGetResponse HttpStatusCode.Conflict
 
+        // *********************
+        // Support Relationships
+        // *********************
 
         [<Fact>]       
         member __.``Create a support relationship with non existent unit yields 400 Bad Request`` () = 
@@ -150,3 +163,42 @@ module ApiErrorTests =
             |> withAuthentication
             |> withBody supportRelationship
             |> shouldGetResponse HttpStatusCode.Conflict
+
+        // *****************
+        // Member Tools
+        // *****************
+
+        [<Fact>]       
+        member __.``Create a member tool with non existent membership yields 400 Bad Request`` () = 
+            requestFor HttpMethod.Post "membertools"
+            |> withAuthentication
+            |> withBody { memberTool with MembershipId=1000 }
+            |> shouldGetResponse HttpStatusCode.BadRequest
+
+        [<Fact>]       
+        member __.``Create a member tool with non existent tool yields 400 Bad Request`` () = 
+            requestFor HttpMethod.Post "membertools"
+            |> withAuthentication
+            |> withBody { memberTool with ToolId=1000 }
+            |> shouldGetResponse HttpStatusCode.BadRequest
+
+        [<Fact>]       
+        member __.``Update a nonexistent member tool yields 404 Not Found`` () = 
+            requestFor HttpMethod.Put "membertools/1000"
+            |> withAuthentication
+            |> withBody memberTool
+            |> shouldGetResponse HttpStatusCode.NotFound
+
+        [<Fact>]       
+        member __.``Update a member tool with non existent membership yields 400 Bad Request`` () = 
+            requestFor HttpMethod.Put "membertools/1"
+            |> withAuthentication
+            |> withBody { memberTool with MembershipId=1000 }
+            |> shouldGetResponse HttpStatusCode.BadRequest
+
+        [<Fact>]       
+        member __.``Update a member tool with non existent tool yields 400 Bad Request`` () = 
+            requestFor HttpMethod.Put "membertools/1"
+            |> withAuthentication
+            |> withBody { memberTool with ToolId=1000 }
+            |> shouldGetResponse HttpStatusCode.BadRequest

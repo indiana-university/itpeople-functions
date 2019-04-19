@@ -9,7 +9,6 @@
   <ItemGroup>
     <Compile Include="TestFakes.fs" />
     <Compile Include="JsonTests.fs" />
-    <Compile Include="FnUserTests.fs" />
     <Compile Include="JwtUtilTests.fs" />
     <Compile Include="ApiTests.fs" />
     <Compile Include="Program.fs" />

@@ -148,6 +148,7 @@ module QueryHelpers =
         with exn -> return handleDbExn "execute" "" exn
     }
 
+
 module Database =
 
     open QueryHelpers
@@ -166,34 +167,62 @@ module Database =
     // Memberships
     // ***********
     let queryUnitMemberSql = """
-        SELECT m.*, u.*, p.*
+        SELECT m.*, u.*, p.*, umt.*
         FROM unit_members m
         JOIN units u on u.id = m.unit_id
-        LEFT JOIN people p on p.id = m.person_id """
+        LEFT JOIN people p on p.id = m.person_id
+        LEFT JOIN unit_member_tools umt on umt.membership_id=m.id"""
+
 
     let mapUnitMembers filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryUnitMemberSql filter
-        let mapper m u p = 
+        let mapper (m:UnitMember) u p umt = 
             let person = if isNull (box p) then None else Some(p)
-            {m with Unit=u; Person=person}
-        cn.QueryAsync<UnitMember, Unit, Person, UnitMember>(query, mapper, param)
+            let tools = if isNull (box umt) then Seq.empty else Seq.ofList [umt]
+            {m with Unit=u; Person=person; MemberTools=tools}
+        cn.QueryAsync<UnitMember, Unit, Person, MemberTool, UnitMember>(query, mapper, param)
 
-    let mapUnitMember id = mapUnitMembers (WhereId("m.id", id))
+    let collectMemberTools (unitMembers:seq<UnitMember>) = 
+        unitMembers
+        |> Seq.groupBy (fun um -> um.Id)
+        |> Seq.map (fun (_,vals) -> 
+            let um = vals |> Seq.head
+            let tools = vals |> Seq.collect (fun v -> v.MemberTools)
+            {um with MemberTools=tools})
+        |> Ok
+        |> async.Return
+
+    let requireOne seq = 
+        if Seq.isEmpty seq
+        then Error (Status.NotFound, "No membership was found with that ID") |> async.Return
+        else Ok seq |> async.Return
+
+    let head seq = Seq.head seq |> Ok |> async.Return
 
     let queryMemberships connStr =
-        fetchAll connStr (mapUnitMembers Unfiltered)
+        fetchAll connStr (mapUnitMembers(Unfiltered))
+        >>= collectMemberTools
 
     let queryMembership connStr id =
-        fetchOne connStr mapUnitMember id 
-
-    let insertMembership connStr =
-        insert<UnitMember> connStr mapUnitMember
+        fetchAll connStr (mapUnitMembers (WhereId("m.id", id)))
+        >>= requireOne
+        >>= collectMemberTools
+        >>= head
+        
+    let insertMembership connStr unitMember =
+        insertImpl<UnitMember> connStr unitMember
+        >>= queryMembership connStr
 
     let updateMembership connStr (unitMember:UnitMember) =
-        update<UnitMember> connStr mapUnitMember unitMember.Id unitMember
+        updateImpl<UnitMember> connStr unitMember.Id unitMember
+        >>= queryMembership connStr
 
-    let deleteMembership connStr unitMember =
-        delete<UnitMember> connStr (identity unitMember)
+    let deleteMembershipSql = """
+        DELETE FROM unit_member_tools WHERE membership_id=@Id;
+        DELETE FROM unit_members WHERE id=@Id;"""
+
+    let deleteMembership connStr (unitMember:UnitMember) =
+        execute connStr deleteMembershipSql {Id=unitMember.Id}
 
 
     // *********************
@@ -277,12 +306,11 @@ module Database =
 
     let queryUnitMembers connStr (unit:Unit) =
         fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
+        >>= collectMemberTools
 
     let queryUnitSupportedDepartments connStr (unit:Unit) =
         fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
     
-
-
     // This query is recursive. (Whoa.)
     // Given some unit id (ChildId) it will recurse to 
     //  find every parent, grandparent, etc of that unit
@@ -323,6 +351,7 @@ module Database =
         makeMapper    
         >=> fetchAll connStr
         >=> tryGetFirstResult
+
 
     // ***********
     // Departments
@@ -400,7 +429,58 @@ module Database =
     }
 
     let queryPersonMemberships connStr id =
-        fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))  
+        fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
+        >>= collectMemberTools
+
+    // ***********
+    // Tools
+    // ***********
+
+    let queryToolsSql = """SELECT * from tools t"""    
+
+    let mapTools filter (cn:Cn) = 
+        parseQueryAndParam queryToolsSql filter
+        |> cn.QueryAsync<Tool>
+
+    let mapTool id = 
+        mapTools (WhereId("t.id", id))
+
+    let queryTools connStr =
+        fetchAll<Tool> connStr (mapTools(Unfiltered))
+
+    let queryTool connStr id =
+        fetchOne<Tool> connStr mapTool id
+
+    // *********************
+    // Member Tools
+    // *********************
+
+    let queryMemberToolsSql = """
+        SELECT * from unit_member_tools umt"""
+
+    let mapMemberTools filter (cn:Cn) = 
+        parseQueryAndParam queryMemberToolsSql filter
+        |> cn.QueryAsync<MemberTool>
+
+    let mapMemberTool id = 
+        mapMemberTools (WhereId("umt.id", id))
+
+    let queryMemberTools connStr =
+        fetchAll<MemberTool> connStr (mapMemberTools Unfiltered)
+
+    let queryMemberTool connStr id =
+        fetchOne connStr mapMemberTool id
+
+    let insertMemberTool connStr  =
+        insert<MemberTool> connStr mapMemberTool
+
+    let updateMemberTool connStr (memberTool:MemberTool) =
+        update<MemberTool> connStr mapMemberTool memberTool.Id memberTool
+
+    let deleteMemberTool connStr memberTool =
+        delete<MemberTool> connStr (identity memberTool)
+   
+
 
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr
@@ -436,6 +516,19 @@ module Database =
         Delete = deleteMembership connStr
     }
 
+    let MemberToolsRepository (connStr) : MemberToolsRepository = {
+        GetAll = fun () -> queryMemberTools connStr
+        Get = queryMemberTool connStr
+        Create = insertMemberTool connStr
+        Update = updateMemberTool connStr
+        Delete = deleteMemberTool connStr
+    }
+
+    let ToolsRepository (connStr) : ToolsRepository = {
+        GetAll = fun () -> queryTools connStr
+        Get = queryTool connStr
+    }
+
     let SupportRelationshipsRepository(connStr) = {
         GetAll = fun () -> querySupportRelationships connStr 
         Get = querySupportRelationship connStr
@@ -449,5 +542,7 @@ module Database =
         Departments = Departments(connStr)
         Units = Units(connStr)
         Memberships = Memberships(connStr)
+        MemberTools = MemberToolsRepository(connStr)
+        Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
     }

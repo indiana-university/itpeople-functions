@@ -35,7 +35,7 @@ module ContractTests =
                 .ProviderState(stateServerUrl)
                 .ServiceProvider("API", functionServerUrl)
                 .HonoursPactWith("Client")
-                .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/feature/resolve-pact-conflict/contracts/itpeople-app-itpeople-functions.json")
+                .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/feature/tool-permissions/contracts/itpeople-app-itpeople-functions.json")
                 .Verify()
 
         [<Fact>]
