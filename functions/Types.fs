@@ -287,6 +287,16 @@ module Types =
         [<DefaultValue(100)>]
         Percentage: int }
 
+    [<CLIMutable>]
+    type ToolPermission = 
+      { /// The netid of the grantee
+        [<Column("netid")>] NetId: NetId
+        /// The name of the tool to which permissions have been granted 
+        [<Column("tool_name")>] ToolName: Name
+        /// For department-scoped tools, the name of the department
+        [<Column("department_name")>] DepartmentName: Name }
+
+
     // DOMAIN MODELS
 
     type MessageResult = {
@@ -352,9 +362,11 @@ module Types =
     }
 
     type ToolsRepository = {
-        /// Get a membership by ID        
+        /// Get all tools
         GetAll: unit -> Async<Result<Tool seq,Error>>
-        /// Get all member tools
+        /// Get all member tool permissions
+        GetAllPermissions: unit -> Async<Result<ToolPermission seq,Error>>
+        /// Get a tool by ID        
         Get: Id -> Async<Result<Tool,Error>>
     }
 

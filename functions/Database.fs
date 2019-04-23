@@ -437,16 +437,36 @@ module Database =
     // ***********
 
     let queryToolsSql = """SELECT * from tools t"""    
+    let queryToolPermissionsSql = """
+    SELECT DISTINCT
+    	p.netid,
+        t.name as tool_name,
+    	COALESCE(d.name,'') as department_name
+    FROM
+        unit_member_tools umt
+        JOIN unit_members um on um.id = umt.membership_id
+        JOIN people p on p.id = um.person_id
+        JOIN tools t on t.id = umt.tool_id
+    	-- Join to departments for departmentally-scoped tools.
+        LEFT JOIN support_relationships sr ON sr.unit_id = um.unit_id AND t.id > 4
+        LEFT JOIN departments d ON d.id = sr.department_id
+    WHERE 
+    	(d.id IS NOT NULL) 	-- departmentally-scoped tools
+    	OR (t.id <= 4) 		-- globally-scoped tools
+    ORDER BY netid, tool_name, department_name"""    
 
-    let mapTools filter (cn:Cn) = 
-        parseQueryAndParam queryToolsSql filter
-        |> cn.QueryAsync<Tool>
+    let map<'T> query filter (cn:Cn) = 
+        parseQueryAndParam query filter
+        |> cn.QueryAsync<'T>
 
     let mapTool id = 
-        mapTools (WhereId("t.id", id))
+        map<Tool> queryToolsSql (WhereId("t.id", id))
 
     let queryTools connStr =
-        fetchAll<Tool> connStr (mapTools(Unfiltered))
+        fetchAll<Tool> connStr (map queryToolsSql Unfiltered)
+
+    let queryToolPermissions connStr =
+        fetchAll<ToolPermission> connStr (map queryToolPermissionsSql Unfiltered)
 
     let queryTool connStr id =
         fetchOne<Tool> connStr mapTool id
@@ -526,6 +546,7 @@ module Database =
 
     let ToolsRepository (connStr) : ToolsRepository = {
         GetAll = fun () -> queryTools connStr
+        GetAllPermissions = fun () -> queryToolPermissions connStr
         Get = queryTool connStr
     }
 
