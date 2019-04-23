@@ -78,8 +78,9 @@ module Fakes =
 
     let tool: Tool = 
       { Id=1
-        Name="Superpass"
-        Description="Reset constituent passphrases"}
+        Name="Hammer"
+        Description=""
+        DepartmentScoped=true }
 
     let memberTool:MemberTool = 
       { Id=1

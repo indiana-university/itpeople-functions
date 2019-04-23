@@ -448,11 +448,11 @@ module Database =
         JOIN people p on p.id = um.person_id
         JOIN tools t on t.id = umt.tool_id
     	-- Join to departments for departmentally-scoped tools.
-        LEFT JOIN support_relationships sr ON sr.unit_id = um.unit_id AND t.id > 4
+        LEFT JOIN support_relationships sr ON sr.unit_id = um.unit_id AND t.department_scoped = TRUE
         LEFT JOIN departments d ON d.id = sr.department_id
     WHERE 
-    	(d.id IS NOT NULL) 	-- departmentally-scoped tools
-    	OR (t.id <= 4) 		-- globally-scoped tools
+    	(d.id IS NOT NULL) 	             -- departmentally-scoped tools
+    	OR (t.department_scoped = FALSE) -- globally-scoped tools
     ORDER BY netid, tool_name, department_name"""    
 
     let map<'T> query filter (cn:Cn) = 

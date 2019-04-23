@@ -221,7 +221,10 @@ module Types =
         [<Column("name")>] Name: Name
         /// A description of this tool.
         [<DefaultValue("")>]
-        [<Column("description")>] Description: Name }
+        [<Column("description")>] Description: Name
+        /// Whether this tool is scoped to a department via a unit-department support relationship.
+        [<DefaultValue(false)>]
+        [<Column("department_scoped")>] DepartmentScoped: bool }
 
     [<CLIMutable>]
     [<Table("unit_member_tools")>]

@@ -16,6 +16,7 @@
     <Compile Include="Migrations/01_CreateBaseTables.fs" />
     <Compile Include="Migrations/02_CreateToolTables.fs" />
     <Compile Include="Migrations/03_ToolsAddDefaults.fs" />
+    <Compile Include="Migrations/04_AlterToolsWithDepartmentScopeFlag.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
