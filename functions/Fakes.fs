@@ -78,8 +78,9 @@ module Fakes =
 
     let tool: Tool = 
       { Id=1
-        Name="Superpass"
-        Description="Reset constituent passphrases"}
+        Name="Hammer"
+        Description=""
+        DepartmentScoped=true }
 
     let memberTool:MemberTool = 
       { Id=1
@@ -147,7 +148,6 @@ module Fakes =
         MemberTools=Seq.empty
     }
 
-
     let supportRelationshipRequest:SupportRelationshipRequest = {
         UnitId=cityOfPawnee.Id
         DepartmentId=parksDept.Id
@@ -159,6 +159,12 @@ module Fakes =
         DepartmentId=parksDept.Id
         Unit=cityOfPawnee
         Department=parksDept
+    }
+
+    let toolPermission:ToolPermission = {
+        NetId=wyatt.NetId
+        ToolName=tool.Name
+        DepartmentName=parksDept.Name
     }
 
     /// A canned data implementation of IDatabaseRespository (for testing)
@@ -207,6 +213,7 @@ module Fakes =
 
     let FakeToolsRepository : ToolsRepository = {
         GetAll = fun () -> stub ([ tool ] |> List.toSeq)
+        GetAllPermissions = fun () -> stub ([ toolPermission ] |> List.toSeq)
         Get = fun id -> stub tool
     }
 

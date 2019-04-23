@@ -221,7 +221,10 @@ module Types =
         [<Column("name")>] Name: Name
         /// A description of this tool.
         [<DefaultValue("")>]
-        [<Column("description")>] Description: Name }
+        [<Column("description")>] Description: Name
+        /// Whether this tool is scoped to a department via a unit-department support relationship.
+        [<DefaultValue(false)>]
+        [<Column("department_scoped")>] DepartmentScoped: bool }
 
     [<CLIMutable>]
     [<Table("unit_member_tools")>]
@@ -286,6 +289,16 @@ module Types =
         /// The percentage of time allocated to this position by this person (in case of split appointments).
         [<DefaultValue(100)>]
         Percentage: int }
+
+    [<CLIMutable>]
+    type ToolPermission = 
+      { /// The netid of the grantee
+        [<Column("netid")>] NetId: NetId
+        /// The name of the tool to which permissions have been granted 
+        [<Column("tool_name")>] ToolName: Name
+        /// For department-scoped tools, the name of the department
+        [<Column("department_name")>] DepartmentName: Name }
+
 
     // DOMAIN MODELS
 
@@ -352,9 +365,11 @@ module Types =
     }
 
     type ToolsRepository = {
-        /// Get a membership by ID        
+        /// Get all tools
         GetAll: unit -> Async<Result<Tool seq,Error>>
-        /// Get all member tools
+        /// Get all member tool permissions
+        GetAllPermissions: unit -> Async<Result<ToolPermission seq,Error>>
+        /// Get a tool by ID        
         Get: Id -> Async<Result<Tool,Error>>
     }
 

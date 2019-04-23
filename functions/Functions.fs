@@ -627,3 +627,18 @@ module Functions =
             >=> relationshipValidator.ValidForDelete
             >=> data.SupportRelationships.Delete
         delete req workflow
+
+
+    // ********************
+    // ** Tool Permissions
+    // ********************
+
+    [<FunctionName("ToolPermissionsGetAll")>]
+    [<SwaggerOperation(Summary="List all person-tool-department relationships.", Tags=[|"Tool Permissions"|])>]
+    [<SwaggerResponse(200, "A collection of tool permission records", typeof<ToolPermission seq>)>]
+    let toolPermissionsGetAll
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "toolPermissions")>] req) =
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.Tools.GetAllPermissions ()
+        get req workflow
