@@ -12,9 +12,9 @@ open Logging
 open Validation
 open Fakes
 
-open Microsoft.Azure.WebJobs
 open System
 open System.Net.Http
+open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Extensions.Http
 
 open Swashbuckle.AspNetCore.Annotations
@@ -642,3 +642,13 @@ module Functions =
             authenticate
             >=> fun _ -> data.Tools.GetAllPermissions ()
         get req workflow
+
+    // ********************
+    // ** Cron Jobs
+    // ********************
+
+    [<FunctionName("CronTest")>]
+    let crontTest
+        ([<TimerTrigger("0 */1 * * * *")>] myTimer: TimerInfo) =
+        sprintf "CronTest fired at: %A" DateTime.Now
+        |> log.Information
