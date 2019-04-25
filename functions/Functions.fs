@@ -650,5 +650,12 @@ module Functions =
     [<FunctionName("CronTest")>]
     let crontTest
         ([<TimerTrigger("0 */1 * * * *")>] myTimer: TimerInfo) =
-        sprintf "CronTest fired at: %A" DateTime.Now
+        let trim s = s.ToString().Trim('"')
+        let environment = 
+            System.Environment.GetEnvironmentVariables()
+            |> Seq.cast<System.Collections.DictionaryEntry>
+            |> Seq.map (fun d -> sprintf "%s=%s" (trim d.Key) (trim d.Value))
+            |> Seq.sort
+            |> String.concat "\n"
+        sprintf "CronTest fired at %A. Environment:\n%s" DateTime.Now environment
         |> log.Information

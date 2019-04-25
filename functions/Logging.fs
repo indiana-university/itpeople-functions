@@ -78,9 +78,10 @@ module Logging =
         Serilog.Debugging.SelfLog.Enable(Console.Out);
         Serilog.LoggerConfiguration()
             .Enrich.WithDemystifiedStackTraces()
+            .Enrich.FromLogContext()
             .WriteTo.Console()
             .WriteTo.PostgreSQL(config.DbConnectionString, "logs", (dict loggingColumns))
-            .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
+            .WriteTo.ApplicationInsightsEvents(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 
     let logSuccess (log:Logger) req (status:Status) =
