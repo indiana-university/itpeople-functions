@@ -648,14 +648,19 @@ module Functions =
     // ********************
 
     [<FunctionName("CronTest")>]
-    let crontTest
-        ([<TimerTrigger("0 */1 * * * *")>] myTimer: TimerInfo) =
-        let trim s = s.ToString().Trim('"')
-        let environment = 
-            System.Environment.GetEnvironmentVariables()
-            |> Seq.cast<System.Collections.DictionaryEntry>
-            |> Seq.map (fun d -> sprintf "%s=%s" (trim d.Key) (trim d.Value))
-            |> Seq.sort
-            |> String.concat "\n"
-        sprintf "CronTest fired at %A. Environment:\n%s" DateTime.Now environment
-        |> log.Information
+    let cronTest
+        ([<TimerTrigger("0 */1 * * * *")>] timer: TimerInfo,
+         [<Queue("test-queue")>] queue: ICollector<string>) =
+        // Log invocation
+        let timestamp = DateTime.Now.ToLongTimeString()
+        sprintf "Timed function fired at %A. " timestamp |> log.Information
+        // Queue a message 
+        let msg = sprintf "queue message @ %s" timestamp
+        sprintf "Enqueued msg: '%s'" msg |> log.Information
+        queue.Add msg
+
+    [<FunctionName("QueueTest")>]
+    let queueTest
+        ([<QueueTrigger("test-queue")>] item: string) =
+        // Log the dequeued message
+        sprintf "Dequeued msg: '%s'" item |> log.Information
