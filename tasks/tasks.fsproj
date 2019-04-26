@@ -3,7 +3,6 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Logging.fs" />
     <Compile Include="Functions.fs" />
     <None Include="host.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
