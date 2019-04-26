@@ -3,7 +3,7 @@
 
 namespace Tests
 
-open Functions.Types
+open Core.Types
 open Functions.Jwt
 open System
 open Xunit

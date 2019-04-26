@@ -5,7 +5,7 @@ namespace Functions
 
 module Logging =
 
-    open Types
+    open Core.Types
 
     open System
     open System.Net.Http
@@ -74,13 +74,13 @@ module Logging =
         then req.Properties.[WorkflowUser] :?> string
         else ""
 
-    let createLogger (config:AppConfig) =
+    let createLogger dbConnectionString =
         Serilog.Debugging.SelfLog.Enable(Console.Out);
         Serilog.LoggerConfiguration()
             .Enrich.WithDemystifiedStackTraces()
             .Enrich.FromLogContext()
             .WriteTo.Console()
-            .WriteTo.PostgreSQL(config.DbConnectionString, "logs", (dict loggingColumns))
+            .WriteTo.PostgreSQL(dbConnectionString, "logs", (dict loggingColumns))
             .WriteTo.ApplicationInsightsEvents(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 

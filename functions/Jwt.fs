@@ -3,8 +3,8 @@
 
 namespace Functions
 
-open Types
-open Util
+open Core.Types
+open Core.Util
 open System
 open System.Collections.Generic
 open System.Net.Http

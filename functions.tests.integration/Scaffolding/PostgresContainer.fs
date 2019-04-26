@@ -9,7 +9,6 @@ module PostgresContainer =
     open System.Diagnostics
     open Npgsql
     open Dapper
-    open Functions.Database
     open Xunit.Abstractions
     open Database.Fakes
 

@@ -10,7 +10,7 @@ module ContractTests =
     open Xunit
     open TestFixture
     open TestHost
-    open Functions.Fakes
+    open Core.Fakes
     open Database.Fakes
     
     type XUnitOutput(output: ITestOutputHelper)=
