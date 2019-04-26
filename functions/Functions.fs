@@ -3,14 +3,15 @@
 
 namespace Functions
 
-open Types
+open Core.Types
+open Core.Util
+
 open Json
 open Api
 open Jwt
-open Util
 open Logging
 open Validation
-open Fakes
+open Examples
 
 open System
 open System.Net.Http
@@ -29,8 +30,8 @@ module Functions =
     /// Dependencies are resolved once at startup.
     let openApiSpec = lazy (generateOpenAPISpec())
     let config = getConfiguration()
-    let data = getData config
-    let log = createLogger config
+    let data = getData config.UseFakes config.DbConnectionString
+    let log = createLogger config.DbConnectionString
 
     // FUNCTION WORKFLOW HELPERS 
 
@@ -642,25 +643,3 @@ module Functions =
             authenticate
             >=> fun _ -> data.Tools.GetAllPermissions ()
         get req workflow
-
-    // ********************
-    // ** Cron Jobs
-    // ********************
-
-    [<FunctionName("CronTest")>]
-    let cronTest
-        ([<TimerTrigger("0 */1 * * * *")>] timer: TimerInfo,
-         [<Queue("test-queue")>] queue: ICollector<string>) =
-        // Log invocation
-        let timestamp = DateTime.Now.ToLongTimeString()
-        sprintf "Timed function fired at %A. " timestamp |> log.Information
-        // Queue a message 
-        let msg = sprintf "queue message @ %s" timestamp
-        sprintf "Enqueued msg: '%s'" msg |> log.Information
-        queue.Add msg
-
-    [<FunctionName("QueueTest")>]
-    let queueTest
-        ([<QueueTrigger("test-queue")>] item: string) =
-        // Log the dequeued message
-        sprintf "Dequeued msg: '%s'" item |> log.Information
