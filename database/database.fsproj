@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Migration.fs" />
+    <Compile Include="Command.fs" />
     <Compile Include="Fakes.fs" />
     <Compile Include="Migrations/01_CreateBaseTables.fs" />
     <Compile Include="Migrations/02_CreateToolTables.fs" />

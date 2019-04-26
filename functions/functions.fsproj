@@ -10,7 +10,6 @@
     <Compile Include="Logging.fs" />
     <Compile Include="Json.fs" />
     <Compile Include="Jwt.fs" />
-    <Compile Include="Database.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Validation.fs" />
     <Compile Include="Functions.fs" />
