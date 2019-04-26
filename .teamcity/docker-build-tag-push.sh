@@ -4,7 +4,7 @@
 export DOCKER_TAG=${TEAMCITY_BRANCH/refs\/heads\//}
 
 # Build the docker image and tag it for docker hub
-docker build -t functions .
+docker build -f $DOCKERFILE_PATH -t functions .
 
 # Tag image for docker hub
 echo Tagging functions image as $DOCKER_HUB_REPO:$DOCKER_TAG
