@@ -7,13 +7,10 @@
     <ProjectReference Include="../openapi/Swashbuckle.AspNetCore.Filters/Swashbuckle.AspNetCore.Filters.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Types.fs" />
     <Compile Include="Logging.fs" />
-    <Compile Include="Util.fs" />
     <Compile Include="Json.fs" />
     <Compile Include="Jwt.fs" />
     <Compile Include="Database.fs" />
-    <Compile Include="Fakes.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Validation.fs" />
     <Compile Include="Functions.fs" />
