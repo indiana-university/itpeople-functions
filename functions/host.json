@@ -7,5 +7,16 @@
         "http": {
             "routePrefix": ""
         }
+    },
+    "logging": {
+        "applicationInsights": {
+            "samplingSettings": {
+                "isEnabled": true,
+                "maxTelemetryItemsPerSecond": 20
+            }
+        },
+        "console": {
+            "isEnabled": "true"
+        }
     }
 }
