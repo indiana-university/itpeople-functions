@@ -32,8 +32,8 @@ module Functions=
         sprintf "Timed function fired at %A. " timestamp |> log.LogInformation
         // Queue a message 
         let msg = sprintf "queue message @ %s" timestamp
+        queue.Add msg
         sprintf "Enqueued msg: '%s'" msg |> log.LogInformation
-        // queue.Add msg
 
     [<FunctionName("QueueTest")>]
     let queueTest
