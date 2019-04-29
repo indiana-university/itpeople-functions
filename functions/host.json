@@ -11,8 +11,7 @@
     "logging": {
         "applicationInsights": {
             "samplingSettings": {
-                "isEnabled": true,
-                "maxTelemetryItemsPerSecond": 20
+                "isEnabled": false
             }
         },
         "console": {
