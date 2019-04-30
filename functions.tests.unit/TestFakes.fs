@@ -3,7 +3,7 @@
 
 namespace Tests
 
-open Functions.Types
+open Core.Types
 open System.Net.Http
 
 module TestFakes =

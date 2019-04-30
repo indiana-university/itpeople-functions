@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TieredCompilation>true</TieredCompilation>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Functions.fs" />
+    <None Include="host.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../core/core.fsproj" />    
+    <ProjectReference Include="../database/database.fsproj" />    
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" Version="4.5.2" />
+    <!-- <PackageReference Include="Dapper" Version="1.50.5" /> -->
+    <!-- <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" /> -->
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.27" />
+    <PackageReference Include="WindowsAzure.Storage" Version="9.3.1" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="3.0.0" />
+    <!-- <PackageReference Include="Npgsql" Version="4.0.3" /> -->
+  </ItemGroup>
+</Project>

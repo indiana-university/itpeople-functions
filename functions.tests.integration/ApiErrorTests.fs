@@ -5,7 +5,7 @@ module ApiErrorTests =
     open Xunit.Abstractions
     open Xunit
     open TestFixture
-    open Functions.Fakes
+    open Core.Fakes
     open Functions.Json
     open FsUnit.Xunit
     open Newtonsoft.Json

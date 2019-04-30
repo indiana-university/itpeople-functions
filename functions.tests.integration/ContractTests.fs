@@ -10,7 +10,7 @@ module ContractTests =
     open Xunit
     open TestFixture
     open TestHost
-    open Functions.Fakes
+    open Core.Fakes
     open Database.Fakes
     
     type XUnitOutput(output: ITestOutputHelper)=
@@ -35,7 +35,7 @@ module ContractTests =
                 .ProviderState(stateServerUrl)
                 .ServiceProvider("API", functionServerUrl)
                 .HonoursPactWith("Client")
-                .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/feature/tool-permissions/contracts/itpeople-app-itpeople-functions.json")
+                .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/develop/contracts/itpeople-app-itpeople-functions.json")
                 .Verify()
 
         [<Fact>]

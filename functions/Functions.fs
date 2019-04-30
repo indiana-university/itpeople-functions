@@ -3,18 +3,19 @@
 
 namespace Functions
 
-open Types
+open Core.Types
+open Core.Util
+
 open Json
 open Api
 open Jwt
-open Util
 open Logging
 open Validation
-open Fakes
+open Examples
 
-open Microsoft.Azure.WebJobs
 open System
 open System.Net.Http
+open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Extensions.Http
 
 open Swashbuckle.AspNetCore.Annotations
@@ -29,8 +30,8 @@ module Functions =
     /// Dependencies are resolved once at startup.
     let openApiSpec = lazy (generateOpenAPISpec())
     let config = getConfiguration()
-    let data = getData config
-    let log = createLogger config
+    let data = getData config.UseFakes config.DbConnectionString
+    let log = createLogger config.DbConnectionString
 
     // FUNCTION WORKFLOW HELPERS 
 

@@ -1,19 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../openapi/Swashbuckle.AspNetCore.AzureFunctions/Swashbuckle.AspNetCore.AzureFunctions.csproj" />
     <ProjectReference Include="../openapi/Swashbuckle.AspNetCore.Filters/Swashbuckle.AspNetCore.Filters.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Types.fs" />
     <Compile Include="Logging.fs" />
-    <Compile Include="Util.fs" />
     <Compile Include="Json.fs" />
     <Compile Include="Jwt.fs" />
-    <Compile Include="Database.fs" />
-    <Compile Include="Fakes.fs" />
+    <Compile Include="DatabaseRepository.fs" />
+    <Compile Include="FakesRepository.fs" />
+    <Compile Include="Examples.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Validation.fs" />
     <Compile Include="Functions.fs" />
@@ -22,11 +22,15 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../core/core.fsproj" />    
+    <ProjectReference Include="../database/database.fsproj" />    
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.5.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.KeyPerFile" Version="2.1.1" />
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
-    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.24" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.27" />
     <PackageReference Include="JWT" Version="4.0.0" />
     <PackageReference Include="Npgsql" Version="4.0.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="2.1.1" />

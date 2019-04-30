@@ -8,15 +8,15 @@ module Fakes =
     open Npgsql
     open Dapper
     
-    open Functions.Types    
-    open Functions.Fakes
+    open Core.Types    
+    open Core.Fakes
     open Migration
 
     let testConnectionString = "User ID=root;Host=localhost;Port=5432;Database=circle_test;Pooling=true;"
 
     let resetDatabaseWithTestFakes () = 
         
-        Functions.Database.init() 
+        Command.init() 
 
         use db = new NpgsqlConnection(testConnectionString)
         

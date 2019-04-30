@@ -13,6 +13,7 @@
     <PackageVersion>1.1.1</PackageVersion>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/bherila/Swashbuckle.AspNetCore.git</RepositoryUrl>
+    <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
 
   <ItemGroup>

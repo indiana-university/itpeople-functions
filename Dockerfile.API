@@ -7,4 +7,5 @@ RUN cd /src/dotnet-function-app && \
 
 FROM microsoft/azure-functions-dotnet-core2.0
 ENV AzureWebJobsScriptRoot=/home/site/wwwroot
+ENV AzureFunctionsJobHost__Logging__Console__IsEnabled=true
 COPY --from=installer-env ["/home/site/wwwroot", "/home/site/wwwroot"]

@@ -3,11 +3,10 @@
 
 namespace Functions
 
-open Types
+open Core.Types
 open Json
-open Database
-open Fakes
 open Logging
+open Examples
 
 open System.Net.Http
 open System.Net.Http.Headers
@@ -55,12 +54,12 @@ module Api =
             CorsHosts = getValueOrDefault<string> config "CorsHosts" "*"
         }
 
-    let getData config =
-        if config.UseFakes
-        then FakesRepository
+    let getData useFakes dbConnectionString =
+        if useFakes
+        then FakesRepository.Repository
         else
-            Functions.Database.init()
-            DatabaseRepository(config.DbConnectionString)
+            Database.Command.init()
+            DatabaseRepository.Repository(dbConnectionString)
 
     /// HTTP REQUEST
     let client = new HttpClient()
