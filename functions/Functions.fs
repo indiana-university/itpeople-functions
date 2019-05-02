@@ -30,7 +30,7 @@ module Functions =
     /// Dependencies are resolved once at startup.
     let openApiSpec = lazy (generateOpenAPISpec())
     let config = getConfiguration()
-    let data = getData config.UseFakes config.DbConnectionString
+    let data = getData config.UseFakes config.DbConnectionString config.SharedSecret
     let log = createLogger config.DbConnectionString
 
     // FUNCTION WORKFLOW HELPERS 

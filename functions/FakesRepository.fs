@@ -65,7 +65,10 @@ module FakesRepository =
         Update = fun req -> stub supportRelationship
         Delete = fun id -> stub ()
     }
-
+    let FakeHr = {
+        GetAllPeople = fun query -> stub ([ swanson ] |> List.toSeq)
+    }
+    
     let Repository = {
         People = FakePeople
         Units = FakeUnits
@@ -74,5 +77,6 @@ module FakesRepository =
         MemberTools = FakeMemberToolsRepository
         Tools = FakeToolsRepository
         SupportRelationships = FakeSupportRelationships
+        Hr = FakeHr
     }
 

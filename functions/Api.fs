@@ -52,14 +52,15 @@ module Api =
             DbConnectionString = getRequiredValue<string> config "DbConnectionString"
             UseFakes = getValueOrDefault<bool> config "UseFakeData" false
             CorsHosts = getValueOrDefault<string> config "CorsHosts" "*"
+            SharedSecret = getRequiredValue<string> config "SharedSecret"
         }
 
-    let getData useFakes dbConnectionString =
+    let getData useFakes dbConnectionString sharedSecret=
         if useFakes
         then FakesRepository.Repository
         else
             Database.Command.init()
-            DatabaseRepository.Repository(dbConnectionString)
+            DatabaseRepository.Repository(dbConnectionString, sharedSecret)
 
     /// HTTP REQUEST
     let client = new HttpClient()

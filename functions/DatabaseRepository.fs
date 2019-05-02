@@ -404,7 +404,11 @@ module DatabaseRepository =
         Delete = deleteSupportRelationship connStr
     }
 
-    let Repository(connStr) = {
+    let HrRepository(sharedSecret) = {
+        GetAllPeople = fun query -> stub (Seq.empty)
+    }
+
+    let Repository(connStr, sharedSecret) = {
         People = People(connStr)
         Departments = Departments(connStr)
         Units = Units(connStr)
@@ -412,4 +416,5 @@ module DatabaseRepository =
         MemberTools = MemberToolsRepository(connStr)
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
+        Hr = HrRepository(sharedSecret)
     }

@@ -18,6 +18,7 @@ let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) 
 
 let (>>=) a f = bind f a
 let (>=>) f g = compose f g
+let ar = async.Return
 
 let ROLE_ADMIN = "admin"
 let ROLE_USER = "user"
@@ -43,7 +44,8 @@ type AppConfig =
     JwtSecret: string
     DbConnectionString: string
     UseFakes: bool
-    CorsHosts: string }
+    CorsHosts: string
+    SharedSecret: string }
 
 type Role =
     /// This person has an ancillary relationship to this unit. This can apply to administrative assistants or self-supporting faculty.
@@ -394,6 +396,11 @@ type SupportRelationshipRepository = {
     Delete : SupportRelationship -> Async<Result<unit,Error>>
 }
 
+type HrDataRepository = {
+    /// Get a list of all people from a canonical source
+    GetAllPeople: Filter option -> Async<Result<Person seq,Error>>
+}
+
 type DataRepository = {
     People: PeopleRepository
     Units: UnitRepository
@@ -402,6 +409,7 @@ type DataRepository = {
     MemberTools: MemberToolsRepository
     Tools: ToolsRepository
     SupportRelationships: SupportRelationshipRepository
+    Hr: HrDataRepository
 }
 
 let stub a = a |> Ok |> async.Return

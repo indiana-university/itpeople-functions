@@ -33,4 +33,5 @@ module TestFakes =
         DbConnectionString="db connectionString"
         UseFakes=false
         CorsHosts="*"
+        SharedSecret="shared secret"
     }
