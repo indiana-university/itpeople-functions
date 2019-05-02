@@ -399,6 +399,23 @@ module Functions =
             >=> fun _ -> data.Memberships.Get membershipId
         get req workflow
 
+    let ensurePersonInDirectory getPersonFromHr addPersonToDirectory (um:UnitMember) =
+        let assertSinglePersonFound results =
+            match Seq.length results with
+            | 1 -> results |> Seq.head |> Ok |> ar
+            | 0 -> Error(Status.BadRequest, "No person found with that username.") |> ar
+            | _ -> Error(Status.BadRequest, "Multiple staff members found with that username.") |> ar
+        let resolveUnitMember (person:Person) = 
+            Ok {um with PersonId=Some(person.Id)} |> ar
+        match (um.PersonId, um.NetId) with
+        | (Some(_), _) -> Ok um |> ar // known person
+        | (None, None) -> Ok um |> ar // vacancy
+        | (None, netid) -> // we don't have this person in the directory.
+            getPersonFromHr netid
+            >>= assertSinglePersonFound
+            >>= addPersonToDirectory
+            >>= resolveUnitMember
+
     [<FunctionName("MemberCreate")>]
     [<SwaggerOperation(Summary="Create a unit membership.", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
@@ -412,6 +429,7 @@ module Functions =
             deserializeBody<UnitMember>
             >=> setMembershipId 0
             >=> authorize req canModifyUnit
+            >=> ensurePersonInDirectory data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForCreate
             >=> data.Memberships.Create
         create req workflow
@@ -431,6 +449,7 @@ module Functions =
             >=> setMembershipId membershipId
             >=> ensureEntityExistsForModel data.Memberships.Get
             >=> authorize req canModifyUnit
+            >=> ensurePersonInDirectory data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForUpdate
             >=> data.Memberships.Update
         update req workflow
