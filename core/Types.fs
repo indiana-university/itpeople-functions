@@ -258,6 +258,8 @@ type UnitMember =
     /// The percentage of time allocated to this position by this person (in case of split appointments).
     [<DefaultValue(100)>]
     [<Column("percentage")>] Percentage: int
+    /// The netid of the person related to this membership.
+    [<ReadOnly(true)>][<Column("netid")>] NetId: NetId option
     /// The person related to this membership.
     [<ReadOnly(true)>][<Column("person")>] Person: Person option
     /// The unit related to this membership.
