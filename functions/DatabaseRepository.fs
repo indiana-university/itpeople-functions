@@ -3,8 +3,12 @@
 
 namespace Functions
 
+open System.Net.Http
+open System.Net.Http.Headers
+
 open Core.Types
 open Database.Command
+open Api
 open Dapper
 
 module DatabaseRepository =
@@ -349,6 +353,18 @@ module DatabaseRepository =
     let deleteMemberTool connStr memberTool =
         delete<MemberTool> connStr (identity memberTool)
    
+    // *********************
+    // HR Lookups
+    // *********************
+
+    let lookupCanonicalHrPeople sharedSecret (query:NetId option) =
+        match query with
+        | None -> Ok Seq.empty<Person> |> ar
+        | Some(q) ->
+            let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" q
+            let msg = new HttpRequestMessage(HttpMethod.Get, url)
+            msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
+            sendAsync<seq<Person>> msg
 
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr
@@ -408,7 +424,7 @@ module DatabaseRepository =
     }
 
     let HrRepository(sharedSecret) = {
-        GetAllPeople = fun query -> stub (Seq.empty)
+        GetAllPeople = lookupCanonicalHrPeople sharedSecret
     }
 
     let Repository(connStr, sharedSecret) = {
