@@ -175,7 +175,7 @@ module Functions =
     let getPerson personId _ = data.People.Get personId
 
     [<FunctionName("PeopleGetAll")>]
-    [<SwaggerOperation(Summary="List all people", Description="Search for people by name and/or username (netid).", Tags=[|"People"|])>]
+    [<SwaggerOperation(Summary="List all IT people", Description="Search for IT people by name or username (netid).", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let peopleGetAll
@@ -184,6 +184,38 @@ module Functions =
             authenticate 
             >=> fun _ -> tryQueryParam "q" req
             >=> data.People.GetAll
+        get req workflow
+
+    let lookup data query = async {
+        let! directoryTask = data.People.GetAll query |> Async.StartChild
+        let! hrTask = data.Hr.GetAllPeople query |> Async.StartChild
+        let! directoryResult = directoryTask
+        let! hrResult = hrTask
+        let notInDirectory (d:seq<Person>) (h':Person) = 
+            d |> Seq.exists (fun d' -> d'.NetId = h'.NetId) |> not
+        let result =
+            match (directoryResult, hrResult) with
+            | (Ok(d), Ok(h)) -> 
+                h 
+                |> Seq.filter (notInDirectory d)
+                |> Seq.append d
+                |> Seq.sortBy (fun x -> x.NetId)
+                |> Ok
+            | (Error(_), _) -> directoryResult
+            | (_, Error(_)) -> hrResult
+        return result
+    }
+
+    [<FunctionName("PeopleLookupAll")>]
+    [<SwaggerOperation(Summary="Lookup all staff", Description="Search for staff, including IT People, by name or username (netid).", Tags=[|"People"|])>]
+    [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
+    [<OptionalQueryParameter("q", typeof<string>)>]
+    let peopleLookupAll
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people-lookup")>] req) =
+        let workflow = 
+            authenticate 
+            >=> fun _ -> tryQueryParam "q" req
+            >=> lookup data
         get req workflow
 
     [<FunctionName("PeopleGetById")>]
