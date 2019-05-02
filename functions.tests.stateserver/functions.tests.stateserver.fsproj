@@ -16,7 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.5.2" />
-    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.24" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.27" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../database/database.fsproj" />
