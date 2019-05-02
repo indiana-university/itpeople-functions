@@ -274,6 +274,9 @@ module DatabaseRepository =
         return result
     }
 
+    let insertPerson connStr =
+        insert<Person> connStr mapPerson
+
     let queryPersonMemberships connStr id =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
         >>= collectMemberTools
@@ -347,11 +350,11 @@ module DatabaseRepository =
         delete<MemberTool> connStr (identity memberTool)
    
 
-
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr
         GetAll = queryPeople connStr
         Get = queryPerson connStr
+        Create = insertPerson connStr
         GetMemberships = queryPersonMemberships connStr
     }
 

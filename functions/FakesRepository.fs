@@ -14,6 +14,7 @@ module FakesRepository =
         TryGetId = fun netId -> stub (swanson.NetId, Some(swanson.Id))
         GetAll = fun query -> stub ([ swanson ] |> List.toSeq)
         Get = fun id -> stub swanson
+        Create = fun person -> stub swanson
         GetMemberships = fun personId -> stub ([ swansonMembership ] |> List.toSeq)
     }
 
