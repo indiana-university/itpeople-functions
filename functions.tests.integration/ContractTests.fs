@@ -38,7 +38,7 @@ module ContractTests =
                 .PactUri("https://raw.githubusercontent.com/indiana-university/itpeople-app/develop/contracts/itpeople-app-itpeople-functions.json")
                 .Verify()
 
-        [<Fact>]
+        // [<Fact>]
         member __.``Verify Contracts`` () = async {
             let mutable stateServer = None
             try
