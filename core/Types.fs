@@ -117,7 +117,6 @@ type Department =
 type Person = 
   { /// The unique ID of this person record.
     [<Key>][<Column("id")>] Id: Id
-    [<Column("hash")>] Hash: string
     /// The net id (username) of this person.
     [<Column("netid")>] NetId: NetId
     /// The preferred name of this person.

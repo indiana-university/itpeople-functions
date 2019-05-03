@@ -17,7 +17,6 @@ let parksDept:Department = {Id=1; Name="PA-PARKS"; Description="Parks and Recrea
 // People
 let swanson:Person = {
     Id=1
-    Hash="hash"
     NetId="rswanso"
     Name="Swanson, Ron"
     Position="Parks and Rec Director "
@@ -35,7 +34,6 @@ let swanson:Person = {
 
 let knope:Person = {
     Id=2
-    Hash="hash"
     NetId="lknope"
     Name="Knope, Lesie Park"
     Position="Parks and Rec Deputy Director "
@@ -53,7 +51,6 @@ let knope:Person = {
 
 let wyatt:Person = {
     Id=3
-    Hash="hash"
     NetId="bwyatt"
     Name="Wyatt, Ben"
     Position="Auditor"
