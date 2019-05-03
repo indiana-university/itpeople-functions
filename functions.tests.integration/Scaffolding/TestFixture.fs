@@ -10,6 +10,7 @@ module TestFixture =
     open PostgresContainer
     open Database.Fakes
     open System
+    open System.IO
     open TestHost
     
 
@@ -40,7 +41,7 @@ module TestFixture =
     type DatabaseIntegrationTestBase() =
         do resetDatabaseWithTestFakes ()
 
-    let functionServerScriptPath = "../../../../functions/bin/Debug/netcoreapp2.1"
+    let functionServerScriptPath = Path.Combine(Directory.GetCurrentDirectory(), "../../../../functions/bin/Debug/netcoreapp2.1")
     let functionServerPort = 9091
     let functionServerUrl = sprintf "http://localhost:%d" functionServerPort
 
@@ -58,6 +59,7 @@ module TestFixture =
             Environment.SetEnvironmentVariable("OAuthClientSecret","na")
             Environment.SetEnvironmentVariable("OAuthTokenUrl","na")
             Environment.SetEnvironmentVariable("OAuthRedirectUrl","na")
+            Environment.SetEnvironmentVariable("SharedSecret","na")
 
             // "---> Starting functions host..." |> Console.WriteLine
             functionsServer <- startTestServer functionServerPort functionServerScriptPath output |> Async.RunSynchronously

@@ -3,165 +3,15 @@
 
 namespace Functions
 
-open Types
-open Util
+open System.Net.Http
+open System.Net.Http.Headers
+
+open Core.Types
+open Database.Command
+open Api
 open Dapper
-open Npgsql
 
-module OptionHandler =
-
-    type OptionHandler<'T> () =
-        inherit SqlMapper.TypeHandler<'T option> ()
-
-        override __.SetValue (param, value) =
-            let valueOrNull =
-                match value with
-                | Some x -> box x
-                | None   -> null
-
-            param.Value <- valueOrNull
-
-        override __.Parse value =
-            if 
-                System.Object.ReferenceEquals(value, null) || 
-                value = box System.DBNull.Value
-            then None
-            else Some (value :?> 'T)
-
-
-    let RegisterTypes () =
-        SqlMapper.AddTypeHandler (OptionHandler<Id>())
-        SqlMapper.AddTypeHandler (OptionHandler<UnitId>())
-        SqlMapper.AddTypeHandler (OptionHandler<PersonId>())
-        SqlMapper.AddTypeHandler (OptionHandler<DepartmentId>())
-        SqlMapper.AddTypeHandler (OptionHandler<bool>())
-        SqlMapper.AddTypeHandler (OptionHandler<byte>())
-        SqlMapper.AddTypeHandler (OptionHandler<sbyte>())
-        SqlMapper.AddTypeHandler (OptionHandler<int16>())
-        SqlMapper.AddTypeHandler (OptionHandler<uint16>())
-        SqlMapper.AddTypeHandler (OptionHandler<int32>())
-        SqlMapper.AddTypeHandler (OptionHandler<uint32>())
-        SqlMapper.AddTypeHandler (OptionHandler<int64>())
-        SqlMapper.AddTypeHandler (OptionHandler<uint64>())
-        SqlMapper.AddTypeHandler (OptionHandler<single>())
-        SqlMapper.AddTypeHandler (OptionHandler<float>())
-        SqlMapper.AddTypeHandler (OptionHandler<double>())
-        SqlMapper.AddTypeHandler (OptionHandler<decimal>())
-        SqlMapper.AddTypeHandler (OptionHandler<char>())
-        SqlMapper.AddTypeHandler (OptionHandler<string>())
-        SqlMapper.AddTypeHandler (OptionHandler<obj>())
-
-
-module QueryHelpers = 
-
-    open System.Threading.Tasks
-    
-    type IdFilter = { Id: Id }
-    type NetIdFilter = { NetId: NetId }
-    type SearchFilter = { Query: string }
-
-    type Cn = NpgsqlConnection
-    type Sql = string
-    type WhereClause = string
-
-    type MapMany<'T> = Cn -> Task<seq<'T>>
-    type MapOne<'T> = int -> MapMany<'T>
-
-    type Filter =
-        | Unfiltered
-        | Param of obj
-        | Where of WhereClause
-        | WhereId of WhereClause * Id
-        | WhereParam of WhereClause * obj
-
-    let like = sprintf "%%%s%%"
-    let where = sprintf "%s WHERE %s"
-
-    let parseQueryAndParam sql filter = 
-        match filter with
-        | Unfiltered -> (sql, ():>obj)
-        | Param param -> (sql, param)
-        | Where clause -> ((where sql clause), ():>obj)
-        | WhereId (clause,id)-> ((where sql clause+"=@Id"), {Id=id}:>obj)
-        | WhereParam (clause,param)-> ((where sql clause), param)
-
-    let handleDbExn name resource (exn:System.Exception) = 
-        let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
-        Error (Status.InternalServerError, msg)
-
-
-    let fetchAll<'T> connStr (mapper:MapMany<'T>) = async {
-        try
-            use cn = new NpgsqlConnection(connStr)
-            let! result = cn |> mapper |> Async.AwaitTask
-            return Ok result
-        with exn -> return handleDbExn "fetch all" (typedefof<'T>.Name) exn
-    }
-
-    let fetchOne<'T> connStr (mapper:MapOne<'T>) id  = async {
-        try
-            use cn = new NpgsqlConnection(connStr)
-            let! result = mapper id cn |> Async.AwaitTask
-            if Seq.isEmpty result 
-            then return Error(Status.NotFound, sprintf "No %s was found with ID %d." (typedefof<'T>.Name) id)
-            else return result |> Seq.head |> Ok
-        with exn -> return handleDbExn "fetch one" (typedefof<'T>.Name) exn
-    }
-
-    let insertImpl<'T> connStr (obj:'T) = async {
-        try
-            use cn = new NpgsqlConnection(connStr)
-            let! result = cn.InsertAsync<'T>(obj) |> Async.AwaitTask
-            return Ok (result.GetValueOrDefault())
-        with exn -> return handleDbExn "insert" (typedefof<'T>.Name) exn
-    }
-
-    let insert<'T> connStr writeParams =
-        insertImpl<'T> connStr
-        >=> fetchOne<'T> connStr writeParams
-
-    let updateImpl<'T> connStr id (obj:^T) = async {
-        try
-            use cn = new NpgsqlConnection(connStr)
-            let! _ = cn.UpdateAsync<'T>(obj) |> Async.AwaitTask
-            return Ok id
-        with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
-    }
-
-    let update<'T> connStr writeParams id  = 
-        updateImpl<'T> connStr id
-        >=> fetchOne<'T> connStr writeParams
-
-    let delete<'T> connStr (id:int) = async {
-        try
-            use cn = new NpgsqlConnection(connStr)
-            let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
-            return () |> Ok
-        with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
-    }
-
-    let execute connStr sql parameters = async {
-        try
-            use cn = new NpgsqlConnection(connStr)
-            let! _ = cn.ExecuteAsync(sql, parameters) |> Async.AwaitTask
-            return () |> Ok
-        with exn -> return handleDbExn "execute" "" exn
-    }
-
-
-module Database =
-
-    open QueryHelpers
-    
-    let init() = 
-        SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
-        Dapper.DefaultTypeMap.MatchNamesWithUnderscores <- true
-        OptionHandler.RegisterTypes()
-
-    // **************
-    // Authentication
-    // **************
-
+module DatabaseRepository =
 
     // ***********
     // Memberships
@@ -428,6 +278,15 @@ module Database =
         return result
     }
 
+    let insertPerson connStr person =
+        queryDepartments connStr (Some(person.Notes))
+        >>= fun results -> 
+                if Seq.isEmpty results
+                then Error(Status.BadRequest, (sprintf "This person's department, '%s', is not known to the IT People directory." person.Notes)) |> ar
+                else results |> Seq.head |> Ok |> ar
+        >>= fun d -> { person with Notes=""; DepartmentId=d.Id } |> Ok |> ar
+        >>= insert<Person> connStr mapPerson
+
     let queryPersonMemberships connStr id =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
         >>= collectMemberTools
@@ -437,16 +296,36 @@ module Database =
     // ***********
 
     let queryToolsSql = """SELECT * from tools t"""    
+    let queryToolPermissionsSql = """
+    SELECT DISTINCT
+    	p.netid,
+        t.name as tool_name,
+    	COALESCE(d.name,'') as department_name
+    FROM
+        unit_member_tools umt
+        JOIN unit_members um on um.id = umt.membership_id
+        JOIN people p on p.id = um.person_id
+        JOIN tools t on t.id = umt.tool_id
+    	-- Join to departments for departmentally-scoped tools.
+        LEFT JOIN support_relationships sr ON sr.unit_id = um.unit_id AND t.department_scoped = TRUE
+        LEFT JOIN departments d ON d.id = sr.department_id
+    WHERE 
+    	(d.id IS NOT NULL) 	             -- departmentally-scoped tools
+    	OR (t.department_scoped = FALSE) -- globally-scoped tools
+    ORDER BY netid, tool_name, department_name"""    
 
-    let mapTools filter (cn:Cn) = 
-        parseQueryAndParam queryToolsSql filter
-        |> cn.QueryAsync<Tool>
+    let map<'T> query filter (cn:Cn) = 
+        parseQueryAndParam query filter
+        |> cn.QueryAsync<'T>
 
     let mapTool id = 
-        mapTools (WhereId("t.id", id))
+        map<Tool> queryToolsSql (WhereId("t.id", id))
 
     let queryTools connStr =
-        fetchAll<Tool> connStr (mapTools(Unfiltered))
+        fetchAll<Tool> connStr (map queryToolsSql Unfiltered)
+
+    let queryToolPermissions connStr =
+        fetchAll<ToolPermission> connStr (map queryToolPermissionsSql Unfiltered)
 
     let queryTool connStr id =
         fetchOne<Tool> connStr mapTool id
@@ -480,12 +359,24 @@ module Database =
     let deleteMemberTool connStr memberTool =
         delete<MemberTool> connStr (identity memberTool)
    
+    // *********************
+    // HR Lookups
+    // *********************
 
+    let lookupCanonicalHrPeople sharedSecret (query:NetId option) =
+        match query with
+        | None -> Ok Seq.empty<Person> |> ar
+        | Some(q) ->
+            let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" q
+            let msg = new HttpRequestMessage(HttpMethod.Get, url)
+            msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
+            sendAsync<seq<Person>> msg
 
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr
         GetAll = queryPeople connStr
         Get = queryPerson connStr
+        Create = insertPerson connStr
         GetMemberships = queryPersonMemberships connStr
     }
 
@@ -526,6 +417,7 @@ module Database =
 
     let ToolsRepository (connStr) : ToolsRepository = {
         GetAll = fun () -> queryTools connStr
+        GetAllPermissions = fun () -> queryToolPermissions connStr
         Get = queryTool connStr
     }
 
@@ -537,7 +429,11 @@ module Database =
         Delete = deleteSupportRelationship connStr
     }
 
-    let DatabaseRepository(connStr) = {
+    let HrRepository(sharedSecret) = {
+        GetAllPeople = lookupCanonicalHrPeople sharedSecret
+    }
+
+    let Repository(connStr, sharedSecret) = {
         People = People(connStr)
         Departments = Departments(connStr)
         Units = Units(connStr)
@@ -545,4 +441,5 @@ module Database =
         MemberTools = MemberToolsRepository(connStr)
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
+        Hr = HrRepository(sharedSecret)
     }

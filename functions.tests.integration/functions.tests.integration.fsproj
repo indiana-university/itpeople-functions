@@ -30,6 +30,7 @@
     <PackageReference Include="FsUnit.xUnit" Version="3.4.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../core/core.fsproj" />    
     <ProjectReference Include="../functions/functions.fsproj" />    
     <ProjectReference Include="../functions.tests.stateserver/functions.tests.stateserver.fsproj" />    
     <ProjectReference Include="../database/database.fsproj" />

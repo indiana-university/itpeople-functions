@@ -15,6 +15,7 @@
     </PackageReleaseNotes>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mattfrear/Swashbuckle.AspNetCoreFilters.git</RepositoryUrl>
+    <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -5,8 +5,8 @@ namespace Functions
 
 module Json =
 
-    open Types
-    open Util
+    open Core.Types
+    open Core.Util
     open System
     open System.Net.Http
     open Microsoft.FSharp.Reflection

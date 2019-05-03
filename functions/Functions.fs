@@ -3,19 +3,21 @@
 
 namespace Functions
 
-open Types
+open Core.Types
+open Core.Util
+
 open Json
 open Api
 open Jwt
-open Util
 open Logging
 open Validation
-open Fakes
+open Examples
 
-open Microsoft.Azure.WebJobs
 open System
 open System.Net.Http
+open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Extensions.Http
+open Microsoft.Extensions.Logging
 
 open Swashbuckle.AspNetCore.Annotations
 open Swashbuckle.AspNetCore.Filters
@@ -29,8 +31,13 @@ module Functions =
     /// Dependencies are resolved once at startup.
     let openApiSpec = lazy (generateOpenAPISpec())
     let config = getConfiguration()
-    let data = getData config
-    let log = createLogger config
+    let data = 
+        if config.UseFakes
+        then FakesRepository.Repository
+        else
+            Database.Command.init()
+            DatabaseRepository.Repository(config.DbConnectionString, config.SharedSecret)
+    let log = createLogger config.DbConnectionString
 
     // FUNCTION WORKFLOW HELPERS 
 
@@ -174,7 +181,7 @@ module Functions =
     let getPerson personId _ = data.People.Get personId
 
     [<FunctionName("PeopleGetAll")>]
-    [<SwaggerOperation(Summary="List all people", Description="Search for people by name and/or username (netid).", Tags=[|"People"|])>]
+    [<SwaggerOperation(Summary="List all IT people", Description="Search for IT people by name or username (netid).", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let peopleGetAll
@@ -183,6 +190,38 @@ module Functions =
             authenticate 
             >=> fun _ -> tryQueryParam "q" req
             >=> data.People.GetAll
+        get req workflow
+
+    let lookup data query = async {
+        let! directoryTask = data.People.GetAll query |> Async.StartChild
+        let! hrTask = data.Hr.GetAllPeople query |> Async.StartChild
+        let! directoryResult = directoryTask
+        let! hrResult = hrTask
+        let notInDirectory (d:seq<Person>) (h':Person) = 
+            d |> Seq.exists (fun d' -> d'.NetId = h'.NetId) |> not
+        let result =
+            match (directoryResult, hrResult) with
+            | (Ok(d), Ok(h)) -> 
+                h 
+                |> Seq.filter (notInDirectory d)
+                |> Seq.append d
+                |> Seq.sortBy (fun x -> x.NetId)
+                |> Ok
+            | (Error(_), _) -> directoryResult
+            | (_, Error(_)) -> hrResult
+        return result
+    }
+
+    [<FunctionName("PeopleLookupAll")>]
+    [<SwaggerOperation(Summary="Lookup all staff", Description="Search for staff, including IT People, by name or username (netid).", Tags=[|"People"|])>]
+    [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
+    [<OptionalQueryParameter("q", typeof<string>)>]
+    let peopleLookupAll
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people-lookup")>] req) =
+        let workflow = 
+            authenticate 
+            >=> fun _ -> tryQueryParam "q" req
+            >=> lookup data
         get req workflow
 
     [<FunctionName("PeopleGetById")>]
@@ -366,6 +405,29 @@ module Functions =
             >=> fun _ -> data.Memberships.Get membershipId
         get req workflow
 
+    let ensurePersonInDirectory lookupHrPeople addPersonToDirectory (um:UnitMember) =
+        let findPersonWithMatchingNetId (results:seq<Person>) =
+            let resultsMatchingNetId = 
+                results 
+                |> Seq.filter (fun r -> r.NetId.ToLowerInvariant() = um.NetId.Value.ToLowerInvariant())
+            match resultsMatchingNetId with
+            | EmptySeq -> Error(Status.BadRequest, "No person found with that username.") |> ar
+            | _ -> 
+                let person = results |> Seq.head
+                { person with PhotoUrl="" } |> Ok |> ar
+        let resolveUnitMember (person:Person) = 
+            Ok {um with PersonId=Some(person.Id)} |> ar
+        match (um.PersonId, um.NetId) with
+        | (None, None) 
+        | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
+        | (None, netid)
+        | (Some(0), netid) -> // We don't have this person in the directory. Add them now.
+            lookupHrPeople netid
+            >>= findPersonWithMatchingNetId
+            >>= addPersonToDirectory
+            >>= resolveUnitMember
+        | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
+
     [<FunctionName("MemberCreate")>]
     [<SwaggerOperation(Summary="Create a unit membership.", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
@@ -379,6 +441,7 @@ module Functions =
             deserializeBody<UnitMember>
             >=> setMembershipId 0
             >=> authorize req canModifyUnit
+            >=> ensurePersonInDirectory data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForCreate
             >=> data.Memberships.Create
         create req workflow
@@ -398,6 +461,7 @@ module Functions =
             >=> setMembershipId membershipId
             >=> ensureEntityExistsForModel data.Memberships.Get
             >=> authorize req canModifyUnit
+            >=> ensurePersonInDirectory data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForUpdate
             >=> data.Memberships.Update
         update req workflow
@@ -627,3 +691,18 @@ module Functions =
             >=> relationshipValidator.ValidForDelete
             >=> data.SupportRelationships.Delete
         delete req workflow
+
+
+    // ********************
+    // ** Tool Permissions
+    // ********************
+
+    [<FunctionName("ToolPermissionsGetAll")>]
+    [<SwaggerOperation(Summary="List all person-tool-department relationships.", Tags=[|"Tool Permissions"|])>]
+    [<SwaggerResponse(200, "A collection of tool permission records", typeof<ToolPermission seq>)>]
+    let toolPermissionsGetAll
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "toolPermissions")>] req) =
+        let workflow = 
+            authenticate
+            >=> fun _ -> data.Tools.GetAllPermissions ()
+        get req workflow

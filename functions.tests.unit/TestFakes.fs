@@ -3,7 +3,7 @@
 
 namespace Tests
 
-open Functions.Types
+open Core.Types
 open System.Net.Http
 
 module TestFakes =
@@ -33,4 +33,5 @@ module TestFakes =
         DbConnectionString="db connectionString"
         UseFakes=false
         CorsHosts="*"
+        SharedSecret="shared secret"
     }

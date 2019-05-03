@@ -7,12 +7,12 @@ module DatabaseTests=
 
     open Xunit
     open Xunit.Abstractions
-    open Functions.Types
-    open Functions.Fakes
-    open Functions.Database
+    open Core.Types
+    open Core.Fakes
     open TestFixture
     open FsUnit.Xunit
     open Database.Fakes
+    open Functions.DatabaseRepository
 
     let await (asyncResult:Async<Result<'T,_>>) = 
         asyncResult |> Async.RunSynchronously
@@ -28,7 +28,7 @@ module DatabaseTests=
 
     type AuthTests(output:ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
-        let repo = Functions.Database.People(testConnectionString)
+        let repo = Functions.DatabaseRepository.People(testConnectionString)
 
         [<Fact>]
         member __.``Fetches some person ID for valid netid`` () =
@@ -44,7 +44,7 @@ module DatabaseTests=
 
     type UnitsRead(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
-        let repo = DatabaseRepository(testConnectionString)
+        let repo = Repository(testConnectionString, "")
 
         [<Fact>]
         member __.``Units have non-zero IDs`` () =
@@ -98,7 +98,7 @@ module DatabaseTests=
 
     type UnitsWrite(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
-        let repo = DatabaseRepository(testConnectionString)
+        let repo = Repository(testConnectionString, "")
 
         [<Fact>]
         member __.``Create`` () = 
