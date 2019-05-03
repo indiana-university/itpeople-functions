@@ -44,7 +44,7 @@ module DatabaseTests=
 
     type UnitsRead(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
-        let repo = Repository(testConnectionString)
+        let repo = Repository(testConnectionString, "")
 
         [<Fact>]
         member __.``Units have non-zero IDs`` () =
@@ -98,7 +98,7 @@ module DatabaseTests=
 
     type UnitsWrite(output: ITestOutputHelper)=
         inherit DatabaseIntegrationTestBase()
-        let repo = Repository(testConnectionString)
+        let repo = Repository(testConnectionString, "")
 
         [<Fact>]
         member __.``Create`` () = 

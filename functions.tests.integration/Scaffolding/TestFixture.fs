@@ -59,6 +59,7 @@ module TestFixture =
             Environment.SetEnvironmentVariable("OAuthClientSecret","na")
             Environment.SetEnvironmentVariable("OAuthTokenUrl","na")
             Environment.SetEnvironmentVariable("OAuthRedirectUrl","na")
+            Environment.SetEnvironmentVariable("SharedSecret","na")
 
             // "---> Starting functions host..." |> Console.WriteLine
             functionsServer <- startTestServer functionServerPort functionServerScriptPath output |> Async.RunSynchronously

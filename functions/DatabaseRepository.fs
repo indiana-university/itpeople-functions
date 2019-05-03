@@ -3,8 +3,12 @@
 
 namespace Functions
 
+open System.Net.Http
+open System.Net.Http.Headers
+
 open Core.Types
 open Database.Command
+open Api
 open Dapper
 
 module DatabaseRepository =
@@ -274,6 +278,15 @@ module DatabaseRepository =
         return result
     }
 
+    let insertPerson connStr person =
+        queryDepartments connStr (Some(person.Notes))
+        >>= fun results -> 
+                if Seq.isEmpty results
+                then Error(Status.BadRequest, (sprintf "This person's department, '%s', is not known to the IT People directory." person.Notes)) |> ar
+                else results |> Seq.head |> Ok |> ar
+        >>= fun d -> { person with Notes=""; DepartmentId=d.Id } |> Ok |> ar
+        >>= insert<Person> connStr mapPerson
+
     let queryPersonMemberships connStr id =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
         >>= collectMemberTools
@@ -346,12 +359,24 @@ module DatabaseRepository =
     let deleteMemberTool connStr memberTool =
         delete<MemberTool> connStr (identity memberTool)
    
+    // *********************
+    // HR Lookups
+    // *********************
 
+    let lookupCanonicalHrPeople sharedSecret (query:NetId option) =
+        match query with
+        | None -> Ok Seq.empty<Person> |> ar
+        | Some(q) ->
+            let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" q
+            let msg = new HttpRequestMessage(HttpMethod.Get, url)
+            msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
+            sendAsync<seq<Person>> msg
 
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr
         GetAll = queryPeople connStr
         Get = queryPerson connStr
+        Create = insertPerson connStr
         GetMemberships = queryPersonMemberships connStr
     }
 
@@ -404,7 +429,11 @@ module DatabaseRepository =
         Delete = deleteSupportRelationship connStr
     }
 
-    let Repository(connStr) = {
+    let HrRepository(sharedSecret) = {
+        GetAllPeople = lookupCanonicalHrPeople sharedSecret
+    }
+
+    let Repository(connStr, sharedSecret) = {
         People = People(connStr)
         Departments = Departments(connStr)
         Units = Units(connStr)
@@ -412,4 +441,5 @@ module DatabaseRepository =
         MemberTools = MemberToolsRepository(connStr)
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
+        Hr = HrRepository(sharedSecret)
     }

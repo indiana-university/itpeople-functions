@@ -52,14 +52,8 @@ module Api =
             DbConnectionString = getRequiredValue<string> config "DbConnectionString"
             UseFakes = getValueOrDefault<bool> config "UseFakeData" false
             CorsHosts = getValueOrDefault<string> config "CorsHosts" "*"
+            SharedSecret = getRequiredValue<string> config "SharedSecret"
         }
-
-    let getData useFakes dbConnectionString =
-        if useFakes
-        then FakesRepository.Repository
-        else
-            Database.Command.init()
-            DatabaseRepository.Repository(dbConnectionString)
 
     /// HTTP REQUEST
     let client = new HttpClient()
@@ -81,16 +75,24 @@ module Api =
         else Error (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName)) |> async.Return
         
     /// Attempt to post an HTTP request and deserialize the ressponse
-    let postAsync<'T> (url:string) (content:HttpContent) = async {
+    let getResponse<'T> (responseFn:System.Threading.Tasks.Task<HttpResponseMessage>) = async {
         try
-            let! response = client.PostAsync(url, content) |> Async.AwaitTask
+            let! response = responseFn |> Async.AwaitTask
             let! content = response.Content.ReadAsStringAsync() |> Async.AwaitTask
             if (response.IsSuccessStatusCode)
             then return tryDeserialize<'T> Status.InternalServerError content
             else return Error (response.StatusCode, content)
-        with 
-        | exn -> return Error (Status.InternalServerError, exn.Message)
+        with exn -> return Error (Status.InternalServerError, exn.Message)
     }
+
+    let postAsync<'T> (url:string) (content:HttpContent) =
+        client.PostAsync(url, content) |> getResponse<'T> 
+
+    let getAsync<'T> (url:string) = 
+        client.GetAsync(url) |> getResponse<'T> 
+
+    let sendAsync<'T> (msg:HttpRequestMessage) = 
+        client.SendAsync(msg) |> getResponse<'T> 
 
     /// CORS
 

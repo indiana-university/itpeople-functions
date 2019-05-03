@@ -18,6 +18,7 @@ let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) 
 
 let (>>=) a f = bind f a
 let (>=>) f g = compose f g
+let ar = async.Return
 
 let ROLE_ADMIN = "admin"
 let ROLE_USER = "user"
@@ -43,7 +44,8 @@ type AppConfig =
     JwtSecret: string
     DbConnectionString: string
     UseFakes: bool
-    CorsHosts: string }
+    CorsHosts: string
+    SharedSecret: string }
 
 type Role =
     /// This person has an ancillary relationship to this unit. This can apply to administrative assistants or self-supporting faculty.
@@ -115,7 +117,6 @@ type Department =
 type Person = 
   { /// The unique ID of this person record.
     [<Key>][<Column("id")>] Id: Id
-    [<Column("hash")>] Hash: string
     /// The net id (username) of this person.
     [<Column("netid")>] NetId: NetId
     /// The preferred name of this person.
@@ -256,6 +257,8 @@ type UnitMember =
     /// The percentage of time allocated to this position by this person (in case of split appointments).
     [<DefaultValue(100)>]
     [<Column("percentage")>] Percentage: int
+    /// The netid of the person related to this membership.
+    [<ReadOnly(true)>][<Column("netid")>] NetId: NetId option
     /// The person related to this membership.
     [<ReadOnly(true)>][<Column("person")>] Person: Person option
     /// The unit related to this membership.
@@ -310,6 +313,8 @@ type PeopleRepository = {
     GetAll: Filter option -> Async<Result<Person seq,Error>>
     /// Get a single person by ID
     Get: PersonId -> Async<Result<Person,Error>>
+    /// Create a person from canonical HR data
+    Create: Person -> Async<Result<Person,Error>>
     /// Get a list of a person's unit memberships
     GetMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
 }
@@ -394,6 +399,11 @@ type SupportRelationshipRepository = {
     Delete : SupportRelationship -> Async<Result<unit,Error>>
 }
 
+type HrDataRepository = {
+    /// Get a list of all people from a canonical source
+    GetAllPeople: Filter option -> Async<Result<Person seq,Error>>
+}
+
 type DataRepository = {
     People: PeopleRepository
     Units: UnitRepository
@@ -402,6 +412,7 @@ type DataRepository = {
     MemberTools: MemberToolsRepository
     Tools: ToolsRepository
     SupportRelationships: SupportRelationshipRepository
+    Hr: HrDataRepository
 }
 
 let stub a = a |> Ok |> async.Return
