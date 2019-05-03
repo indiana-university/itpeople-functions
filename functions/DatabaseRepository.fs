@@ -278,8 +278,14 @@ module DatabaseRepository =
         return result
     }
 
-    let insertPerson connStr =
-        insert<Person> connStr mapPerson
+    let insertPerson connStr person =
+        queryDepartments connStr (Some(person.Notes))
+        >>= fun results -> 
+                if Seq.isEmpty results
+                then Error(Status.BadRequest, (sprintf "This person's department, '%s', is not known to the IT People directory." person.Notes)) |> ar
+                else results |> Seq.head |> Ok |> ar
+        >>= fun d -> { person with Notes=""; DepartmentId=d.Id } |> Ok |> ar
+        >>= insert<Person> connStr mapPerson
 
     let queryPersonMemberships connStr id =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))

@@ -314,7 +314,7 @@ type PeopleRepository = {
     GetAll: Filter option -> Async<Result<Person seq,Error>>
     /// Get a single person by ID
     Get: PersonId -> Async<Result<Person,Error>>
-    /// Create a person
+    /// Create a person from canonical HR data
     Create: Person -> Async<Result<Person,Error>>
     /// Get a list of a person's unit memberships
     GetMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
