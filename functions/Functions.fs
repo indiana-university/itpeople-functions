@@ -17,6 +17,7 @@ open System
 open System.Net.Http
 open Microsoft.Azure.WebJobs
 open Microsoft.Azure.WebJobs.Extensions.Http
+open Microsoft.Extensions.Logging
 
 open Swashbuckle.AspNetCore.Annotations
 open Swashbuckle.AspNetCore.Filters
@@ -413,13 +414,15 @@ module Functions =
         let resolveUnitMember (person:Person) = 
             Ok {um with PersonId=Some(person.Id)} |> ar
         match (um.PersonId, um.NetId) with
-        | (Some(_), _) -> Ok um |> ar // known person
-        | (None, None) -> Ok um |> ar // vacancy
-        | (None, netid) -> // we don't have this person in the directory.
+        | (None, None) 
+        | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
+        | (None, netid)
+        | (Some(0), netid) -> // We don't have this person in the directory. Add them now.
             getPersonFromHr netid
             >>= assertSinglePersonFound
             >>= addPersonToDirectory
             >>= resolveUnitMember
+        | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
 
     [<FunctionName("MemberCreate")>]
     [<SwaggerOperation(Summary="Create a unit membership.", Tags=[|"Unit Memberships"|])>]
