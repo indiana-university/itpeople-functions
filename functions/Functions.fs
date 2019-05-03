@@ -405,12 +405,16 @@ module Functions =
             >=> fun _ -> data.Memberships.Get membershipId
         get req workflow
 
-    let ensurePersonInDirectory getPersonFromHr addPersonToDirectory (um:UnitMember) =
-        let assertSinglePersonFound results =
-            match Seq.length results with
-            | 1 -> results |> Seq.head |> Ok |> ar
-            | 0 -> Error(Status.BadRequest, "No person found with that username.") |> ar
-            | _ -> Error(Status.BadRequest, "Multiple staff members found with that username.") |> ar
+    let ensurePersonInDirectory lookupHrPeople addPersonToDirectory (um:UnitMember) =
+        let findPersonWithMatchingNetId (results:seq<Person>) =
+            let resultsMatchingNetId = 
+                results 
+                |> Seq.filter (fun r -> r.NetId.ToLowerInvariant() = um.NetId.Value.ToLowerInvariant())
+            match resultsMatchingNetId with
+            | EmptySeq -> Error(Status.BadRequest, "No person found with that username.") |> ar
+            | _ -> 
+                let person = results |> Seq.head
+                { person with PhotoUrl="" } |> Ok |> ar
         let resolveUnitMember (person:Person) = 
             Ok {um with PersonId=Some(person.Id)} |> ar
         match (um.PersonId, um.NetId) with
@@ -418,8 +422,8 @@ module Functions =
         | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
         | (None, netid)
         | (Some(0), netid) -> // We don't have this person in the directory. Add them now.
-            getPersonFromHr netid
-            >>= assertSinglePersonFound
+            lookupHrPeople netid
+            >>= findPersonWithMatchingNetId
             >>= addPersonToDirectory
             >>= resolveUnitMember
         | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
