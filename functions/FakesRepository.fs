@@ -69,6 +69,12 @@ module FakesRepository =
     let FakeHr = {
         GetAllPeople = fun query -> stub ([ swanson ] |> List.toSeq)
     }
+
+    let FakeAuthorization : AuthorizationRepository = {
+        IsServiceAdmin = fun id -> stub true
+        IsUnitManager = fun netid id -> stub true
+        IsUnitToolManager = fun netid id -> stub true
+    }
     
     let Repository = {
         People = FakePeople
@@ -79,5 +85,6 @@ module FakesRepository =
         Tools = FakeToolsRepository
         SupportRelationships = FakeSupportRelationships
         Hr = FakeHr
+        Authorization = FakeAuthorization
     }
 

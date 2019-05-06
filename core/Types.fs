@@ -404,6 +404,12 @@ type HrDataRepository = {
     GetAllPeople: Filter option -> Async<Result<Person seq,Error>>
 }
 
+type AuthorizationRepository = {
+    IsServiceAdmin: NetId -> Async<Result<bool, Error>>
+    IsUnitManager: NetId -> Id -> Async<Result<bool, Error>>
+    IsUnitToolManager: NetId -> Id -> Async<Result<bool, Error>>
+}
+
 type DataRepository = {
     People: PeopleRepository
     Units: UnitRepository
@@ -413,6 +419,7 @@ type DataRepository = {
     Tools: ToolsRepository
     SupportRelationships: SupportRelationshipRepository
     Hr: HrDataRepository
+    Authorization: AuthorizationRepository
 }
 
 let stub a = a |> Ok |> async.Return

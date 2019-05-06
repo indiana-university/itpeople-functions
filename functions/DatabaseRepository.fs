@@ -433,6 +433,12 @@ module DatabaseRepository =
         GetAllPeople = lookupCanonicalHrPeople sharedSecret
     }
 
+    let AuthorizationRepository(connStr) = {
+        IsServiceAdmin = fun id -> new System.NotImplementedException () |> raise
+        IsUnitManager = fun netid id -> new System.NotImplementedException () |> raise
+        IsUnitToolManager = fun netid id -> new System.NotImplementedException () |> raise
+    }
+
     let Repository(connStr, sharedSecret) = {
         People = People(connStr)
         Departments = Departments(connStr)
@@ -442,4 +448,5 @@ module DatabaseRepository =
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
         Hr = HrRepository(sharedSecret)
+        Authorization = AuthorizationRepository(connStr)
     }
