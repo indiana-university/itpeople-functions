@@ -19,6 +19,8 @@ let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) 
 let (>>=) a f = bind f a
 let (>=>) f g = compose f g
 let ar = async.Return
+let ok x = x |> Ok |> async.Return
+let error(status, msg) = Error(status, msg) |> async.Return  
 
 let ROLE_ADMIN = "admin"
 let ROLE_USER = "user"
