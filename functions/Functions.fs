@@ -9,6 +9,7 @@ open Core.Util
 open Json
 open Api
 open Jwt
+open Authorization
 open Logging
 open Validation
 open Examples
@@ -54,11 +55,6 @@ module Functions =
         addProperty req WorkflowUser user.UserName
         Ok user |> async.Return
     
-    /// Temporary: a list of IT people admins.
-    let isAdmin (user:JwtClaims) =
-        let admins = [ "jhoerr"; "kendjone"; "jerussel"; "brrund"; "mattzink"; "johndoe" ]
-        admins |> List.contains user.UserName
-
     /// Temporary: if this user is an admin, give them read/write access, else read-only.
     let determineUserPermissions (req:HttpRequestMessage) (user:JwtClaims) =
         let perms = 
@@ -78,9 +74,9 @@ module Functions =
         >>= recordAuthenticatedUser req
         >>= determineUserPermissions req
 
-    let authorize<'T> req (authFn: 'T -> JwtClaims -> Async<Result<'T,Error>>) (model:'T) =
+    let authorize<'T> req (authFn: AuthorizationRepository -> 'T -> JwtClaims -> Async<Result<'T,Error>>) (model:'T) =
         authenticate req
-        >>= authFn model
+        >>= authFn data.Authorization model
 
     /// Execute a workflow for an authenticated user and return a response.
     let execute (successStatus:Status) (req:HttpRequestMessage) workflow  = 
@@ -97,20 +93,6 @@ module Functions =
     let update req workflow = execute Status.OK req workflow
     let delete req workflow = execute Status.NoContent req workflow
 
-    let canCreateDeleteUnit model user  =
-        if isAdmin user
-        then Ok model |> async.Return
-        else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> async.Return
-
-    let canModifyUnit model user =
-        if isAdmin user
-        then Ok model |> async.Return
-        else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> async.Return
-
-    let canModifyUnitMemberTools model user =
-        if isAdmin user
-        then Ok model |> async.Return
-        else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> async.Return
 
     let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'a,Error>> = async {
         let! result = getter (identity model)
