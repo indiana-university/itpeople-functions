@@ -93,7 +93,7 @@ module Command =
             use cn = new NpgsqlConnection(connStr)
             let! result = cn |> mapper |> Async.AwaitTask
             return Ok result
-        with exn -> return handleDbExn "fetch all" (typedefof<'T>.Name) exn
+        with exn -> return handleDbExn "fetch+map all" (typedefof<'T>.Name) exn
     }
 
     let fetchOne<'T> connStr (mapper:MapOne<'T>) id  = async {
@@ -103,7 +103,15 @@ module Command =
             if Seq.isEmpty result 
             then return Error(Status.NotFound, sprintf "No %s was found with ID %d." (typedefof<'T>.Name) id)
             else return result |> Seq.head |> Ok
-        with exn -> return handleDbExn "fetch one" (typedefof<'T>.Name) exn
+        with exn -> return handleDbExn "fetch+map one" (typedefof<'T>.Name) exn
+    }
+
+    let fetch<'T> connStr (queryFn:Cn -> Task<'T>)  = async {
+        try
+            use cn = new NpgsqlConnection(connStr)
+            let! result = cn |> queryFn |> Async.AwaitTask
+            return result |> Ok
+        with exn -> return handleDbExn "fetch" (typedefof<'T>.Name) exn
     }
 
     let insertImpl<'T> connStr (obj:'T) = async {
