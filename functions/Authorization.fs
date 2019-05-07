@@ -3,24 +3,29 @@ module Functions.Authorization
 open System
 open Core.Types
 
-/// Temporary: a list of IT people admins.
-let isAdmin (user:JwtClaims) =
-    let admins = [ "jhoerr"; "kendjone"; "jerussel"; "brrund"; "mattzink"; "johndoe" ]
-    admins |> List.contains user.UserName
+let canCreateDeleteUnit auth netid  =
+    auth.IsServiceAdmin netid
 
-let parseAuthResult model result =
-    if result
-    then Ok model |> ar
-    else Error (Status.Forbidden, "You are not authorized to modify this resource.") |> ar
+let canModifyUnit unitId auth netid =
+    auth.IsUnitManager netid unitId 
 
-let canCreateDeleteUnit auth model user  =
-    auth.IsServiceAdmin user.UserName
-    >>= parseAuthResult model
+let canModifyUnitMemberTools unitId auth netid = 
+    auth.IsUnitToolManager netid unitId 
 
-let canModifyUnit auth model user =
-    auth.IsUnitManager user.UserName 0
-    >>= parseAuthResult model
+let parsePermissionResult canModify = 
+    if canModify
+    then ok [GET; POST; PUT; DELETE]
+    else ok [GET;]
 
-let canModifyUnitMemberTools auth model user = 
-    auth.IsUnitToolManager user.UserName 0
-    >>= parseAuthResult model
+let determineAuthenticatedUserPermissions (authRepo:AuthorizationRepository) authFn (netid:NetId) =
+    authFn authRepo netid
+    >>= parsePermissionResult
+
+let parseAuthorizationResult model canModify = 
+    if canModify
+    then ok model
+    else error (Status.Forbidden, "You are not authorized to modify this resource.")
+
+let authorizeRequest<'T> (authRepo:AuthorizationRepository) (model:'T) authFn (netid:NetId) =
+    authFn authRepo netid
+    >>= parseAuthorizationResult model

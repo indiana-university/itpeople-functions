@@ -51,6 +51,7 @@ module FakesRepository =
         Create = fun req -> stub memberTool
         Update = fun req -> stub memberTool
         Delete = fun id -> stub ()
+        GetMember = fun tool -> stub (tool, knopeMembership)
     }
 
     let FakeToolsRepository : ToolsRepository = {

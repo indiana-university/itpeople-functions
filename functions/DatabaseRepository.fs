@@ -358,6 +358,10 @@ module DatabaseRepository =
 
     let deleteMemberTool connStr memberTool =
         delete<MemberTool> connStr (identity memberTool)
+
+    let getMemberToolMember connStr (memberTool:MemberTool) =
+        queryMembership connStr memberTool.MembershipId
+        >>= fun membership -> ok (memberTool, membership)
    
     // *********************
     // HR Lookups
@@ -469,6 +473,7 @@ module DatabaseRepository =
         Create = insertMemberTool connStr
         Update = updateMemberTool connStr
         Delete = deleteMemberTool connStr
+        GetMember = getMemberToolMember connStr
     }
 
     let ToolsRepository (connStr) : ToolsRepository = {

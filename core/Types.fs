@@ -386,6 +386,8 @@ type MemberToolsRepository = {
     Update: MemberTool -> Async<Result<MemberTool,Error>>
     /// Delete a unit membership
     Delete: MemberTool -> Async<Result<unit,Error>>
+    // Get the membership that goes along with the member tool.
+    GetMember: MemberTool -> Async<Result<MemberTool*UnitMember,Error>>
 }
 
 type SupportRelationshipRepository = {
