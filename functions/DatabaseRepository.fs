@@ -395,21 +395,17 @@ module DatabaseRepository =
        FROM units u
        INNER JOIN parentage p ON p.parent_id = u.id
     ) 
-    SELECT 
-    	-- select 'true' if this person has the specified permissions
-    	-- in this unit or any parent unit and 'false' otherwise.
-    	CASE WHEN EXISTS (
-    		SELECT pa.id, um.role, pe.netid
-    		FROM parentage pa
-    		JOIN unit_members um on pa.id = um.unit_id
-    		JOIN people pe on pe.id = um.person_id 
-    		WHERE
-    			pe.netid = @NetId 
-    			AND um.permissions = ANY(@UnitPermissions)
-    	) 
-    	THEN TRUE
-    	ELSE FALSE
-    	END"""
+	-- select 'true' if this person has the specified permissions
+	-- in this unit or any parent unit and 'false' otherwise.
+    SELECT EXISTS (
+		SELECT pa.id, um.role, pe.netid
+		FROM parentage pa
+		JOIN unit_members um on pa.id = um.unit_id
+		JOIN people pe on pe.id = um.person_id 
+		WHERE
+			pe.netid = @NetId 
+			AND um.permissions = ANY(@UnitPermissions)
+    ) """
 
     type AuthParams = {UnitId: Id; NetId: NetId; UnitPermissions: int[]}
 
