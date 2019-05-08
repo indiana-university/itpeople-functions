@@ -397,7 +397,7 @@ module Functions =
             >=> fun membership -> permission req (canModifyUnit membership.UnitId) membership 
         get req workflow
 
-    let ensurePersonInDirectory lookupHrPeople addPersonToDirectory (um:UnitMember) =
+    let ensurePersonInDirectory lookupDirectoryPeople lookupHrPeople addPersonToDirectory (um:UnitMember) =
         let findPersonWithMatchingNetId (results:seq<Person>) =
             let resultsMatchingNetId = 
                 results 
@@ -409,15 +409,21 @@ module Functions =
                 { person with PhotoUrl="" } |> Ok |> ar
         let resolveUnitMember (person:Person) = 
             Ok {um with PersonId=Some(person.Id)} |> ar
+        let evaluateDirectorySearch (netid:NetId, idOption:Id option) =
+            match idOption with
+            | None -> 
+                lookupHrPeople (Some(netid))
+                >>= findPersonWithMatchingNetId
+                >>= addPersonToDirectory
+                >>= resolveUnitMember
+            | Some(id) -> { um with PersonId=Some(id)} |> ok
         match (um.PersonId, um.NetId) with
         | (None, None) 
         | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
-        | (None, netid)
-        | (Some(0), netid) -> // We don't have this person in the directory. Add them now.
-            lookupHrPeople netid
-            >>= findPersonWithMatchingNetId
-            >>= addPersonToDirectory
-            >>= resolveUnitMember
+        | (None, Some(netid))
+        | (Some(0), Some(netid)) -> // We don't have this person in the directory. Add them now.
+            lookupDirectoryPeople netid
+            >>= evaluateDirectorySearch
         | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
 
     [<FunctionName("MemberCreate")>]
@@ -433,7 +439,7 @@ module Functions =
             deserializeBody<UnitMember>
             >=> setMembershipId 0
             >=> fun membership -> authorize req (canModifyUnit membership.UnitId) membership
-            >=> ensurePersonInDirectory data.Hr.GetAllPeople data.People.Create
+            >=> ensurePersonInDirectory data.People.TryGetId data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForCreate
             >=> data.Memberships.Create
         create req workflow
@@ -453,7 +459,7 @@ module Functions =
             >=> setMembershipId membershipId
             >=> ensureEntityExistsForModel data.Memberships.Get
             >=> fun membership -> authorize req (canModifyUnit membership.UnitId) membership
-            >=> ensurePersonInDirectory data.Hr.GetAllPeople data.People.Create
+            >=> ensurePersonInDirectory data.People.TryGetId data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForUpdate
             >=> data.Memberships.Update
         update req workflow
