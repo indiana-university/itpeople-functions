@@ -374,6 +374,10 @@ module Functions =
 
     let membershipValidator = membershipValidator(data)
     let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
+    let authorizeMembershipUnitModification req (membership:UnitMember) =
+        authorize req (canModifyUnit membership.UnitId) membership
+    let permissionMembership req (membership:UnitMember) =
+        permission req (canModifyUnit membership.UnitId) membership     
 
     [<FunctionName("MemberGetAll")>]
     [<SwaggerOperation(Summary="List all unit memberships", Tags=[|"Unit Memberships"|])>]
@@ -394,7 +398,7 @@ module Functions =
         let workflow = 
             authenticate
             >=> fun _ -> data.Memberships.Get membershipId
-            >=> fun membership -> permission req (canModifyUnit membership.UnitId) membership 
+            >=> permissionMembership req
         get req workflow
 
     let ensurePersonInDirectory lookupDirectoryPeople lookupHrPeople addPersonToDirectory (um:UnitMember) =
@@ -438,7 +442,7 @@ module Functions =
         let workflow = 
             deserializeBody<UnitMember>
             >=> setMembershipId 0
-            >=> fun membership -> authorize req (canModifyUnit membership.UnitId) membership
+            >=> authorizeMembershipUnitModification req
             >=> ensurePersonInDirectory data.People.TryGetId data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForCreate
             >=> data.Memberships.Create
@@ -458,7 +462,7 @@ module Functions =
             deserializeBody<UnitMember>
             >=> setMembershipId membershipId
             >=> ensureEntityExistsForModel data.Memberships.Get
-            >=> fun membership -> authorize req (canModifyUnit membership.UnitId) membership
+            >=> authorizeMembershipUnitModification req
             >=> ensurePersonInDirectory data.People.TryGetId data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForUpdate
             >=> data.Memberships.Update
@@ -473,7 +477,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow =
             fun _ -> data.Memberships.Get membershipId
-            >=> fun membership -> authorize req (canModifyUnit membership.UnitId) membership
+            >=> authorizeMembershipUnitModification req
             >=> membershipValidator.ValidForDelete
             >=> data.Memberships.Delete
         delete req workflow
