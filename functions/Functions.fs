@@ -489,6 +489,10 @@ module Functions =
 
     let memberToolValidator = memberToolValidator(data)
     let setMemberToolId id (a:MemberTool) = Ok { a with Id=id } |> async.Return
+    let authorizeMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
+        authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
+    let permissionMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
+        permission req (canModifyUnitMemberTools unitMember.UnitId) tool
 
     [<FunctionName("MemberToolsGetAll")>]
     [<SwaggerOperation(Summary="List all unit member tools", Tags=[|"Unit Member Tools"|])>]
@@ -510,7 +514,7 @@ module Functions =
             authenticate
             >=> fun _ -> data.MemberTools.Get memberToolId
             >=> data.MemberTools.GetMember 
-            >=> fun (tool,unitMember) -> permission req (canModifyUnitMemberTools unitMember.UnitId) tool
+            >=> permissionMemberToolUnitModification req
         get req workflow
 
     [<FunctionName("MemberToolCreate")>]
@@ -527,7 +531,7 @@ module Functions =
             >=> setMemberToolId 0
             >=> memberToolValidator.ValidForCreate
             >=> data.MemberTools.GetMember 
-            >=> fun (tool,unitMember) -> authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
+            >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Create
         create req workflow
 
@@ -547,7 +551,7 @@ module Functions =
             >=> ensureEntityExistsForModel data.MemberTools.Get
             >=> memberToolValidator.ValidForUpdate
             >=> data.MemberTools.GetMember  
-            >=> fun (tool,unitMember) -> authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
+            >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Update
         update req workflow
 
@@ -563,7 +567,7 @@ module Functions =
             fun _ -> data.MemberTools.Get memberToolId
             >=> memberToolValidator.ValidForDelete
             >=> data.MemberTools.GetMember  
-            >=> fun (tool,unitMember) -> authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
+            >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Delete
         delete req workflow
 
