@@ -358,6 +358,10 @@ module DatabaseRepository =
 
     let deleteMemberTool connStr memberTool =
         delete<MemberTool> connStr (identity memberTool)
+
+    let getMemberToolMember connStr (memberTool:MemberTool) =
+        queryMembership connStr memberTool.MembershipId
+        >>= fun membership -> ok (memberTool, membership)
    
     // *********************
     // HR Lookups
@@ -371,6 +375,58 @@ module DatabaseRepository =
             let msg = new HttpRequestMessage(HttpMethod.Get, url)
             msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
             sendAsync<seq<Person>> msg
+
+
+    let isServiceAdmin' netid = 
+        ["jhoerr"; "kendjone"; "jerussel"; "brrund"; "johndoe"] 
+        |> Seq.contains netid
+
+    let isServiceAdmin netid =  isServiceAdmin' netid |> ok
+
+    let hasCascadedUnitPermsSql = """
+    WITH RECURSIVE parentage AS (
+       -- first row
+       SELECT u.id, u.name, u.parent_id
+       FROM units u
+       WHERE u.id = @UnitId
+       UNION
+       -- recurse
+       SELECT u.id, u.name, u.parent_id
+       FROM units u
+       INNER JOIN parentage p ON p.parent_id = u.id
+    ) 
+	-- select 'true' if this person has the specified permissions
+	-- in this unit or any parent unit and 'false' otherwise.
+    SELECT EXISTS (
+		SELECT pa.id, um.role, pe.netid
+		FROM parentage pa
+		JOIN unit_members um on pa.id = um.unit_id
+		JOIN people pe on pe.id = um.person_id 
+		WHERE
+			pe.netid = @NetId 
+			AND um.permissions = ANY(@UnitPermissions)
+    ) """
+
+    type AuthParams = {UnitId: Id; NetId: NetId; UnitPermissions: int[]}
+
+    let hasCascadedUnitPerms permissions connStr netid unitId  =
+        let param = 
+          { UnitId=unitId
+            NetId=netid 
+            UnitPermissions= permissions |> Seq.map int |> Seq.toArray }
+        let query (cn:Cn) = cn.QuerySingleAsync<bool>(hasCascadedUnitPermsSql, param)
+        fetch connStr query
+
+    let isServiceAdminOrHasUnitPermissions permissions connStr netid unitId =
+        if isServiceAdmin' netid
+        then ok true
+        else hasCascadedUnitPerms permissions connStr netid unitId
+
+    let isUnitManager = 
+        isServiceAdminOrHasUnitPermissions [ UnitPermissions.Owner; UnitPermissions.ManageMembers ]
+
+    let isUnitToolManager = 
+        isServiceAdminOrHasUnitPermissions [ UnitPermissions.Owner; UnitPermissions.ManageTools ]
 
     let People(connStr) = {
         TryGetId = queryPersonByNetId connStr
@@ -413,6 +469,7 @@ module DatabaseRepository =
         Create = insertMemberTool connStr
         Update = updateMemberTool connStr
         Delete = deleteMemberTool connStr
+        GetMember = getMemberToolMember connStr
     }
 
     let ToolsRepository (connStr) : ToolsRepository = {
@@ -433,6 +490,12 @@ module DatabaseRepository =
         GetAllPeople = lookupCanonicalHrPeople sharedSecret
     }
 
+    let AuthorizationRepository(connStr) = {
+        IsServiceAdmin = isServiceAdmin
+        IsUnitManager = isUnitManager connStr
+        IsUnitToolManager = isUnitToolManager connStr
+    }
+
     let Repository(connStr, sharedSecret) = {
         People = People(connStr)
         Departments = Departments(connStr)
@@ -442,4 +505,5 @@ module DatabaseRepository =
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
         Hr = HrRepository(sharedSecret)
+        Authorization = AuthorizationRepository(connStr)
     }
