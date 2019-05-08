@@ -376,12 +376,19 @@ module DatabaseRepository =
             msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
             sendAsync<seq<Person>> msg
 
+    let isServiceAdminSql = """
+    SELECT EXISTS (
+        SELECT id 
+        FROM people
+        WHERE netid = @NetId
+            AND is_service_admin = TRUE
+        LIMIT 1
+    )"""
 
-    let isServiceAdmin' netid = 
-        ["jhoerr"; "kendjone"; "jerussel"; "brrund"; "johndoe"] 
-        |> Seq.contains netid
-
-    let isServiceAdmin netid =  isServiceAdmin' netid |> ok
+    let isServiceAdmin connStr netid =
+        let param = { NetId=netid }
+        let query (cn:Cn) = cn.QuerySingleAsync<bool>(isServiceAdminSql, param)
+        fetch connStr query
 
     let hasCascadedUnitPermsSql = """
     WITH RECURSIVE parentage AS (
@@ -418,9 +425,11 @@ module DatabaseRepository =
         fetch connStr query
 
     let isServiceAdminOrHasUnitPermissions permissions connStr netid unitId =
-        if isServiceAdmin' netid
-        then ok true
-        else hasCascadedUnitPerms permissions connStr netid unitId
+        isServiceAdmin connStr netid
+        >>= fun isServiceAdmin ->
+            if isServiceAdmin
+            then ok true
+            else hasCascadedUnitPerms permissions connStr netid unitId
 
     let isUnitManager = 
         isServiceAdminOrHasUnitPermissions [ UnitPermissions.Owner; UnitPermissions.ManageMembers ]
@@ -491,7 +500,7 @@ module DatabaseRepository =
     }
 
     let AuthorizationRepository(connStr) = {
-        IsServiceAdmin = isServiceAdmin
+        IsServiceAdmin = isServiceAdmin connStr
         IsUnitManager = isUnitManager connStr
         IsUnitToolManager = isUnitToolManager connStr
     }
