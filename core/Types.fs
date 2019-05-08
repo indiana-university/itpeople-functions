@@ -143,6 +143,8 @@ type Person =
     [<Column("responsibilities")>] Responsibilities: Responsibilities
     /// The HR department to which this person belongs.
     [<Column("department_id")>] DepartmentId: Id
+    /// Whether this person is an administrator of the IT People service.
+    [<Column("is_service_admin")>] IsServiceAdmin: bool
     /// The department in this relationship.
     [<ReadOnly(true)>] Department: Department }
 

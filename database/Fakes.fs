@@ -41,6 +41,7 @@ module Fakes =
         db.Insert<Person>(swanson) |> ignore
         db.Insert<Person>(knope) |> ignore
         db.Insert<Person>(wyatt) |> ignore
+        db.Insert<Person>(admin) |> ignore
         // unit membership
         db.Insert<UnitMember>(swansonMembership) |> ignore
         db.Insert<UnitMember>(knopeMembership) |> ignore

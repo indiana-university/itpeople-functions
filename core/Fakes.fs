@@ -30,6 +30,7 @@ let swanson:Person = {
     Responsibilities = Responsibilities.ItLeadership
     DepartmentId=parksDept.Id
     Department=parksDept
+    IsServiceAdmin=false
 }
 
 let knope:Person = {
@@ -47,6 +48,7 @@ let knope:Person = {
     Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
     DepartmentId=parksDept.Id
     Department=parksDept
+    IsServiceAdmin=false
 }
 
 let wyatt:Person = {
@@ -64,6 +66,25 @@ let wyatt:Person = {
     Responsibilities = Responsibilities.ItProjectMgt
     DepartmentId=parksDept.Id
     Department=parksDept
+    IsServiceAdmin=false
+}
+
+let admin = {
+    Id=3
+    NetId="johndoe"
+    Name="Doe, John"
+    Position="Admin"
+    Location=""
+    Campus=""
+    CampusPhone=""
+    CampusEmail="johndoe@pawnee.in.us"
+    Expertise="Services; Administration"
+    Notes=""
+    PhotoUrl=""
+    Responsibilities = Responsibilities.None
+    DepartmentId=parksDept.Id
+    Department=parksDept
+    IsServiceAdmin=true
 }
 
 let tool: Tool = 
