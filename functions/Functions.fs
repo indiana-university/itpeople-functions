@@ -627,6 +627,10 @@ module Functions =
 
     let setRelationshipId id (a:SupportRelationship) = Ok { a with Id=id } |> async.Return
     let relationshipValidator = supportRelationshipValidator data
+    let authorizeSupportRelationshipUnitModification req (rel:SupportRelationship) =
+        authorize req (canModifyUnit rel.UnitId) rel
+    let permissionSupportRelationshipUnitModification req (rel:SupportRelationship) =
+        permission req (canModifyUnit rel.UnitId) rel
 
     [<FunctionName("SupportRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-department support relationships.", Tags=[|"Support Relationships"|])>]
@@ -647,7 +651,7 @@ module Functions =
         let workflow =
             authenticate
             >=> fun _ -> data.SupportRelationships.Get relationshipId
-            >=> fun rel -> permission req (canModifyUnit rel.UnitId) rel
+            >=> permissionSupportRelationshipUnitModification req
         get req workflow
 
     [<FunctionName("SupportRelationshipsCreate")>]
@@ -663,7 +667,7 @@ module Functions =
             deserializeBody<SupportRelationship>
             >=> setRelationshipId 0
             >=> relationshipValidator.ValidForCreate
-            >=> fun sr -> authorize req (canModifyUnit sr.UnitId) sr
+            >=> authorizeSupportRelationshipUnitModification req
             >=> data.SupportRelationships.Create          
         create req workflow
 
@@ -682,7 +686,7 @@ module Functions =
             >=> setRelationshipId relationshipId
             >=> ensureEntityExistsForModel data.SupportRelationships.Get
             >=> relationshipValidator.ValidForUpdate
-            >=> fun sr -> authorize req (canModifyUnit sr.UnitId) sr
+            >=> authorizeSupportRelationshipUnitModification req
             >=> data.SupportRelationships.Update
         update req workflow
 
@@ -696,7 +700,7 @@ module Functions =
         let workflow = 
             fun _ -> data.SupportRelationships.Get relationshipId
             >=> relationshipValidator.ValidForDelete
-            >=> fun sr -> authorize req (canModifyUnit sr.UnitId) sr
+            >=> authorizeSupportRelationshipUnitModification req
             >=> data.SupportRelationships.Delete
         delete req workflow
 
