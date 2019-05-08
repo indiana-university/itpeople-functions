@@ -18,6 +18,10 @@ type AddPersonServiceAdminColumn() =
   override __.Up() =
     base.Execute("""
     ALTER TABLE people ADD COLUMN is_service_admin BOOLEAN NOT NULL DEFAULT FALSE;
+    
+    UPDATE people 
+    SET is_service_admin = true
+    WHERE netid IN ('jerussel', 'brrund', 'jhoerr', 'kendjone');
     """)
 
   override __.Down() =
