@@ -69,6 +69,24 @@ let wyatt:Person = {
     IsServiceAdmin=false
 }
 
+let admin = {
+    Id=3
+    NetId="johndoe"
+    Name="Doe, John"
+    Position="Admin"
+    Location=""
+    Campus=""
+    CampusPhone=""
+    CampusEmail="johndoe@pawnee.in.us"
+    Expertise="Services; Administration"
+    Notes=""
+    PhotoUrl=""
+    Responsibilities = Responsibilities.None
+    DepartmentId=parksDept.Id
+    Department=parksDept
+    IsServiceAdmin=true
+}
+
 let tool: Tool = 
   { Id=1
     Name="Hammer"
