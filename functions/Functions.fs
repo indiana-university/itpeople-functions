@@ -374,6 +374,10 @@ module Functions =
 
     let membershipValidator = membershipValidator(data)
     let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
+    let authorizeMembershipUnitModification req (membership:UnitMember) =
+        authorize req (canModifyUnit membership.UnitId) membership
+    let permissionMembershipUnitModification req (membership:UnitMember) =
+        permission req (canModifyUnit membership.UnitId) membership     
 
     [<FunctionName("MemberGetAll")>]
     [<SwaggerOperation(Summary="List all unit memberships", Tags=[|"Unit Memberships"|])>]
@@ -394,10 +398,10 @@ module Functions =
         let workflow = 
             authenticate
             >=> fun _ -> data.Memberships.Get membershipId
-            >=> fun membership -> permission req (canModifyUnit membership.UnitId) membership 
+            >=> permissionMembershipUnitModification req
         get req workflow
 
-    let ensurePersonInDirectory lookupHrPeople addPersonToDirectory (um:UnitMember) =
+    let ensurePersonInDirectory lookupDirectoryPeople lookupHrPeople addPersonToDirectory (um:UnitMember) =
         let findPersonWithMatchingNetId (results:seq<Person>) =
             let resultsMatchingNetId = 
                 results 
@@ -409,15 +413,21 @@ module Functions =
                 { person with PhotoUrl="" } |> Ok |> ar
         let resolveUnitMember (person:Person) = 
             Ok {um with PersonId=Some(person.Id)} |> ar
+        let evaluateDirectorySearch (netid:NetId, idOption:Id option) =
+            match idOption with
+            | None -> 
+                lookupHrPeople (Some(netid))
+                >>= findPersonWithMatchingNetId
+                >>= addPersonToDirectory
+                >>= resolveUnitMember
+            | Some(id) -> { um with PersonId=Some(id)} |> ok
         match (um.PersonId, um.NetId) with
         | (None, None) 
         | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
-        | (None, netid)
-        | (Some(0), netid) -> // We don't have this person in the directory. Add them now.
-            lookupHrPeople netid
-            >>= findPersonWithMatchingNetId
-            >>= addPersonToDirectory
-            >>= resolveUnitMember
+        | (None, Some(netid))
+        | (Some(0), Some(netid)) -> // We don't have this person in the directory. Add them now.
+            lookupDirectoryPeople netid
+            >>= evaluateDirectorySearch
         | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
 
     [<FunctionName("MemberCreate")>]
@@ -432,8 +442,8 @@ module Functions =
         let workflow = 
             deserializeBody<UnitMember>
             >=> setMembershipId 0
-            >=> fun membership -> authorize req (canModifyUnit membership.UnitId) membership
-            >=> ensurePersonInDirectory data.Hr.GetAllPeople data.People.Create
+            >=> authorizeMembershipUnitModification req
+            >=> ensurePersonInDirectory data.People.TryGetId data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForCreate
             >=> data.Memberships.Create
         create req workflow
@@ -452,8 +462,8 @@ module Functions =
             deserializeBody<UnitMember>
             >=> setMembershipId membershipId
             >=> ensureEntityExistsForModel data.Memberships.Get
-            >=> fun membership -> authorize req (canModifyUnit membership.UnitId) membership
-            >=> ensurePersonInDirectory data.Hr.GetAllPeople data.People.Create
+            >=> authorizeMembershipUnitModification req
+            >=> ensurePersonInDirectory data.People.TryGetId data.Hr.GetAllPeople data.People.Create
             >=> membershipValidator.ValidForUpdate
             >=> data.Memberships.Update
         update req workflow
@@ -467,7 +477,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow =
             fun _ -> data.Memberships.Get membershipId
-            >=> fun membership -> authorize req (canModifyUnit membership.UnitId) membership
+            >=> authorizeMembershipUnitModification req
             >=> membershipValidator.ValidForDelete
             >=> data.Memberships.Delete
         delete req workflow
@@ -479,6 +489,10 @@ module Functions =
 
     let memberToolValidator = memberToolValidator(data)
     let setMemberToolId id (a:MemberTool) = Ok { a with Id=id } |> async.Return
+    let authorizeMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
+        authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
+    let permissionMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
+        permission req (canModifyUnitMemberTools unitMember.UnitId) tool
 
     [<FunctionName("MemberToolsGetAll")>]
     [<SwaggerOperation(Summary="List all unit member tools", Tags=[|"Unit Member Tools"|])>]
@@ -500,7 +514,7 @@ module Functions =
             authenticate
             >=> fun _ -> data.MemberTools.Get memberToolId
             >=> data.MemberTools.GetMember 
-            >=> fun (tool,unitMember) -> permission req (canModifyUnitMemberTools unitMember.UnitId) tool
+            >=> permissionMemberToolUnitModification req
         get req workflow
 
     [<FunctionName("MemberToolCreate")>]
@@ -517,7 +531,7 @@ module Functions =
             >=> setMemberToolId 0
             >=> memberToolValidator.ValidForCreate
             >=> data.MemberTools.GetMember 
-            >=> fun (tool,unitMember) -> authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
+            >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Create
         create req workflow
 
@@ -537,7 +551,7 @@ module Functions =
             >=> ensureEntityExistsForModel data.MemberTools.Get
             >=> memberToolValidator.ValidForUpdate
             >=> data.MemberTools.GetMember  
-            >=> fun (tool,unitMember) -> authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
+            >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Update
         update req workflow
 
@@ -553,7 +567,7 @@ module Functions =
             fun _ -> data.MemberTools.Get memberToolId
             >=> memberToolValidator.ValidForDelete
             >=> data.MemberTools.GetMember  
-            >=> fun (tool,unitMember) -> authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
+            >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Delete
         delete req workflow
 
@@ -617,6 +631,10 @@ module Functions =
 
     let setRelationshipId id (a:SupportRelationship) = Ok { a with Id=id } |> async.Return
     let relationshipValidator = supportRelationshipValidator data
+    let authorizeSupportRelationshipUnitModification req (rel:SupportRelationship) =
+        authorize req (canModifyUnit rel.UnitId) rel
+    let permissionSupportRelationshipUnitModification req (rel:SupportRelationship) =
+        permission req (canModifyUnit rel.UnitId) rel
 
     [<FunctionName("SupportRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-department support relationships.", Tags=[|"Support Relationships"|])>]
@@ -637,7 +655,7 @@ module Functions =
         let workflow =
             authenticate
             >=> fun _ -> data.SupportRelationships.Get relationshipId
-            >=> fun rel -> permission req (canModifyUnit rel.UnitId) rel
+            >=> permissionSupportRelationshipUnitModification req
         get req workflow
 
     [<FunctionName("SupportRelationshipsCreate")>]
@@ -653,7 +671,7 @@ module Functions =
             deserializeBody<SupportRelationship>
             >=> setRelationshipId 0
             >=> relationshipValidator.ValidForCreate
-            >=> fun sr -> authorize req (canModifyUnit sr.UnitId) sr
+            >=> authorizeSupportRelationshipUnitModification req
             >=> data.SupportRelationships.Create          
         create req workflow
 
@@ -672,7 +690,7 @@ module Functions =
             >=> setRelationshipId relationshipId
             >=> ensureEntityExistsForModel data.SupportRelationships.Get
             >=> relationshipValidator.ValidForUpdate
-            >=> fun sr -> authorize req (canModifyUnit sr.UnitId) sr
+            >=> authorizeSupportRelationshipUnitModification req
             >=> data.SupportRelationships.Update
         update req workflow
 
@@ -686,7 +704,7 @@ module Functions =
         let workflow = 
             fun _ -> data.SupportRelationships.Get relationshipId
             >=> relationshipValidator.ValidForDelete
-            >=> fun sr -> authorize req (canModifyUnit sr.UnitId) sr
+            >=> authorizeSupportRelationshipUnitModification req
             >=> data.SupportRelationships.Delete
         delete req workflow
 
