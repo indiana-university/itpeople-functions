@@ -376,7 +376,7 @@ module Functions =
     let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
     let authorizeMembershipUnitModification req (membership:UnitMember) =
         authorize req (canModifyUnit membership.UnitId) membership
-    let permissionMembership req (membership:UnitMember) =
+    let permissionMembershipUnitModification req (membership:UnitMember) =
         permission req (canModifyUnit membership.UnitId) membership     
 
     [<FunctionName("MemberGetAll")>]
@@ -398,7 +398,7 @@ module Functions =
         let workflow = 
             authenticate
             >=> fun _ -> data.Memberships.Get membershipId
-            >=> permissionMembership req
+            >=> permissionMembershipUnitModification req
         get req workflow
 
     let ensurePersonInDirectory lookupDirectoryPeople lookupHrPeople addPersonToDirectory (um:UnitMember) =
