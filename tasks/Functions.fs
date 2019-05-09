@@ -12,23 +12,64 @@ module Types=
         UpdatePerson: Person -> Async<Result<Person, Error>> }
 
 module FakeRepository=
-
     open Types
     open Core.Types
     open Core.Fakes
 
-    let Respository : IDataRepository = 
+    let Respository = 
      { GetAllNetIds = fun () -> ["rswanso"] |> List.toSeq |> ok
        FetchLatestHRPerson = fun netid -> swanson |> ok
        UpdatePerson = fun person -> person |> ok }
 
-module DataRepository=
-    ()
+module DataRepository =
+    open Types
+    open Core.Types
+    open Core.Util
+    open Database.Command
+    open Dapper
+    open System.Net.Http
+    open System.Net.Http.Headers
+
+    let getAllNetIds connStr =
+        let sql = "SELECT netid FROM people;"
+        let queryFn (cn:Cn) = cn.QueryAsync<NetId>(sql)
+        fetch connStr queryFn
+
+    let fetchLatestHrPerson sharedSecret netid =
+        let findMatchingPerson (people:seq<Person>) =
+            let person = people |> Seq.tryFind (fun p -> p.NetId=netid)
+            match person with
+            | None -> (Status.NotFound, sprintf "No staff member found with netid %s" netid) |> error
+            | Some(p) -> ok p
+        let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" netid
+        let msg = new HttpRequestMessage(HttpMethod.Get, url)      
+        msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
+        sendAsync<seq<Person>> msg
+        >>= findMatchingPerson
+
+    let updatePerson connStr (person:Person) = 
+        let sql = """
+        UPDATE people 
+        SET name = @Name,
+            position = @Position,
+            campus = @Campus,
+            campus_phone = @CampusPhone,
+            campus_email = @CampusEmail
+        WHERE netid = @NetId
+        RETURNING *;"""
+        let queryFn (cn:Cn) = cn.QuerySingleAsync<Person>(sql, person)
+        fetch connStr queryFn
+
+    let Repository connStr sharedSecret =
+     { GetAllNetIds = fun () -> getAllNetIds connStr
+       FetchLatestHRPerson = fetchLatestHrPerson sharedSecret
+       UpdatePerson = updatePerson connStr }
 
 module Functions=
 
     open Core.Types
 
+    open System
     open System.Net
     open System.Net.Http
     open Microsoft.Azure.WebJobs
@@ -47,11 +88,10 @@ module Functions=
                 |> raise
         } |> Async.StartAsTask
 
-    let tap f x =
-        f x // invoke f with the argument x
-        ok x // pass x unchanged to the next step in the workflow
-
-    let data = FakeRepository.Respository    
+    let data = 
+        let connStr = Environment.GetEnvironmentVariable("DbConnectionString")
+        let sharedSecret = Environment.GetEnvironmentVariable("SharedSecret")
+        DataRepository.Repository connStr sharedSecret
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
@@ -63,7 +103,7 @@ module Functions=
     // canonical HR data.
     [<FunctionName("PeopleUpdateBatcher")>]
     let peopleUpdateBatcher
-        ([<TimerTrigger("0 */1 * * * *")>] timer: TimerInfo,
+        ([<TimerTrigger("0 0 10 * * *", RunOnStartup=true)>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
         
