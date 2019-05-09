@@ -4,7 +4,7 @@
 namespace Functions
 
 open Core.Types
-open Json
+open Core.Json
 open Logging
 open Examples
 

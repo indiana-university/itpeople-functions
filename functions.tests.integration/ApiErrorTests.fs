@@ -6,7 +6,7 @@ module ApiErrorTests =
     open Xunit
     open TestFixture
     open Core.Fakes
-    open Functions.Json
+    open Core.Json
     open FsUnit.Xunit
     open Newtonsoft.Json
     open System.Net
