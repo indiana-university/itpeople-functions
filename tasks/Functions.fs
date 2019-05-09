@@ -31,7 +31,7 @@ module DataRepository =
     open System.Net.Http.Headers
 
     let getAllNetIds connStr =
-        let sql = "SELECT netid FROM people LIMIT 100;"
+        let sql = "SELECT netid FROM people;"
         let queryFn (cn:Cn) = cn.QueryAsync<NetId>(sql)
         fetch connStr queryFn
 
