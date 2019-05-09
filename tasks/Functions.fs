@@ -80,12 +80,14 @@ module Functions=
         async {
             let! result = workflow arg
             match result with
-            | Ok(_) -> return ()
+            | Ok(_) -> 
+                return 0
             | Error(msg) -> 
                 msg
                 |> sprintf "Workflow failed with error: %A"
                 |> System.Exception
                 |> raise
+                return 1
         } |> Async.StartAsTask
 
     let data = 
