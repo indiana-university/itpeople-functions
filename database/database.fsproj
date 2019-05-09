@@ -21,6 +21,7 @@
     <Compile Include="Migrations/04_AlterToolsWithDepartmentScopeFlag.fs" />
     <Compile Include="Migrations/05_AddAuditTable.fs" />
     <Compile Include="Migrations/06_DropPersonHashColumn.fs" />
+    <Compile Include="Migrations/07_AddPersonServiceAdminColumn.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

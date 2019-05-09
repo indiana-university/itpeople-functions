@@ -19,6 +19,8 @@ let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) 
 let (>>=) a f = bind f a
 let (>=>) f g = compose f g
 let ar = async.Return
+let ok x = x |> Ok |> async.Return
+let error(status, msg) = Error(status, msg) |> async.Return  
 
 let ROLE_ADMIN = "admin"
 let ROLE_USER = "user"
@@ -141,6 +143,8 @@ type Person =
     [<Column("responsibilities")>] Responsibilities: Responsibilities
     /// The HR department to which this person belongs.
     [<Column("department_id")>] DepartmentId: Id
+    /// Whether this person is an administrator of the IT People service.
+    [<Column("is_service_admin")>] IsServiceAdmin: bool
     /// The department in this relationship.
     [<ReadOnly(true)>] Department: Department }
 
@@ -384,6 +388,8 @@ type MemberToolsRepository = {
     Update: MemberTool -> Async<Result<MemberTool,Error>>
     /// Delete a unit membership
     Delete: MemberTool -> Async<Result<unit,Error>>
+    // Get the membership that goes along with the member tool.
+    GetMember: MemberTool -> Async<Result<MemberTool*UnitMember,Error>>
 }
 
 type SupportRelationshipRepository = {
@@ -404,6 +410,12 @@ type HrDataRepository = {
     GetAllPeople: Filter option -> Async<Result<Person seq,Error>>
 }
 
+type AuthorizationRepository = {
+    IsServiceAdmin: NetId -> Async<Result<bool, Error>>
+    IsUnitManager: NetId -> Id -> Async<Result<bool, Error>>
+    IsUnitToolManager: NetId -> Id -> Async<Result<bool, Error>>
+}
+
 type DataRepository = {
     People: PeopleRepository
     Units: UnitRepository
@@ -413,6 +425,7 @@ type DataRepository = {
     Tools: ToolsRepository
     SupportRelationships: SupportRelationshipRepository
     Hr: HrDataRepository
+    Authorization: AuthorizationRepository
 }
 
 let stub a = a |> Ok |> async.Return
