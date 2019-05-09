@@ -21,6 +21,9 @@ let (>=>) f g = compose f g
 let ar = async.Return
 let ok x = x |> Ok |> async.Return
 let error(status, msg) = Error(status, msg) |> async.Return  
+let tap f x =
+    f x // invoke f with the argument x
+    ok x // pass x unchanged to the next step in the workflow
 
 let ROLE_ADMIN = "admin"
 let ROLE_USER = "user"
