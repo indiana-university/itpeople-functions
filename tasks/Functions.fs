@@ -80,15 +80,13 @@ module Functions=
         async {
             let! result = workflow arg
             match result with
-            | Ok(_) -> 
-                return 0
+            | Ok(_) -> ()
             | Error(msg) -> 
                 msg
                 |> sprintf "Workflow failed with error: %A"
                 |> System.Exception
                 |> raise
-                return 1
-        } |> Async.StartAsTask
+        } |> Async.RunSynchronously
 
     let data = 
         let connStr = Environment.GetEnvironmentVariable("DbConnectionString")
