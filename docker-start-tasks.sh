@@ -12,11 +12,14 @@ docker build -f Dockerfile.Tasks -t tasks .
 # docker run -p 7071:80 -d --name tasks tasks
 
 docker run \
--e "AzureWebJobsStorage=" \
--e "AzureWebJobsDashboard=" \
+-e "AzureWebJobsStorage=CHANGEME" \
+-e "AzureWebJobsDashboard=CHANGEME" \
+-e "SharedSecret=CHANGEME" \
+-e "DbConnectionString=CHANGEME" \
 -e "FUNCTIONS_WORKER_RUNTIME=dotnet" \
 -e "WEBSITE_SITE_NAME=tasks" \
 -e "WEBSITE_INSTANCE_ID=tasks" \
+-e "WEBSITE_TIME_ZONE=Eastern Standard Time" \
 -p 7071:80 -d \
 --name tasks tasks
 
