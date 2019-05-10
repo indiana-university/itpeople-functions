@@ -98,7 +98,7 @@ module Functions=
     // canonical HR data.
     [<FunctionName("PeopleUpdateBatcher")>]
     let peopleUpdateBatcher
-        ([<TimerTrigger("0 0 10 * * *", RunOnStartup=true)>] timer: TimerInfo,
+        ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
         
