@@ -4,7 +4,7 @@
 namespace Tests
 
 open Core.Types
-open Functions.Json
+open Core.Json
 open System
 open Xunit
 open Newtonsoft.Json

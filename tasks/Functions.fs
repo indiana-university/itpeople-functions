@@ -3,10 +3,66 @@
 
 namespace Tasks 
 
+module Types=
+    open Core.Types
+
+    type IDataRepository =
+      { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
+        FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
+        UpdatePerson: Person -> Async<Result<Person, Error>> }
+
+module FakeRepository=
+    open Types
+    open Core.Types
+    open Core.Fakes
+
+    let Respository = 
+     { GetAllNetIds = fun () -> ["rswanso"] |> List.toSeq |> ok
+       FetchLatestHRPerson = fun netid -> Some(swanson) |> ok
+       UpdatePerson = fun person -> person |> ok }
+
+module DataRepository =
+    open Types
+    open Core.Types
+    open Core.Util
+    open Database.Command
+    open Dapper
+    open System.Net.Http
+    open System.Net.Http.Headers
+
+    let getAllNetIds connStr =
+        let sql = "SELECT netid FROM people;"
+        let queryFn (cn:Cn) = cn.QueryAsync<NetId>(sql)
+        fetch connStr queryFn
+
+    let fetchLatestHrPerson sharedSecret netid =
+        let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" netid
+        let msg = new HttpRequestMessage(HttpMethod.Get, url)      
+        msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
+        sendAsync<seq<Person>> msg
+        >>= (Seq.tryFind (fun p -> p.NetId=netid) >> ok)
+
+    let updatePerson connStr (person:Person) = 
+        let sql = """
+        UPDATE people 
+        SET name = @Name,
+            position = @Position,
+            campus = @Campus,
+            campus_phone = @CampusPhone,
+            campus_email = @CampusEmail
+        WHERE netid = @NetId
+        RETURNING *;"""
+        let queryFn (cn:Cn) = cn.QuerySingleAsync<Person>(sql, person)
+        fetch connStr queryFn
+
+    let Repository connStr sharedSecret =
+     { GetAllNetIds = fun () -> getAllNetIds connStr
+       FetchLatestHRPerson = fetchLatestHrPerson sharedSecret
+       UpdatePerson = updatePerson connStr }
+
 module Functions=
 
-    // open Core.Types
-    // open Core.Util
+    open Core.Types
 
     open System
     open System.Net
@@ -15,29 +71,83 @@ module Functions=
     open Microsoft.Azure.WebJobs.Extensions.Http
     open Microsoft.Extensions.Logging
 
-    /// This module defines the bindings and triggers for all functions in the project
+    let execute (workflow:'a -> Async<Result<'b,Error>>) (arg:'a)= 
+        async {
+            let! result = workflow arg
+            match result with
+            | Ok(_) -> ()
+            | Error(msg) -> 
+                msg
+                |> sprintf "Workflow failed with error: %A"
+                |> System.Exception
+                |> raise
+        } |> Async.RunSynchronously
 
+    let data = 
+        let connStr = Environment.GetEnvironmentVariable("DbConnectionString")
+        let sharedSecret = Environment.GetEnvironmentVariable("SharedSecret")
+        DataRepository.Repository connStr sharedSecret
+
+    /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req:HttpRequestMessage) =
         req.CreateResponse(HttpStatusCode.OK, "pong!")
 
-    [<FunctionName("CronTest")>]
-    let cronTest
-        ([<TimerTrigger("0 */1 * * * *")>] timer: TimerInfo,
-         [<Queue("test-queue")>] queue: ICollector<string>,
-         log: ILogger) =
-        // Log invocation
-        let timestamp = DateTime.Now.ToLongTimeString()
-        sprintf "Timed function fired at %A. " timestamp |> log.LogInformation
-        // Queue a message 
-        let msg = sprintf "queue message @ %s" timestamp
-        queue.Add msg
-        sprintf "Enqueued msg: '%s'" msg |> log.LogInformation
+    // Enqueue the netids of all the people for whom we need to update
+    // canonical HR data.
+    [<FunctionName("PeopleUpdateBatcher")>]
+    let peopleUpdateBatcher
+        ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
+         [<Queue("people-update")>] queue: ICollector<string>,
+         log: ILogger) = 
+        
+        let enqueueAllNetIds netids =
+            netids |> Seq.iter queue.Add
 
-    [<FunctionName("QueueTest")>]
-    let queueTest
-        ([<QueueTrigger("test-queue")>] item: string,
+        let logEnqueuedNumber netids = 
+            netids
+            |> Seq.length
+            |> sprintf "Enqueued %d netids for update."
+            |> log.LogInformation
+
+        let workflow = 
+            data.GetAllNetIds
+            >=> tap enqueueAllNetIds
+            >=> tap logEnqueuedNumber
+
+        execute workflow ()
+
+    // Pluck a netid from the queue, fetch that person's HR data from the API, 
+    // and update it in the DB.
+    [<FunctionName("PeopleUpdateWorker")>]
+    let peopleUpdateWorker
+        ([<QueueTrigger("people-update")>] netid: string,
          log: ILogger) =
-        // Log the dequeued message
-        sprintf "Dequeued msg: '%s'" item |> log.LogInformation
+
+        let logUpdatedPerson (person:Person) = 
+            person.NetId
+            |> sprintf "Updated HR data for %s."
+            |> log.LogInformation
+            ok ()
+
+        let logPersonNotFound () = 
+            netid
+            |> sprintf "HR data not found for %s."
+            |> log.LogWarning
+            ok ()
+
+        let processHRResult result =
+            match result with
+            | Some(person) ->
+                data.UpdatePerson person
+                >>= logUpdatedPerson
+            | None ->
+                logPersonNotFound ()
+
+        let workflow = 
+            data.FetchLatestHRPerson
+            >=> processHRResult
+
+
+        execute workflow netid

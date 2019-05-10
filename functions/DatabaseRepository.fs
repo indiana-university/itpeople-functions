@@ -7,8 +7,8 @@ open System.Net.Http
 open System.Net.Http.Headers
 
 open Core.Types
+open Core.Util
 open Database.Command
-open Api
 open Dapper
 
 module DatabaseRepository =
