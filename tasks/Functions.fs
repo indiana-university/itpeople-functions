@@ -8,7 +8,7 @@ module Types=
 
     type IDataRepository =
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
-        FetchLatestHRPerson: NetId -> Async<Result<Person, Error>>
+        FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
         UpdatePerson: Person -> Async<Result<Person, Error>> }
 
 module FakeRepository=
@@ -18,7 +18,7 @@ module FakeRepository=
 
     let Respository = 
      { GetAllNetIds = fun () -> ["rswanso"] |> List.toSeq |> ok
-       FetchLatestHRPerson = fun netid -> swanson |> ok
+       FetchLatestHRPerson = fun netid -> Some(swanson) |> ok
        UpdatePerson = fun person -> person |> ok }
 
 module DataRepository =
@@ -36,16 +36,11 @@ module DataRepository =
         fetch connStr queryFn
 
     let fetchLatestHrPerson sharedSecret netid =
-        let findMatchingPerson (people:seq<Person>) =
-            let person = people |> Seq.tryFind (fun p -> p.NetId=netid)
-            match person with
-            | None -> (Status.NotFound, sprintf "No staff member found with netid %s" netid) |> error
-            | Some(p) -> ok p
         let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" netid
         let msg = new HttpRequestMessage(HttpMethod.Get, url)      
         msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
         sendAsync<seq<Person>> msg
-        >>= findMatchingPerson
+        >>= (Seq.tryFind (fun p -> p.NetId=netid) >> ok)
 
     let updatePerson connStr (person:Person) = 
         let sql = """
@@ -134,10 +129,25 @@ module Functions=
             person.NetId
             |> sprintf "Updated HR data for %s."
             |> log.LogInformation
+            ok ()
+
+        let logPersonNotFound () = 
+            netid
+            |> sprintf "HR data not found for %s."
+            |> log.LogWarning
+            ok ()
+
+        let processHRResult result =
+            match result with
+            | Some(person) ->
+                data.UpdatePerson person
+                >>= logUpdatedPerson
+            | None ->
+                logPersonNotFound ()
 
         let workflow = 
             data.FetchLatestHRPerson
-            >=> data.UpdatePerson
-            >=> tap logUpdatedPerson
+            >=> processHRResult
+
 
         execute workflow netid
