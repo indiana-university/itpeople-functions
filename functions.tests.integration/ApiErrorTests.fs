@@ -15,27 +15,111 @@ module ApiErrorTests =
 
     let httpClient = new HttpClient()
 
-    type ApiErrorTests(output: ITestOutputHelper)=
+    let requestFor method route = 
+        let uri = sprintf "%s/%s" functionServerUrl route |> System.Uri
+        new HttpRequestMessage(method, uri)
+
+    let withAuthentication (request:HttpRequestMessage) = 
+        request.Headers.Authorization <- AuthenticationHeaderValue("Bearer", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxOTE1NTQ0NjQzIiwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfaWQiOjF9.bCMuAfRby19tJHCOggz7KESMRxtPl_h7pLTQTx3ui4E")
+        request
+    
+    let withRawBody str (request:HttpRequestMessage) =
+        request.Content <- new StringContent(str, System.Text.Encoding.UTF8, "application/json")
+        request
+
+    let withBody obj (request:HttpRequestMessage) =
+        withRawBody (JsonConvert.SerializeObject(value=obj, settings=JsonSettings)) request
+
+    let shouldGetResponse expectedStatus (request:HttpRequestMessage) =
+        let response = httpClient.SendAsync(request) |> Async.AwaitTask |> Async.RunSynchronously
+        response.StatusCode |> should equal expectedStatus
+        response
+
+    let shouldGetContent<'T> (expectedContent:'T) (response:HttpResponseMessage) =
+        let actualContent = 
+            response.Content.ReadAsStringAsync() 
+            |> Async.AwaitTask 
+            |> Async.RunSynchronously
+            |> fun str -> JsonConvert.DeserializeObject<'T>(str, JsonSettings)
+        actualContent |> should equal expectedContent
+        response
+
+    type ApiTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
 
-        let requestFor method route = 
-            let uri = sprintf "%s/%s" functionServerUrl route |> System.Uri
-            new HttpRequestMessage(method, uri)
+        [<Fact>]       
+        member __.``People search: netid`` () = 
+            requestFor HttpMethod.Get "people?q=rswa"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [swanson]
 
-        let withAuthentication (request:HttpRequestMessage) = 
-            request.Headers.Authorization <- AuthenticationHeaderValue("Bearer", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxOTE1NTQ0NjQzIiwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfaWQiOjF9.bCMuAfRby19tJHCOggz7KESMRxtPl_h7pLTQTx3ui4E")
-            request
-        
-        let withRawBody str (request:HttpRequestMessage) =
-            request.Content <- new StringContent(str, System.Text.Encoding.UTF8, "application/json")
-            request
+        [<Fact>]       
+        member __.``People search: netid is case insensitive`` () = 
+            requestFor HttpMethod.Get "people?q=RSWA"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [swanson]
 
-        let withBody obj (request:HttpRequestMessage) =
-            withRawBody (JsonConvert.SerializeObject(value=obj, settings=JsonSettings)) request
+        [<Fact>]       
+        member __.``People search: name`` () = 
+            requestFor HttpMethod.Get "people?q=Ron"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [swanson]
 
-        let shouldGetResponse expectedStatus (request:HttpRequestMessage) =
-            let response = httpClient.SendAsync(request) |> Async.AwaitTask |> Async.RunSynchronously
-            response.StatusCode |> should equal expectedStatus
+        [<Fact>]       
+        member __.``People search: name is case insensitive`` () = 
+            requestFor HttpMethod.Get "people?q=RON"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [swanson]
+
+        [<Fact>]       
+        member __.``People search: single role`` () = 
+            requestFor HttpMethod.Get "people?role=ItLeadership"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [knope; swanson]
+
+        [<Fact>]       
+        member __.``People search: role is case insensitive`` () = 
+            requestFor HttpMethod.Get "people?role=itleadership"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [knope; swanson]
+
+        [<Fact>]       
+        member __.``People search: multiple roles are unioned`` () = 
+            requestFor HttpMethod.Get "people?role=ItLeadership,ItProjectMgt"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [wyatt; knope; swanson;]
+
+        [<Fact>]       
+        member __.``People search: single interest`` () = 
+            requestFor HttpMethod.Get "people?interest=waffles"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [knope]
+
+        [<Fact>]       
+        member __.``People search: multiple interests are unioned`` () = 
+            requestFor HttpMethod.Get "people?interest=waffles,games"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [wyatt; knope]
+
+        [<Fact>]       
+        member __.``People search: multiple parameters are intersected`` () = 
+            requestFor HttpMethod.Get "people?role=ItLeadership&interest=waffles"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [knope]
+
+
+    type ApiErrorTests(output: ITestOutputHelper)=
+        inherit HttpTestBase(output)
 
         [<Fact>]
         member __.``Unauthorized request yields 401 Unauthorized`` () = 
