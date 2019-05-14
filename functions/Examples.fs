@@ -31,4 +31,6 @@ type SupportRelationshipsExample() = inherit ApiEndpointExample<seq<SupportRelat
 type ToolsExample() = inherit ApiEndpointExample<seq<Tool>>([tool])
 type ToolExample() = inherit ApiEndpointExample<Tool>(tool)
 type QueryExample() = inherit ApiEndpointExample<string>("term")
+type ResponsibilityExample() = inherit ApiEndpointExample<seq<Responsibilities>>([Responsibilities.UserExperience; Responsibilities.SoftwareDevEng])
+type StringSeqExample() = inherit ApiEndpointExample<seq<string>>(["foo"; "bar"])
 type ErrorExample() = inherit ApiEndpointExample<ErrorModel>({errors=[|"This message includes detailed error information."|]})

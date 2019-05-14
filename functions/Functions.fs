@@ -166,20 +166,37 @@ module Functions =
     let getPerson personId _ = data.People.Get personId
 
     [<FunctionName("PeopleGetAll")>]
-    [<SwaggerOperation(Summary="List all IT people", Description="Search for IT people by name or username (netid).", Tags=[|"People"|])>]
+    [<SwaggerOperation(Summary="Search IT people", Description="""Search for IT people. Available filters include:<br/>
+    <ul><li><strong>q</strong>: filter by name/netid, ex: 'jhoerr'
+    <li><strong>role</strong>: filter by job role/responsibility, ex: 'UserExperience' or 'UserExperience,WebAdminDevEng'
+    <li><strong>interest</strong>: filter by interest, ex: 'serverless' or 'node,lambda'</ul>""", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
+    [<OptionalQueryParameter("role", typeof<seq<Responsibilities>>)>]
+    [<OptionalQueryParameter("interest", typeof<seq<string>>)>]
     let peopleGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people")>] req) =
+        let getQueryParams netid =
+            let q = tryQueryParam' req "q"
+            let i = tryQueryParam' req "role"
+            let r = 
+                match tryQueryParam' req "responsibility" with
+                | Some(resp) -> 
+                    resp.Split [|' '; ','; ';'; '+'|]
+                    |> Seq.map Enum.Parse<Responsibilities>
+                    |> Some
+                | None -> None
+            ok { filter=q; responsibilities=r; interests=i }
         let workflow = 
             authenticate 
-            >=> fun _ -> tryQueryParam "q" req
+            >=> getQueryParams
             >=> data.People.GetAll
         get req workflow
 
-    let lookup data query = async {
-        let! directoryTask = data.People.GetAll query |> Async.StartChild
-        let! hrTask = data.Hr.GetAllPeople query |> Async.StartChild
+    let lookup data (filter:Filter option) = async {
+        let dirQuery = {filter=filter; responsibilities=None; interests=None}
+        let! directoryTask = data.People.GetAll dirQuery |> Async.StartChild
+        let! hrTask = data.Hr.GetAllPeople filter |> Async.StartChild
         let! directoryResult = directoryTask
         let! hrResult = hrTask
         let notInDirectory (d:seq<Person>) (h':Person) = 
@@ -198,14 +215,14 @@ module Functions =
     }
 
     [<FunctionName("PeopleLookupAll")>]
-    [<SwaggerOperation(Summary="Lookup all staff", Description="Search for staff, including IT People, by name or username (netid).", Tags=[|"People"|])>]
+    [<SwaggerOperation(Summary="Search all staff", Description="Search for staff, including IT People, by name or username (netid).", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let peopleLookupAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people-lookup")>] req) =
         let workflow = 
             authenticate 
-            >=> fun _ -> tryQueryParam "q" req
+            >=> fun _ -> tryQueryParam req "q"
             >=> lookup data
         get req workflow
 
@@ -249,7 +266,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units")>] req) =
         let workflow = 
             authenticate 
-            >=> fun _ -> tryQueryParam "q" req
+            >=> fun _ -> tryQueryParam req "q"
             >=> data.Units.GetAll
             >=> permission req canCreateDeleteUnit
         get req workflow
@@ -585,7 +602,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments")>] req) =
         let workflow = 
             authenticate
-            >=> fun _ -> tryQueryParam "q" req
+            >=> fun _ -> tryQueryParam req "q"
             >=> data.Departments.GetAll
         get req workflow
 

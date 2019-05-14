@@ -313,11 +313,16 @@ type MessageResult = {
 
 type NoContent = unit
 
+type PeopleQuery = 
+  { filter: string option; 
+    responsibilities: seq<Responsibilities> option; 
+    interests: string option }
+
 type PeopleRepository = {
     /// Get a user record for a given net ID (e.g. 'jhoerr')
     TryGetId: NetId -> Async<Result<NetId * Id option,Error>>
     /// Get a list of all people
-    GetAll: Filter option -> Async<Result<Person seq,Error>>
+    GetAll: PeopleQuery -> Async<Result<Person seq,Error>>
     /// Get a single person by ID
     Get: PersonId -> Async<Result<Person,Error>>
     /// Create a person from canonical HR data

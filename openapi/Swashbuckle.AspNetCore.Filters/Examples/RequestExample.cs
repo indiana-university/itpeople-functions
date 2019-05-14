@@ -48,7 +48,7 @@ namespace Swashbuckle.AspNetCore.Filters
                     In="body",
                     Name="body",
                     Schema=schema,
-                    Description="foo",
+                    Description="",
                 };
                 // return; // The type in their [SwaggerRequestExample(typeof(requestType), ...] is not passed to their controller action method
             }
