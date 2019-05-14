@@ -314,9 +314,9 @@ type MessageResult = {
 type NoContent = unit
 
 type PeopleQuery = 
-  { filter: string option; 
-    responsibilities: seq<Responsibilities> option; 
-    interests: string option }
+  { Query: string
+    Responsibilities: int
+    Interests: array<string> }
 
 type PeopleRepository = {
     /// Get a user record for a given net ID (e.g. 'jhoerr')

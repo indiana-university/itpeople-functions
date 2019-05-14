@@ -167,7 +167,7 @@ module Functions =
 
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="Search IT people", Description="""Search for IT people. Available filters include:<br/>
-    <ul><li><strong>q</strong>: filter by name/netid, ex: 'jhoerr'
+    <ul><li><strong>q</strong>: filter by name/netid, ex: 'Ron' or 'rswanso'
     <li><strong>role</strong>: filter by job role/responsibility, ex: 'UserExperience' or 'UserExperience,WebAdminDevEng'
     <li><strong>interest</strong>: filter by interest, ex: 'serverless' or 'node,lambda'</ul>""", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
@@ -176,25 +176,33 @@ module Functions =
     [<OptionalQueryParameter("interest", typeof<seq<string>>)>]
     let peopleGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people")>] req) =
-        let getQueryParams netid =
-            let q = tryQueryParam' req "q"
-            let i = tryQueryParam' req "role"
-            let r = 
-                match tryQueryParam' req "responsibility" with
-                | Some(resp) -> 
-                    resp.Split [|' '; ','; ';'; '+'|]
-                    |> Seq.map Enum.Parse<Responsibilities>
-                    |> Some
-                | None -> None
-            ok { filter=q; responsibilities=r; interests=i }
+        let getQueryParams _ =
+            let delimiters = [|','; ';'; '+'|]
+            let query = 
+                match tryQueryParam' req "q" with
+                | Some(str) -> str
+                | None -> ""
+            let responsibilites =
+                let parse s = Enum.Parse<Responsibilities>(s, true) 
+                match tryQueryParam' req "role" with
+                | Some(str) -> str.Split delimiters |> Seq.sumBy (trim >> parse >> int)
+                | None -> 0
+            let interests = 
+                match tryQueryParam' req "interest" with
+                | Some(str) -> str.Split delimiters |> Array.map trim
+                | None -> Array.empty                
+            ok { Query=query; Responsibilities=responsibilites; Interests=interests; }
+
         let workflow = 
             authenticate 
             >=> getQueryParams
             >=> data.People.GetAll
+
         get req workflow
 
     let lookup data (filter:Filter option) = async {
-        let dirQuery = {filter=filter; responsibilities=None; interests=None}
+        let query = if filter.IsSome then filter.Value else ""
+        let dirQuery = {Query=query; Responsibilities=0; Interests=Array.empty}
         let! directoryTask = data.People.GetAll dirQuery |> Async.StartChild
         let! hrTask = data.Hr.GetAllPeople filter |> Async.StartChild
         let! directoryResult = directoryTask
