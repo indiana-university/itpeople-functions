@@ -9,7 +9,8 @@ module Types=
     type IDataRepository =
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
         FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
-        UpdatePerson: Person -> Async<Result<Person, Error>> }
+        UpdatePerson: Person -> Async<Result<Person, Error>>
+        GetAllTools: unit -> Async<Result<seq<Tool>, Error>> }
 
     type ToolUpdateAction = Add | Remove
 
@@ -26,7 +27,8 @@ module FakeRepository=
     let Respository = 
      { GetAllNetIds = fun () -> ["rswanso"] |> List.toSeq |> ok
        FetchLatestHRPerson = fun netid -> Some(swanson) |> ok
-       UpdatePerson = fun person -> person |> ok }
+       UpdatePerson = fun person -> person |> ok
+       GetAllTools = fun () -> [tool] |> List.toSeq |> ok }
 
 module DataRepository =
     open Types
@@ -65,11 +67,13 @@ module DataRepository =
     let Repository connStr sharedSecret =
      { GetAllNetIds = fun () -> getAllNetIds connStr
        FetchLatestHRPerson = fetchLatestHrPerson sharedSecret
-       UpdatePerson = updatePerson connStr }
+       UpdatePerson = updatePerson connStr
+       GetAllTools = fun () -> System.NotImplementedException() |> raise }
 
 module Functions=
 
     open Core.Types
+    open Core.Json
 
     open System
     open System.Net
@@ -77,6 +81,8 @@ module Functions=
     open Microsoft.Azure.WebJobs
     open Microsoft.Azure.WebJobs.Extensions.Http
     open Microsoft.Extensions.Logging
+
+    open Newtonsoft.Json
 
     let execute (workflow:'a -> Async<Result<'b,Error>>) (arg:'a)= 
         async {
@@ -164,8 +170,26 @@ module Functions=
     let toolUpdateBatcher
         ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
          [<Queue("tool-update")>] queue: ICollector<string>,
-         log: ILogger) = 
-         ()
+         log: ILogger) =
+
+         let enqueueAllTools tools =
+            tools 
+            |> Seq.map serialize
+            |> Seq.iter queue.Add
+         
+         let logEnqueuedTools tools = 
+            tools
+            |> Seq.map (fun t -> t.Name)
+            |> String.concat ", "
+            |> sprintf "Enqueued tool permission updates for: %s"
+            |> log.LogInformation
+
+         let workfow =
+            data.GetAllTools
+            >=> tap enqueueAllTools
+            >=> tap logEnqueuedTools
+         
+         execute workfow ()
 
     // Pluck a tool from the queue. 
     // Fetch all the people that should have access to this tool, then fetch 
