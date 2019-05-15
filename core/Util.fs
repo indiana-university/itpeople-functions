@@ -15,6 +15,7 @@ let invariantEqual (str:string) arg =
 /// Checks whether the string is null or empty
 let isEmpty str = String.IsNullOrWhiteSpace str
 
+let trim (str:string) = str.Trim()
 let now () = DateTime.UtcNow
 
 let client = new HttpClient()
