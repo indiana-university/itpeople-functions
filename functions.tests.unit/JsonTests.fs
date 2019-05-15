@@ -38,6 +38,7 @@ module JsonTests =
     [<Fact>]
     let ``Serialize complex DU`` () = 
       let expected = Foo(3, "hello")
+      printfn "DU tostring: %A" expected
       let json = serialize expected
       printfn "serialized: %s" json
       let actual = deserialize<DU> json

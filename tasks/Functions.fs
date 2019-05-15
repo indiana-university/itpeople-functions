@@ -6,20 +6,22 @@ namespace Tasks
 module Types=
     open Core.Types
 
+    type ADPath = string
+
+    type ADGroupMember = NetId * ADPath
+    
+    type ToolPersonUpdate =
+    | Add of ADGroupMember
+    | Remove of ADGroupMember
+
     type IDataRepository =
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
         FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
         UpdatePerson: Person -> Async<Result<Person, Error>>
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: string -> Async<Result<seq<NetId>, Error>>
-        GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>> }
-    
-    type ADPath = string
-
-    type ToolPersonUpdate =
-    | Add of NetId * ADPath
-    | Remove of NetId * ADPath
-
+        GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
+        UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>> }
 
 module FakeRepository=
     open Types
@@ -29,10 +31,11 @@ module FakeRepository=
     let Respository = 
      { GetAllNetIds = fun () -> ["rswanso"] |> List.toSeq |> ok
        FetchLatestHRPerson = fun _ -> Some(swanson) |> ok
-       UpdatePerson = fun person -> person |> ok
+       UpdatePerson = ok
        GetAllTools = fun () -> [tool] |> List.toSeq |> ok
        GetADGroupMembers = fun _ -> ["rswanso"] |> List.toSeq |> ok
-       GetAllToolUsers = fun _ -> ["lknope"] |> List.toSeq |> ok }
+       GetAllToolUsers = fun _ -> ["lknope"] |> List.toSeq |> ok 
+       UpdateADGroup = ok }
 
 module DataRepository =
     open Types
@@ -74,7 +77,8 @@ module DataRepository =
        UpdatePerson = updatePerson connStr
        GetAllTools = fun () -> System.NotImplementedException() |> raise 
        GetADGroupMembers = fun str -> System.NotImplementedException() |> raise 
-       GetAllToolUsers = fun tool -> System.NotImplementedException() |> raise }
+       GetAllToolUsers = fun tool -> System.NotImplementedException() |> raise 
+       UpdateADGroup = fun update -> System.NotImplementedException() |> raise }
 
 module Functions=
 
@@ -89,7 +93,6 @@ module Functions=
     open Microsoft.Extensions.Logging
 
     open Types
-    open Newtonsoft.Json
 
     let execute (workflow:'a -> Async<Result<'b,Error>>) (arg:'a)= 
         async {
@@ -229,7 +232,7 @@ module Functions=
             Seq.append addToAD removeFromAD |> ok
                    
          let workflow =
-            tryDeserializeAsync<Tool> HttpStatusCode.BadRequest
+            tryDeserializeAsync<Tool>
             >=> fetchNetids
             >=> generateADActions
             >=> tap (enqueueAll queue)
@@ -242,4 +245,14 @@ module Functions=
     let toolUpdatePersonWorker
         ([<QueueTrigger("tool-update-person")>] item: string,
          log: ILogger) = 
-         ()
+         
+         let logUpdate =
+            sprintf "Updated Tool AD Group: %A"
+            >> log.LogInformation
+         
+         let workflow =  
+            tryDeserializeAsync<ToolPersonUpdate>
+            >=> data.UpdateADGroup
+            >=> tap logUpdate
+         
+         execute workflow item

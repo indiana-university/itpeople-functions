@@ -60,8 +60,8 @@ let tryDeserialize<'T> status str =
     try str |> deserialize<'T> |> Ok
     with exn -> Error (status, exn.Message)
 
-let tryDeserializeAsync<'T> (status:Status) str =
-    tryDeserialize<'T> status str |> ar
+let tryDeserializeAsync<'T> str =
+    tryDeserialize<'T> Status.BadRequest str |> ar
 
 /// Attempt to deserialize the request body as an object of the given type.
 let deserializeBody<'T> (req:HttpRequestMessage) = async { 
