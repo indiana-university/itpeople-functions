@@ -169,7 +169,10 @@ module Functions =
     [<SwaggerOperation(Summary="Search IT people", Description="""Search for IT people. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by name/netid, ex: 'Ron' or 'rswanso'
     <li><strong>role</strong>: filter by job role/responsibility, ex: 'UserExperience' or 'UserExperience,WebAdminDevEng'
-    <li><strong>interest</strong>: filter by interest, ex: 'serverless' or 'node,lambda'</ul>""", Tags=[|"People"|])>]
+    <li><strong>interest</strong>: filter by interest, ex: 'serverless' or 'node,lambda'</ul></br>
+    Search results are unioned within a filter and intersected across filters. For example, 'interest=node,lambda' will 
+    return people with an interest in either 'node' OR 'lambda', whereas `role=ItLeadership&interest=node` will only return
+    people who are both in 'ItLeadership' AND have an interest in 'node'.""", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     [<OptionalQueryParameter("role", typeof<seq<Responsibilities>>)>]
