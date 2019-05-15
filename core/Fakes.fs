@@ -91,6 +91,7 @@ let tool: Tool =
   { Id=1
     Name="Hammer"
     Description=""
+    ADPath=""
     DepartmentScoped=true }
 
 let memberTool:MemberTool = 

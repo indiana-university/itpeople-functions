@@ -30,3 +30,15 @@ module JsonTests =
           "description": "description"
         }"""
         Assert.Equal(expected, actual);
+
+    type DU =
+    | Foo of int * string
+    | Bar of string * string
+
+    [<Fact>]
+    let ``Serialize complex DU`` () = 
+      let expected = Foo(3, "hello")
+      let json = serialize expected
+      printfn "serialized: %s" json
+      let actual = deserialize<DU> json
+      Assert.Equal(expected, actual);

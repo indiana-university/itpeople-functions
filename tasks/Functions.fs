@@ -10,14 +10,16 @@ module Types=
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
         FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
         UpdatePerson: Person -> Async<Result<Person, Error>>
-        GetAllTools: unit -> Async<Result<seq<Tool>, Error>> }
-
-    type ToolUpdateAction = Add | Remove
+        GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
+        GetADGroupMembers: string -> Async<Result<seq<NetId>, Error>>
+        GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>> }
+    
+    type ADPath = string
 
     type ToolPersonUpdate =
-      { AdPath: string
-        NetId: NetId
-        UpdateAction: ToolUpdateAction }
+    | Add of NetId * ADPath
+    | Remove of NetId * ADPath
+
 
 module FakeRepository=
     open Types
@@ -26,9 +28,11 @@ module FakeRepository=
 
     let Respository = 
      { GetAllNetIds = fun () -> ["rswanso"] |> List.toSeq |> ok
-       FetchLatestHRPerson = fun netid -> Some(swanson) |> ok
+       FetchLatestHRPerson = fun _ -> Some(swanson) |> ok
        UpdatePerson = fun person -> person |> ok
-       GetAllTools = fun () -> [tool] |> List.toSeq |> ok }
+       GetAllTools = fun () -> [tool] |> List.toSeq |> ok
+       GetADGroupMembers = fun _ -> ["rswanso"] |> List.toSeq |> ok
+       GetAllToolUsers = fun _ -> ["lknope"] |> List.toSeq |> ok }
 
 module DataRepository =
     open Types
@@ -68,7 +72,9 @@ module DataRepository =
      { GetAllNetIds = fun () -> getAllNetIds connStr
        FetchLatestHRPerson = fetchLatestHrPerson sharedSecret
        UpdatePerson = updatePerson connStr
-       GetAllTools = fun () -> System.NotImplementedException() |> raise }
+       GetAllTools = fun () -> System.NotImplementedException() |> raise 
+       GetADGroupMembers = fun str -> System.NotImplementedException() |> raise 
+       GetAllToolUsers = fun tool -> System.NotImplementedException() |> raise }
 
 module Functions=
 
@@ -82,6 +88,7 @@ module Functions=
     open Microsoft.Azure.WebJobs.Extensions.Http
     open Microsoft.Extensions.Logging
 
+    open Types
     open Newtonsoft.Json
 
     let execute (workflow:'a -> Async<Result<'b,Error>>) (arg:'a)= 
@@ -115,14 +122,13 @@ module Functions=
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
         
-        let enqueueAllNetIds netids =
-            netids |> Seq.iter queue.Add
+        let enqueueAllNetIds =
+            Seq.iter queue.Add
 
-        let logEnqueuedNumber netids = 
-            netids
-            |> Seq.length
-            |> sprintf "Enqueued %d netids for update."
-            |> log.LogInformation
+        let logEnqueuedNumber = 
+            Seq.length
+            >> sprintf "Enqueued %d netids for update."
+            >> log.LogInformation
 
         let workflow = 
             data.GetAllNetIds
@@ -162,31 +168,28 @@ module Functions=
             data.FetchLatestHRPerson
             >=> processHRResult
 
-
         execute workflow netid
 
-    // Enqueue the tools for which permissions need to be updated.
+    let enqueueAll (queue:ICollector<string>) =
+        Seq.map serialize
+        >> Seq.iter queue.Add
+
+        // Enqueue the tools for which permissions need to be updated.
     [<FunctionName("ToolUpdateBatcher")>]
     let toolUpdateBatcher
         ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
          [<Queue("tool-update")>] queue: ICollector<string>,
          log: ILogger) =
 
-         let enqueueAllTools tools =
-            tools 
-            |> Seq.map serialize
-            |> Seq.iter queue.Add
-         
-         let logEnqueuedTools tools = 
-            tools
-            |> Seq.map (fun t -> t.Name)
-            |> String.concat ", "
-            |> sprintf "Enqueued tool permission updates for: %s"
-            |> log.LogInformation
+         let logEnqueuedTools = 
+            Seq.map (fun t -> t.Name)
+            >> String.concat ", "
+            >> sprintf "Enqueued tool permission updates for: %s"
+            >> log.LogInformation
 
          let workfow =
             data.GetAllTools
-            >=> tap enqueueAllTools
+            >=> tap (enqueueAll queue)
             >=> tap logEnqueuedTools
          
          execute workfow ()
@@ -198,15 +201,45 @@ module Functions=
     // and enqueue and add/remove message for each.
     [<FunctionName("ToolUpdateWorker")>]
     let toolUpdateWorker
-        ([<QueueTrigger("tool-update")>] tool: string,
+        ([<QueueTrigger("tool-update")>] item: string,
          [<Queue("tool-update-person")>] queue: ICollector<string>,
          log: ILogger) = 
-         ()
+
+         let fetchNetids (tool:Tool) = async {
+            let! adPromise = data.GetADGroupMembers tool.ADPath |> Async.StartChild
+            let! dbPromise = data.GetAllToolUsers tool |> Async.StartChild
+            let! ad = adPromise
+            let! db = dbPromise
+            return 
+                match (ad, db) with
+                | (Ok(adr), Ok(dbr)) -> Ok (tool, adr, dbr) 
+                | (Error(ade),_) -> Error(ade)
+                | (_,Error(dbe)) -> Error(dbe)
+         }
+
+         let generateADActions (tool:Tool, ad:seq<NetId>, db:seq<NetId>) = 
+            let addToAD = 
+                db 
+                |> Seq.except ad 
+                |> Seq.map (fun a -> Add(a, tool.ADPath))
+            let removeFromAD = 
+                ad 
+                |> Seq.except db 
+                |> Seq.map (fun a -> Remove(a, tool.ADPath))
+            Seq.append addToAD removeFromAD |> ok
+                   
+         let workflow =
+            tryDeserializeAsync<Tool> HttpStatusCode.BadRequest
+            >=> fetchNetids
+            >=> generateADActions
+            >=> tap (enqueueAll queue)
+
+         execute workflow item
 
     // Pluck a tool-person from the queue. 
     // Add/remove the person to/from the specified AD group.
     [<FunctionName("ToolUpdatePersonWorker")>]
     let toolUpdatePersonWorker
-        ([<QueueTrigger("tool-update-person")>] toolPerson: string,
+        ([<QueueTrigger("tool-update-person")>] item: string,
          log: ILogger) = 
          ()
