@@ -117,6 +117,19 @@ module ApiErrorTests =
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [knope]
 
+        [<Fact>]       
+        member __.``People search: handles junk roles`` () = 
+            requestFor HttpMethod.Get "people?role=FooBar,ItLeadership"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [knope; swanson]
+
+        [<Fact>]       
+        member __.``People search: handles junk interests`` () = 
+            requestFor HttpMethod.Get "people?interest=waffles,foobar"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [knope]
 
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)

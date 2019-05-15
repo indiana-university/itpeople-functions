@@ -183,9 +183,11 @@ module Functions =
                 | Some(str) -> str
                 | None -> ""
             let responsibilites =
-                let parse s = Enum.Parse<Responsibilities>(s, true) 
+                let parseInt s = 
+                    try Enum.Parse<Responsibilities>(s, true) |> int
+                    with _ -> 0 
                 match tryQueryParam' req "role" with
-                | Some(str) -> str.Split delimiters |> Seq.sumBy (trim >> parse >> int)
+                | Some(str) -> str.Split delimiters |> Seq.sumBy (trim >> parseInt)
                 | None -> 0
             let interests = 
                 match tryQueryParam' req "interest" with
