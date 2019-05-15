@@ -11,6 +11,13 @@ module Types=
         FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
         UpdatePerson: Person -> Async<Result<Person, Error>> }
 
+    type ToolUpdateAction = Add | Remove
+
+    type ToolPersonUpdate =
+      { AdPath: string
+        NetId: NetId
+        UpdateAction: ToolUpdateAction }
+
 module FakeRepository=
     open Types
     open Core.Types
@@ -151,3 +158,31 @@ module Functions=
 
 
         execute workflow netid
+
+    // Enqueue the tools for which permissions need to be updated.
+    [<FunctionName("ToolUpdateBatcher")>]
+    let toolUpdateBatcher
+        ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
+         [<Queue("tool-update")>] queue: ICollector<string>,
+         log: ILogger) = 
+         ()
+
+    // Pluck a tool from the queue. 
+    // Fetch all the people that should have access to this tool, then fetch 
+    // all the people currently in the AD group associated with this tool. 
+    // Determine which people should be added/removed from that AD group
+    // and enqueue and add/remove message for each.
+    [<FunctionName("ToolUpdateWorker")>]
+    let toolUpdateWorker
+        ([<QueueTrigger("tool-update")>] tool: string,
+         [<Queue("tool-update-person")>] queue: ICollector<string>,
+         log: ILogger) = 
+         ()
+
+    // Pluck a tool-person from the queue. 
+    // Add/remove the person to/from the specified AD group.
+    [<FunctionName("ToolUpdatePersonWorker")>]
+    let toolUpdatePersonWorker
+        ([<QueueTrigger("tool-update-person")>] toolPerson: string,
+         log: ILogger) = 
+         ()
