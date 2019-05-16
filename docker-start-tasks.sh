@@ -16,6 +16,8 @@ docker run \
 -e "AzureWebJobsDashboard=CHANGEME" \
 -e "SharedSecret=CHANGEME" \
 -e "DbConnectionString=CHANGEME" \
+-e "AdUser=CHANGEME" \
+-e "AdPassword=CHANGEME" \
 -e "FUNCTIONS_WORKER_RUNTIME=dotnet" \
 -e "WEBSITE_SITE_NAME=tasks" \
 -e "WEBSITE_INSTANCE_ID=tasks" \
