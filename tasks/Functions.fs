@@ -19,7 +19,7 @@ module Types=
         FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
         UpdatePerson: Person -> Async<Result<Person, Error>>
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
-        GetADGroupMembers: string -> Async<Result<seq<NetId>, Error>>
+        GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>> }
 
@@ -45,11 +45,13 @@ module DataRepository =
     open Dapper
     open System.Net.Http
     open System.Net.Http.Headers
+    open Novell.Directory.Ldap
+
+    // DB Stuff
 
     let getAllNetIds connStr =
         let sql = "SELECT netid FROM people;"
-        let queryFn (cn:Cn) = cn.QueryAsync<NetId>(sql)
-        fetch connStr queryFn
+        fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql))
 
     let fetchLatestHrPerson sharedSecret netid =
         let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" netid
@@ -60,25 +62,76 @@ module DataRepository =
 
     let updatePerson connStr (person:Person) = 
         let sql = """
-        UPDATE people 
-        SET name = @Name,
-            position = @Position,
-            campus = @Campus,
-            campus_phone = @CampusPhone,
-            campus_email = @CampusEmail
-        WHERE netid = @NetId
-        RETURNING *;"""
-        let queryFn (cn:Cn) = cn.QuerySingleAsync<Person>(sql, person)
-        fetch connStr queryFn
+            UPDATE people 
+            SET name = @Name,
+                position = @Position,
+                campus = @Campus,
+                campus_phone = @CampusPhone,
+                campus_email = @CampusEmail
+            WHERE netid = @NetId
+            RETURNING *;"""
+        fetch connStr (fun cn -> cn.QuerySingleAsync<Person>(sql, person))
 
-    let Repository connStr sharedSecret =
+    let getAllTools connStr =
+        fetch connStr (fun cn -> cn.GetListAsync<Tool>())
+
+    let getAllToolUsers connStr (tool:Tool) =
+        let sql = """
+            SELECT p.netid FROM people p
+            JOIN unit_members um ON um.person_id = p.id
+            JOIN unit_member_tools umt ON umt.membership_id = um.id
+            WHERE umt.tool_id = @Id"""
+        let param = {|Id=tool.Id|}
+        fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql, param))
+
+    // LDAP Stuff
+
+    let searchBase = "ou=Accounts,dc=ads,dc=iu,dc=edu"
+    let searchFilter dn = 
+        sprintf "(memberOf=%s)" dn
+
+    let memberAttribute netid = 
+        let value = sprintf "cn=%s,%s" netid searchBase
+        LdapAttribute("member", value)
+
+    let doLdapAction adUser adsPassword action = 
+        try
+            use ldap = new LdapConnection()
+            ldap.Connect("ads.iu.edu", 389)
+            ldap.Bind(adUser, adsPassword)  
+            ldap |> action |> ok
+        with exn -> 
+            let msg = sprintf "LDAP interaction failed:\n%A" exn
+            error(Status.InternalServerError, msg)
+
+    let getADGroupMembers adUser adPassword dn =
+        let sam = "sAMAccountName"
+        let list = System.Collections.Generic.List<NetId>()
+        let getADGroupMembers' (ldap:LdapConnection) = 
+            let search = ldap.Search(searchBase, 1, searchFilter dn, [|sam|], false)          
+            while search.hasMore() do
+                search.next().getAttribute(sam).StringValue |> list.Add
+            list |> seq            
+        getADGroupMembers' |> doLdapAction adUser adPassword         
+
+    let updateADGroup adUser adPassword update =
+        let updateADGroup' (ldap:LdapConnection) = 
+            let (dn, modification) = 
+                match update with
+                | Add(netid, dn) -> dn, LdapModification(LdapModification.ADD, memberAttribute netid)
+                | Remove(netid, dn) -> dn, LdapModification(LdapModification.DELETE, memberAttribute netid)
+            ldap.Modify(dn, modification)
+            update
+        updateADGroup' |> doLdapAction adUser adPassword         
+
+    let Repository connStr sharedSecret adUser adPassword =
      { GetAllNetIds = fun () -> getAllNetIds connStr
        FetchLatestHRPerson = fetchLatestHrPerson sharedSecret
        UpdatePerson = updatePerson connStr
-       GetAllTools = fun () -> System.NotImplementedException() |> raise 
-       GetADGroupMembers = fun str -> System.NotImplementedException() |> raise 
-       GetAllToolUsers = fun tool -> System.NotImplementedException() |> raise 
-       UpdateADGroup = fun update -> System.NotImplementedException() |> raise }
+       GetAllTools = fun () -> getAllTools connStr 
+       GetADGroupMembers = getADGroupMembers adUser adPassword 
+       GetAllToolUsers = getAllToolUsers connStr 
+       UpdateADGroup = updateADGroup adUser adPassword }
 
 module Functions=
 
@@ -109,7 +162,9 @@ module Functions=
     let data = 
         let connStr = Environment.GetEnvironmentVariable("DbConnectionString")
         let sharedSecret = Environment.GetEnvironmentVariable("SharedSecret")
-        DataRepository.Repository connStr sharedSecret
+        let adUser = Environment.GetEnvironmentVariable("AdUser")
+        let adPassword = Environment.GetEnvironmentVariable("AdPassword")
+        DataRepository.Repository connStr sharedSecret adUser adPassword
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
@@ -119,6 +174,7 @@ module Functions=
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
+    [<Disable>]
     [<FunctionName("PeopleUpdateBatcher")>]
     let peopleUpdateBatcher
         ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
@@ -142,6 +198,7 @@ module Functions=
 
     // Pluck a netid from the queue, fetch that person's HR data from the API, 
     // and update it in the DB.
+    [<Disable>]
     [<FunctionName("PeopleUpdateWorker")>]
     let peopleUpdateWorker
         ([<QueueTrigger("people-update")>] netid: string,

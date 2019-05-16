@@ -10,10 +10,10 @@ module AdTests =
 
     let username = "CHANGEME"
     let password = "CHANGEME"
+    let dn = "CHANGEME"    
     let searchBase = "ou=Accounts,dc=ads,dc=iu,dc=edu"
-    let dn = "CHANGEME"
-    let searchFilter = sprintf "(memberOf=%s)" dn
-    let memberAttribute = LdapAttribute("member", sprintf "cn=opsbot,%s" searchBase)
+    let searchFilter = sprintf "(memberOf=%s)"
+    let memberAttribute netid = LdapAttribute("member", sprintf "cn=%s,%s" netid searchBase)
 
     let doLdapThing fn = 
         try
@@ -34,7 +34,7 @@ module AdTests =
         let fn (ldap:LdapConnection) = 
             printfn "Members of group..."
             let mutable count = 0
-            let search = ldap.Search(searchBase, 1, searchFilter, [|"cn"|], false)          
+            let search = ldap.Search(searchBase, 1, searchFilter dn, [|"cn"|], false)          
             while search.hasMore() do
                 let next = search.next()
                 printfn "  %s" (next.getAttribute("cn").StringValue)
@@ -46,7 +46,7 @@ module AdTests =
     let ``can add a member to group`` () =
         let addOpsbot (ldap:LdapConnection) =
             printfn "Add member to group..."
-            let modification = LdapModification(LdapModification.ADD, memberAttribute)
+            let modification = LdapModification(LdapModification.ADD, memberAttribute "opsbot")
             ldap.Modify(dn, modification)
         
         ``list group members``()
@@ -54,12 +54,11 @@ module AdTests =
         ``list group members``()
         ()
 
-
     // [<Fact>]
     let ``can remove a member from group`` () =
         let removeOpsbot (ldap:LdapConnection) =
             printfn "Remove member from group..."
-            let modification = LdapModification(LdapModification.DELETE, memberAttribute)
+            let modification = LdapModification(LdapModification.DELETE, memberAttribute "opsbot")
             ldap.Modify(dn, modification)
 
         ``list group members``()
