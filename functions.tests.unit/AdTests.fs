@@ -33,10 +33,13 @@ module AdTests =
     let ``list group members`` () =
         let fn (ldap:LdapConnection) = 
             printfn "Members of group..."
+            let mutable count = 0
             let search = ldap.Search(searchBase, 1, searchFilter, [|"cn"|], false)          
             while search.hasMore() do
                 let next = search.next()
                 printfn "  %s" (next.getAttribute("cn").StringValue)
+                count <- count + 1
+            printfn "  Found %d members." count
         doLdapThing fn
 
     //[<Fact>]
