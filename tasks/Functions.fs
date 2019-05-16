@@ -24,6 +24,7 @@ module Types=
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>> }
 
 module FakeRepository=
+
     open Types
     open Core.Types
     open Core.Fakes
@@ -73,11 +74,12 @@ module DataRepository =
         fetch connStr (fun cn -> cn.QuerySingleAsync<Person>(sql, person))
 
     let getAllTools connStr =
-        fetch connStr (fun cn -> cn.GetListAsync<Tool>())
+        let sql = "SELECT * FROM tools"
+        fetch connStr (fun cn -> cn.QueryAsync<Tool>(sql))
 
     let getAllToolUsers connStr (tool:Tool) =
         let sql = """
-            SELECT p.netid FROM people p
+            SELECT DISTINCT p.netid FROM people p
             JOIN unit_members um ON um.person_id = p.id
             JOIN unit_member_tools umt ON umt.membership_id = um.id
             WHERE umt.tool_id = @Id"""
@@ -95,34 +97,41 @@ module DataRepository =
         LdapAttribute("member", value)
 
     let doLdapAction adUser adsPassword action = 
-        try
             use ldap = new LdapConnection()
             ldap.Connect("ads.iu.edu", 389)
             ldap.Bind(adUser, adsPassword)  
             ldap |> action |> ok
-        with exn -> 
-            let msg = sprintf "LDAP interaction failed:\n%A" exn
-            error(Status.InternalServerError, msg)
 
     let getADGroupMembers adUser adPassword dn =
-        let sam = "sAMAccountName"
-        let list = System.Collections.Generic.List<NetId>()
         let getADGroupMembers' (ldap:LdapConnection) = 
+            let sam = "sAMAccountName"
+            let list = System.Collections.Generic.List<NetId>()
             let search = ldap.Search(searchBase, 1, searchFilter dn, [|sam|], false)          
             while search.hasMore() do
                 search.next().getAttribute(sam).StringValue |> list.Add
-            list |> seq            
-        getADGroupMembers' |> doLdapAction adUser adPassword         
+            list |> seq
+        try
+            getADGroupMembers' |> doLdapAction adUser adPassword         
+        with exn -> 
+            let msg = sprintf "Group member lookup failed for %s:\n%A" dn exn
+            error(Status.InternalServerError, msg)
 
     let updateADGroup adUser adPassword update =
-        let updateADGroup' (ldap:LdapConnection) = 
+        let updateADGroup' (ldap:LdapConnection) =
             let (dn, modification) = 
                 match update with
                 | Add(netid, dn) -> dn, LdapModification(LdapModification.ADD, memberAttribute netid)
                 | Remove(netid, dn) -> dn, LdapModification(LdapModification.DELETE, memberAttribute netid)
             ldap.Modify(dn, modification)
             update
-        updateADGroup' |> doLdapAction adUser adPassword         
+        try
+            updateADGroup' |> doLdapAction adUser adPassword         
+        with exn -> 
+            if exn.Message = "No Such Object"
+            then ok update // This user isn't in AD. There's nothing we can do about it. Squelch
+            else 
+                let msg = sprintf "Group modification failed for %A:\n%A" update exn
+                error(Status.InternalServerError, msg)
 
     let Repository connStr sharedSecret adUser adPassword =
      { GetAllNetIds = fun () -> getAllNetIds connStr
@@ -164,6 +173,7 @@ module Functions=
         let sharedSecret = Environment.GetEnvironmentVariable("SharedSecret")
         let adUser = Environment.GetEnvironmentVariable("AdUser")
         let adPassword = Environment.GetEnvironmentVariable("AdPassword")
+        Database.Command.init()
         DataRepository.Repository connStr sharedSecret adUser adPassword
 
     /// This module defines the bindings and triggers for all functions in the project
@@ -174,10 +184,9 @@ module Functions=
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
-    [<Disable>]
     [<FunctionName("PeopleUpdateBatcher")>]
     let peopleUpdateBatcher
-        ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
+        ([<TimerTrigger("0 0 14 * * *")>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
         
@@ -198,7 +207,6 @@ module Functions=
 
     // Pluck a netid from the queue, fetch that person's HR data from the API, 
     // and update it in the DB.
-    [<Disable>]
     [<FunctionName("PeopleUpdateWorker")>]
     let peopleUpdateWorker
         ([<QueueTrigger("people-update")>] netid: string,
@@ -237,13 +245,13 @@ module Functions=
         // Enqueue the tools for which permissions need to be updated.
     [<FunctionName("ToolUpdateBatcher")>]
     let toolUpdateBatcher
-        ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
+        ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
          [<Queue("tool-update")>] queue: ICollector<string>,
          log: ILogger) =
 
          let logEnqueuedTools = 
-            Seq.map (fun t -> t.Name)
-            >> String.concat ", "
+            Seq.map (fun t -> sprintf "%s: %s" t.Name t.ADPath)
+            >> String.concat "\n"
             >> sprintf "Enqueued tool permission updates for: %s"
             >> log.LogInformation
 
@@ -286,7 +294,8 @@ module Functions=
                 ad 
                 |> Seq.except db 
                 |> Seq.map (fun a -> Remove(a, tool.ADPath))
-            Seq.append addToAD removeFromAD |> ok
+            let result = Seq.append addToAD removeFromAD 
+            result |> ok
                    
          let workflow =
             tryDeserializeAsync<Tool>
