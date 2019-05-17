@@ -83,7 +83,7 @@ module DataRepository =
             JOIN unit_members um ON um.person_id = p.id
             JOIN unit_member_tools umt ON umt.membership_id = um.id
             WHERE umt.tool_id = @Id"""
-        let param = {|Id=tool.Id|}
+        let param = {Id=tool.Id}
         fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql, param))
 
     // LDAP Stuff

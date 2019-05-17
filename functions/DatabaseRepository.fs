@@ -256,13 +256,20 @@ module DatabaseRepository =
     let mapPerson id = 
         mapPeople (WhereId("p.id", id))
 
+    type PeopleQueryParam = {
+        Query:string
+        Responsibilities:int
+        Interests:array<string>
+        InterestsRaw:string
+    }
+
     let queryPeople connStr (query:PeopleQuery) =
-        let param = {|
+        let param = {
             Query = if query.Query = "" then "" else like query.Query
             Responsibilities = query.Responsibilities
             Interests = query.Interests |> Array.map like
             InterestsRaw = query.Interests |> String.concat ""
-        |}
+        }
         // printfn "Query Param: %A" param
         let whereClause = 
             """(@Query='' OR (p.name ILIKE @Query OR p.netid ILIKE @Query))
