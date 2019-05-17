@@ -57,13 +57,16 @@ let getConfiguration () =
 /// HTTP REQUEST
 
 /// Attempt to retrieve a query parameter of the given name
-let tryQueryParam paramName (req: HttpRequestMessage) =
+let tryQueryParam' (req: HttpRequestMessage) key =
     let query = req.RequestUri.Query |> QueryHelpers.ParseQuery
-    let param =
-        if query.ContainsKey(paramName)
-        then query.[paramName].ToString() |> Some
-        else None
-    param |> Ok |> async.Return
+    if query.ContainsKey(key)
+    then query.[key].ToString() |> Some
+    else None
+
+let tryQueryParam (req: HttpRequestMessage) key =
+    key
+    |> (tryQueryParam' req)
+    |> ok
 
 /// Require a query parameter of the given name
 let queryParam paramName (req: HttpRequestMessage) =

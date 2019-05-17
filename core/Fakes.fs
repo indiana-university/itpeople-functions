@@ -36,7 +36,7 @@ let swanson:Person = {
 let knope:Person = {
     Id=2
     NetId="lknope"
-    Name="Knope, Lesie Park"
+    Name="Knope, Leslie Park"
     Position="Parks and Rec Deputy Director "
     Location=""
     Campus=""
@@ -91,6 +91,7 @@ let tool: Tool =
   { Id=1
     Name="Hammer"
     Description=""
+    ADPath=""
     DepartmentScoped=true }
 
 let memberTool:MemberTool = 

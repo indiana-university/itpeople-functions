@@ -225,6 +225,9 @@ type Tool =
     /// A description of this tool.
     [<DefaultValue("")>]
     [<Column("description")>] Description: Name
+    /// A description of this tool.
+    [<DefaultValue("")>]
+    [<Column("ad_path")>] ADPath: string
     /// Whether this tool is scoped to a department via a unit-department support relationship.
     [<DefaultValue(false)>]
     [<Column("department_scoped")>] DepartmentScoped: bool }
@@ -313,11 +316,16 @@ type MessageResult = {
 
 type NoContent = unit
 
+type PeopleQuery = 
+  { Query: string
+    Responsibilities: int
+    Interests: array<string> }
+
 type PeopleRepository = {
     /// Get a user record for a given net ID (e.g. 'jhoerr')
     TryGetId: NetId -> Async<Result<NetId * Id option,Error>>
     /// Get a list of all people
-    GetAll: Filter option -> Async<Result<Person seq,Error>>
+    GetAll: PeopleQuery -> Async<Result<Person seq,Error>>
     /// Get a single person by ID
     Get: PersonId -> Async<Result<Person,Error>>
     /// Create a person from canonical HR data

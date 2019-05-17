@@ -5,7 +5,7 @@
     <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.5.2" />
+    <PackageReference Include="FSharp.Core" Version="4.6.2" />
     <PackageReference Include="Simple.Migrations" Version="0.9.19" />
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
@@ -15,13 +15,7 @@
     <Compile Include="Migration.fs" />
     <Compile Include="Command.fs" />
     <Compile Include="Fakes.fs" />
-    <Compile Include="Migrations/01_CreateBaseTables.fs" />
-    <Compile Include="Migrations/02_CreateToolTables.fs" />
-    <Compile Include="Migrations/03_ToolsAddDefaults.fs" />
-    <Compile Include="Migrations/04_AlterToolsWithDepartmentScopeFlag.fs" />
-    <Compile Include="Migrations/05_AddAuditTable.fs" />
-    <Compile Include="Migrations/06_DropPersonHashColumn.fs" />
-    <Compile Include="Migrations/07_AddPersonServiceAdminColumn.fs" />
+    <Compile Include="Migrations/*.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

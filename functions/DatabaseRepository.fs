@@ -256,12 +256,27 @@ module DatabaseRepository =
     let mapPerson id = 
         mapPeople (WhereId("p.id", id))
 
-    let queryPeople connStr query =
-        let filter = 
-            match query with
-            | None ->  Unfiltered
-            | Some(q) -> WhereParam("p.name ILIKE @Query OR p.netid ILIKE @Query", {Query=like q})
-        fetchAll connStr (mapPeople(filter))
+    type PeopleQueryParam = {
+        Query:string
+        Responsibilities:int
+        Interests:array<string>
+        InterestsRaw:string
+    }
+
+    let queryPeople connStr (query:PeopleQuery) =
+        let param = {
+            Query = if query.Query = "" then "" else like query.Query
+            Responsibilities = query.Responsibilities
+            Interests = query.Interests |> Array.map like
+            InterestsRaw = query.Interests |> String.concat ""
+        }
+        // printfn "Query Param: %A" param
+        let whereClause = 
+            """(@Query='' OR (p.name ILIKE @Query OR p.netid ILIKE @Query))
+            AND (@Responsibilities=0 OR (p.responsibilities & @Responsibilities <> 0))
+            AND (@InterestsRaw='' OR (p.expertise ILIKE ANY (@Interests)))
+            ORDER BY p.netid"""
+        fetchAll connStr (mapPeople(WhereParam(whereClause, param)))
 
     let queryPerson connStr id =
         fetchOne<Person> connStr mapPerson id
