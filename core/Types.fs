@@ -225,6 +225,9 @@ type Tool =
     /// A description of this tool.
     [<DefaultValue("")>]
     [<Column("description")>] Description: Name
+    /// A description of this tool.
+    [<DefaultValue("")>]
+    [<Column("ad_path")>] ADPath: string
     /// Whether this tool is scoped to a department via a unit-department support relationship.
     [<DefaultValue(false)>]
     [<Column("department_scoped")>] DepartmentScoped: bool }

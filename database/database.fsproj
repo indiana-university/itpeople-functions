@@ -15,13 +15,7 @@
     <Compile Include="Migration.fs" />
     <Compile Include="Command.fs" />
     <Compile Include="Fakes.fs" />
-    <Compile Include="Migrations/01_CreateBaseTables.fs" />
-    <Compile Include="Migrations/02_CreateToolTables.fs" />
-    <Compile Include="Migrations/03_ToolsAddDefaults.fs" />
-    <Compile Include="Migrations/04_AlterToolsWithDepartmentScopeFlag.fs" />
-    <Compile Include="Migrations/05_AddAuditTable.fs" />
-    <Compile Include="Migrations/06_DropPersonHashColumn.fs" />
-    <Compile Include="Migrations/07_AddPersonServiceAdminColumn.fs" />
+    <Compile Include="Migrations/*.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
