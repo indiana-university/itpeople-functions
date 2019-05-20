@@ -46,7 +46,6 @@ type AppConfig =
     OAuth2ClientSecret: string
     OAuth2TokenUrl: string
     OAuth2RedirectUrl: string
-    JwtSecret: string
     DbConnectionString: string
     UseFakes: bool
     CorsHosts: string
@@ -422,6 +421,8 @@ type HrDataRepository = {
 }
 
 type AuthorizationRepository = {
+    /// Given an OAuth token_key URL and return the public key.
+    UaaPublicKey: string -> Async<Result<string,Error>>
     IsServiceAdmin: NetId -> Async<Result<bool, Error>>
     IsUnitManager: NetId -> Id -> Async<Result<bool, Error>>
     IsUnitToolManager: NetId -> Id -> Async<Result<bool, Error>>

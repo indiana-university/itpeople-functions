@@ -61,13 +61,12 @@ module Jwt =
         rp
 
     let importPublicKey pem =
-
         let pr =  PemReader(new StringReader(pem));
         let publicKey = pr.ReadObject() :?> Org.BouncyCastle.Crypto.AsymmetricKeyParameter
         let rsaParams = publicKey :?> RsaKeyParameters |> ToRSAParameters
         let csp = new RSACryptoServiceProvider();// cspParams);
         csp.ImportParameters(rsaParams);
-        csp;
+        csp
 
 
     let MissingAuthHeader = "Authorization header is required in the form of 'Bearer <token>'."
@@ -97,7 +96,8 @@ module Jwt =
         try 
             let rsa = importPublicKey uaaPublicKey
             Jose.JWT.Decode<UaaJwt>(jwt, rsa, JwsAlgorithm.RS256) |> ok
-        with _ -> error (Status.Unauthorized, "Access token is not valid.")
+        with _ -> 
+            error (Status.Unauthorized, "Access token is not valid.")
 
     let ensureJwtNotExpired uaa =
         let expiration = uaa.exp |> float |> epoch.AddSeconds

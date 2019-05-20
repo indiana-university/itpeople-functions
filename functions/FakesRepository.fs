@@ -72,6 +72,7 @@ module FakesRepository =
     }
 
     let FakeAuthorization : AuthorizationRepository = {
+        UaaPublicKey = fun _ -> stub uaaJwt.access_token
         IsServiceAdmin = fun id -> stub true
         IsUnitManager = fun netid id -> stub true
         IsUnitToolManager = fun netid id -> stub true

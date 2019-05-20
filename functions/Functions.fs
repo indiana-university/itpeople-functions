@@ -39,9 +39,34 @@ module Functions =
             Database.Command.init()
             DatabaseRepository.Repository(config.DbConnectionString, config.SharedSecret)
     let log = createLogger config.DbConnectionString
-    let publicKey = Core.Fakes.fakePublicKey
+    
+    let publicKey =
+        let envKey = System.Environment.GetEnvironmentVariable("OAuthPublicKey")
+        if isNull envKey
+        then
+            "JWT Public Key not found in Environment; Fetching from UAA..." |> log.Information
+            let resp =  
+                config.OAuth2TokenUrl
+                |> sprintf "%s_key"
+                |> data.Authorization.UaaPublicKey 
+                |> Async.RunSynchronously
+            match resp with
+            | Ok(uaaKey) -> 
+                uaaKey
+                |> sprintf "Using JWT Public Key from UAA: %s" 
+                |> log.Information
+                uaaKey
+            | Error(msg) -> 
+                let err = sprintf "Failed to fetch UAA Public Key. Function app cannot start. Reason: %A" msg
+                log.Fatal(err)
+                err |> System.Exception |> raise
+        else 
+            envKey 
+            |> sprintf "Using JWT Public Key from Environment: %s" 
+            |> log.Information
+            envKey
 
-
+           
     // FUNCTION WORKFLOW HELPERS 
 
     let addProperty (req:HttpRequestMessage) key value = 
