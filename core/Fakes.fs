@@ -3,8 +3,8 @@ module Core.Fakes
 open Types
 
 // UaaResponse 
-let accessToken = { access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxNTE1NTQ0NjQzIiwidXNlcl9pZCI6MSwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfcm9sZSI6ImFkbWluIn0.akuT7-xDFxrev-T9Dv0Wdumx1HK5L2hQAOU51igIjUE" }
-
+let uaaJwt = { access_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJqb2huZG9lIiwiZXhwIjoyOTE2MjM5MDIyfQ.ELo8I2IImgRRT75cOcUcSllbkWVWAIQA2WQr27WSpWwF2c7Wh9hjqkPriZ4PxSD4OR9IgGWt5HWpPQFDOwlv1O7tl2gLcZ5LayuRzQX2AEn-UsEBECStEwABUtwhg92q9Ov-GRbYqmP_5UpntbCr8aZfMEuMfLTIWePcORq_FrJhjyRUoKhUo8007W6RO58n03erVlslSB1f-JTYtBdhYOlgmDTOCp_rc-gPvKFePMb4c05IOD-x4ce2QGkZlL_pE1_OLKdn5A07k7B8x53v38WvWuisFGIPXUcuP3j9hdJHIzYLSfL5t1OABT1-57C91yaMAgVsATMRgT9qtzYQgg" }
+let fakePublicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnzyis1ZjfNB0bBgKFMSv\nvkTtwlvBsaJq7S5wA+kzeVOVpVWwkWdVha4s38XM/pa/yr47av7+z3VTmvDRyAHc\naT92whREFpLv9cj5lTeJSibyr/Mrm/YtjCZVWgaOYIhwrXwKLqPr/11inWsAkfIy\ntvHWTxZYEcXLgAXFuUuaS3uF9gEiNQwzGTU1v0FqkqTBr4B8nW3HCN47XUu0t8Y0\ne+lf4s4OxQawWD79J9/5d3Ry0vbV3Am1FtGJiJvOwRsIfVChDpYStTcHTCMqtvWb\nV6L11BWkpzGXSW4Hv43qa+GSYOD2QU68Mb59oSk2OB+BtOLpJofmbGEGgvmwyCI9\nMwIDAQAB\n-----END PUBLIC KEY-----"
 // Units
 let cityOfPawnee:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url="http://pawneeindiana.com/"; ParentId=None; Parent=None}
 let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url="http://pawneeindiana.com/parks-and-recreation/"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}

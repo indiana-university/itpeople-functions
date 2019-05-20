@@ -52,7 +52,7 @@ module TestFixture =
         do
             // These config settings are needed for the tests
             Environment.SetEnvironmentVariable("UseFakeData", "false")
-            Environment.SetEnvironmentVariable("JwtSecret","jwt signing secret")
+            Environment.SetEnvironmentVariable("OAuthPublicKey",Core.Fakes.fakePublicKey)
             Environment.SetEnvironmentVariable("DbConnectionString", testConnectionString)
             // These config settings aren't needed for the tests, but the config expects them
             Environment.SetEnvironmentVariable("OAuthClientId","na")
