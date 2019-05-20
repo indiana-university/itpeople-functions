@@ -400,10 +400,16 @@ module DatabaseRepository =
         LIMIT 1
     )"""
 
+    type UaaPublicKey = {alg:string; value:string} 
+    let uaaPublicKey (url:string) =
+        let msg = new HttpRequestMessage(HttpMethod.Get, url)
+        sendAsync<UaaPublicKey> msg
+        >>= fun resp -> ok resp.value
+
     let isServiceAdmin connStr netid =
         let param = { NetId=netid }
         let query (cn:Cn) = cn.QuerySingleAsync<bool>(isServiceAdminSql, param)
-        fetch connStr query
+        fetch connStr query        
 
     let hasCascadedUnitPermsSql = """
     WITH RECURSIVE parentage AS (
@@ -515,6 +521,7 @@ module DatabaseRepository =
     }
 
     let AuthorizationRepository(connStr) = {
+        UaaPublicKey = uaaPublicKey
         IsServiceAdmin = isServiceAdmin connStr
         IsUnitManager = isUnitManager connStr
         IsUnitToolManager = isUnitToolManager connStr

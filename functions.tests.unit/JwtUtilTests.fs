@@ -3,6 +3,7 @@
 
 namespace Tests
 
+open Core.Fakes
 open Core.Types
 open Functions.Jwt
 open System
@@ -11,44 +12,27 @@ open Xunit
 module JwtUtilTests =
 
     let name = "johndoe"
-    let id = 1
-
-    let expiration = DateTime(2030,9,13,15,44,03,DateTimeKind.Utc)
-
     /// NOTE: You can view the contents of these tokens at jwt.io.
-    let expiredJwt = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxNTE1NTQ0NjQzIiwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfcm9sZSI6ImFkbWluIn0.rz4RXtrGr1WfX0tUBAu2yj-KU7u1gqwZ4oWInm2vd-4"
-
-    [<Fact>]
-    let ``Decode UAA JWT`` () =
-        let expected = Ok ({ UserName=name; UserId=0; Expiration=expiration; })
-        let actual = decodeUaaJwt {access_token = TestFakes.validJwt} |> Async.RunSynchronously
-        Assert.Equal(expected, actual)
-
-    [<Fact>]
-    let ``Encode app JWT`` () =
-        let person = (name, Some(id))
-        let expected = Ok ({access_token = TestFakes.validJwt})
-        let actual = encodeAppJwt TestFakes.jwtSingingSecret expiration person |> Async.RunSynchronously
-        Assert.Equal(expected, actual)
+    let invalidJwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJqb2huZG9lIiwiZXhwIjoxNTE2MjM5MDIyfQ.RRdc-M105p8LlK59nqKtCmHlFDEIXTsEha7Y-CcwkNbGqvntdpckkLuuTlGeGgs-QHNzEypTEOoQi-TjFIXmhMhTbXcP5Vo3Ht2qC5h5H4aeQ18fFBAdRaRH_4QEfpitYT7uuUt-xa7cgr0UgJz8aMGI5wskFuCyd7F0D0LFRhkAInLiLNGG0G9PNgHCwcqriQ0qonMbX0DQrnAbfWxl04-GSJ88HmMowuLL9d65Tg-7VE65-UPAOncm2IA_PeVl-gcNJibhikhG9IKiYM0g1W82BQJVLG1HuHnMZR8OzmgCV0oQVTG3jmX8JBjZxITmss0cA0FtD8JBN_3orSaXYZ"
+    let expiredJwt = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJqb2huZG9lIiwiZXhwIjoxNTE2MjM5MDIyfQ.RRdc-M105p8LlK59nqKtCmHlFDEIXTsEha7Y-CcwkNbGqvntdpckkLuuTlGeGgs-QHNzEypTEOoQi-TjFIXmhMhTbXcP5Vo3Ht2qC5h5H4aeQ18fFBAdRaRH_4QEfpitYT7uuUt-xa7cgr0UgJz8aMGI5wskFuCyd7F0D0LFRhkAInLiLNGG0G9PNgHCwcqriQ0qonMbX0DQrnAbfWxl04-GSJ88HmMowuLL9d65Tg-7VE65-UPAOncm2IA_PeVl-gcNJibhikhG9IKiYM0g1W82BQJVLG1HuHnMZR8OzmgCV0oQVTG3jmX8JBjZxITmss0cA0FtD8JBN_3orSaIOg"
 
     [<Fact>]
     let ``Decode app JWT`` () =
-        let expected = Ok ({ UserName=name; UserId=1; Expiration=expiration })
-        let actual = decodeAppJwt TestFakes.jwtSingingSecret TestFakes.validJwt |> Async.RunSynchronously
+        let expected = Ok (name)
+        let actual = decodeJwt fakePublicKey uaaJwt.access_token |> Async.RunSynchronously
         Assert.Equal(expected, actual)
 
     [<Fact>]
     let ``Decode app JWT validates signature`` () =
-        let expected = Error ((Status.Unauthorized, "Access token has invalid signature"))
-        let actual = decodeAppJwt "different signing secret" TestFakes.validJwt |> Async.RunSynchronously
+        let expected = Error ((Status.Unauthorized, "Access token is not valid."))
+        let actual = decodeJwt fakePublicKey invalidJwt |> Async.RunSynchronously
         Assert.Equal(expected, actual)
 
     [<Fact>]
     let ``Decode app JWT validates expiration`` () =
-        let expected = Error ((Status.Unauthorized, "Access token has expired"))
-        let actual = decodeAppJwt TestFakes.jwtSingingSecret expiredJwt |> Async.RunSynchronously
+        let expected = Error ((Status.Unauthorized, "Access token has expired."))
+        let actual = decodeJwt fakePublicKey expiredJwt |> Async.RunSynchronously
         Assert.Equal(expected, actual)
-
 
     [<Fact>]
     let ``Parse double`` () =
@@ -56,5 +40,9 @@ module JwtUtilTests =
         let expected = float 123
         Assert.Equal(expected, actual)
         
+    [<Fact>]
+    let ``parse public key`` () =
+        let actual = importPublicKey fakePublicKey
+        Assert.Equal("rsa", actual.KeyExchangeAlgorithm.ToLowerInvariant())
 
     

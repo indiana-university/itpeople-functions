@@ -8,9 +8,11 @@ open Core.Util
 open System
 open System.Collections.Generic
 open System.Net.Http
-open JWT
-open JWT.Algorithms
-open JWT.Builder
+open Jose
+open Org.BouncyCastle.Crypto.Parameters;
+open Org.BouncyCastle.OpenSsl;
+open System.IO
+open System.Security.Cryptography;
 
 module Jwt =
 
@@ -33,72 +35,39 @@ module Jwt =
     let UserNameClaim = "user_name"
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
-    /// Create and sign a JWT
-    let encodeAppJwt secret expiration (netId: string, userId: int option) = 
-        try
-            let builder = 
-                JwtBuilder()
-                    .WithAlgorithm(HMACSHA256Algorithm())
-                    .WithSecret(secret)
-                    .ExpirationTime(expiration)
-                    .AddClaim(UserNameClaim, netId)
-            if (userId.IsSome)
-            then builder.AddClaim(UserIdClaim, userId.Value) |> ignore
-            { access_token = builder.Build() } |> Ok |> async.Return
-        with _ -> Error (Status.InternalServerError, "Failed to create access token.") |> async.Return
+    type UaaJwt = {
+        exp: int64
+        user_name: NetId
+    }
 
-    /// Convert the "exp" unix timestamp into a Datetime
-    let decodeExp exp = 
-        exp 
-        |> string 
-        |> System.Double.Parse 
-        |> (fun unixTicks -> epoch.AddSeconds(unixTicks))
+    let ConvertRSAParametersField (n:Org.BouncyCastle.Math.BigInteger) (size:int) =
+        let bs = n.ToByteArrayUnsigned()
+        if (bs.Length = size)
+        then bs
+        else
+            if (bs.Length > size)
+            then ArgumentException("Specified size too small", "size") |> raise
+            else         
+                let padded = Array.create size (byte 0)
+                Array.Copy(bs, 0, padded, size - bs.Length, bs.Length);
+                padded
 
-    /// Decode a JWT from the UAA service
-    let decodeUaaJwt (jwt:JwtResponse) = 
-        try
-            // decode the UAA JWT
-            let decoded = 
-                JwtBuilder()
-                    .Decode<IDictionary<string, obj>>(jwt.access_token)
-            // map the claims to a domain object
-            let claims = {
-                UserId = 0
-                UserName = decoded.[UserNameClaim] |> string
-                Expiration = decoded.[ExpClaim] |> decodeExp
-            }
-            Ok claims |> async.Return
-        with 
-        | :? TokenExpiredException as ex -> 
-            Error (Status.Unauthorized, "Access token has expired") |> async.Return
-        | exn ->
-            Error (Status.Unauthorized, sprintf "Failed to decode access token: %s" (exn.Message)) |> async.Return
+    let ToRSAParameters (rsaKey:RsaKeyParameters) =
+        let mutable rp = RSAParameters()
+        rp.Modulus <- rsaKey.Modulus.ToByteArrayUnsigned()
+        if (rsaKey.IsPrivate)
+        then rp.D <- ConvertRSAParametersField rsaKey.Exponent rp.Modulus.Length
+        else rp.Exponent <- rsaKey.Exponent.ToByteArrayUnsigned()
+        rp
 
-    /// Decode a JWT issued by the Api.Auth.get function.
-    let decodeAppJwt secret jwt =
-        let result = 
-            try
-                // decode and validate the app JWT
-                let decoded = 
-                    JwtBuilder()
-                        .WithSecret(secret)
-                        .MustVerifySignature()
-                        .Decode<IDictionary<string, string>>(jwt)
-                // map the claims to a domain object
-                let claims = {
-                    UserId = decoded.[UserIdClaim] |> Int32.Parse
-                    UserName = decoded.[UserNameClaim] |> string
-                    Expiration = decoded.[ExpClaim] |> decodeExp
-                }
-                Ok claims
-            with 
-            | :? TokenExpiredException as ex -> 
-                Error (Status.Unauthorized, "Access token has expired")
-            | :? SignatureVerificationException as ex -> 
-                Error (Status.Unauthorized, "Access token has invalid signature")
-            | exn ->
-                Error (Status.Unauthorized, sprintf "Failed to decode access token: %s" (exn.Message))       
-        async.Return result
+    let importPublicKey pem =
+        let pr =  PemReader(new StringReader(pem));
+        let publicKey = pr.ReadObject() :?> Org.BouncyCastle.Crypto.AsymmetricKeyParameter
+        let rsaParams = publicKey :?> RsaKeyParameters |> ToRSAParameters
+        let csp = new RSACryptoServiceProvider();// cspParams);
+        csp.ImportParameters(rsaParams);
+        csp
+
 
     let MissingAuthHeader = "Authorization header is required in the form of 'Bearer <token>'."
 
@@ -122,9 +91,27 @@ module Jwt =
             then Error (Status.Unauthorized, MissingAuthHeader)
             else parts.[1] |> Ok
         async.Return result 
+
+    let validateSignature uaaPublicKey jwt =
+        try 
+            let rsa = importPublicKey uaaPublicKey
+            Jose.JWT.Decode<UaaJwt>(jwt, rsa, JwsAlgorithm.RS256) |> ok
+        with _ -> 
+            error (Status.Unauthorized, "Access token is not valid.")
+
+    let ensureJwtNotExpired uaa =
+        let expiration = uaa.exp |> float |> epoch.AddSeconds
+        if (expiration < DateTime.UtcNow)
+        then error(Status.Unauthorized, "Access token has expired.")
+        else ok uaa.user_name
+
+    /// Decode a JWT issued by the Api.Auth.get function.
+    let decodeJwt uaaPublicKey =
+        validateSignature uaaPublicKey
+        >=> ensureJwtNotExpired
                
     /// Attempt to decode the app JWT claims
-    let authenticateRequest (config:AppConfig) = 
+    let authenticateRequest uaaPublicKey = 
         extractAuthHeader 
         >=> extractJwt
-        >=> decodeAppJwt config.JwtSecret
+        >=> decodeJwt uaaPublicKey

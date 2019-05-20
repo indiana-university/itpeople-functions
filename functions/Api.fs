@@ -47,7 +47,6 @@ let getConfiguration () =
         OAuth2ClientSecret = getRequiredValue<string> config "OAuthClientSecret"
         OAuth2TokenUrl = getRequiredValue<string> config "OAuthTokenUrl"
         OAuth2RedirectUrl = getRequiredValue<string> config "OAuthRedirectUrl"
-        JwtSecret = getRequiredValue<string> config "JwtSecret"
         DbConnectionString = getRequiredValue<string> config "DbConnectionString"
         UseFakes = getValueOrDefault<bool> config "UseFakeData" false
         CorsHosts = getValueOrDefault<string> config "CorsHosts" "*"

@@ -12,7 +12,7 @@ type ApiEndpointExample<'T>(example:'T) =
     interface IExamplesProvider<'T> with
         member this.GetExamples () = ex
 
-type JwtResponseExample () = inherit ApiEndpointExample<JwtResponse>(accessToken)
+type JwtResponseExample () = inherit ApiEndpointExample<JwtResponse>(uaaJwt)
 type UnitsExample() = inherit ApiEndpointExample<seq<Unit>>([parksAndRec])
 type UnitExample() = inherit ApiEndpointExample<Unit>(parksAndRec)
 type UnitRequestExample() = inherit ApiEndpointExample<UnitRequest>(parksAndRecUnitRequest)
