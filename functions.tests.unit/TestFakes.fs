@@ -29,7 +29,6 @@ module TestFakes =
         OAuth2ClientSecret="client secret"
         OAuth2TokenUrl="token url"
         OAuth2RedirectUrl="redirect url"
-        JwtSecret=jwtSingingSecret
         DbConnectionString="db connectionString"
         UseFakes=false
         CorsHosts="*"
