@@ -26,12 +26,13 @@
     <ProjectReference Include="../database/database.fsproj" />    
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="BouncyCastle.NetCore" Version="1.8.5" />
     <PackageReference Include="FSharp.Core" Version="4.6.2" />
+    <PackageReference Include="jose-jwt" Version="2.4.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.KeyPerFile" Version="2.1.1" />
     <PackageReference Include="Dapper" Version="1.50.5" />
     <PackageReference Include="Dapper.SimpleCRUD" Version="2.0.0" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.27" />
-    <PackageReference Include="JWT" Version="4.0.0" />
     <PackageReference Include="Npgsql" Version="4.0.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="2.1.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />

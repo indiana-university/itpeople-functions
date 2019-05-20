@@ -20,7 +20,7 @@ module ApiErrorTests =
         new HttpRequestMessage(method, uri)
 
     let withAuthentication (request:HttpRequestMessage) = 
-        request.Headers.Authorization <- AuthenticationHeaderValue("Bearer", "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOiIxOTE1NTQ0NjQzIiwidXNlcl9uYW1lIjoiam9obmRvZSIsInVzZXJfaWQiOjF9.bCMuAfRby19tJHCOggz7KESMRxtPl_h7pLTQTx3ui4E")
+        request.Headers.Authorization <- AuthenticationHeaderValue("Bearer", Core.Fakes.uaaJwt.access_token)
         request
     
     let withRawBody str (request:HttpRequestMessage) =

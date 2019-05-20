@@ -39,6 +39,8 @@ module Functions =
             Database.Command.init()
             DatabaseRepository.Repository(config.DbConnectionString, config.SharedSecret)
     let log = createLogger config.DbConnectionString
+    let publicKey = Core.Fakes.fakePublicKey
+
 
     // FUNCTION WORKFLOW HELPERS 
 
@@ -54,9 +56,9 @@ module Functions =
         Ok req |> async.Return
         
     /// Logging: Add the authenticated user to the request properties
-    let recordAuthenticatedUser req user =
-        addProperty req WorkflowUser user.UserName
-        ok user.UserName
+    let recordAuthenticatedUser req (netid:NetId) =
+        addProperty req WorkflowUser netid
+        ok netid
 
     let recordUserPermissions req model perms =
         addProperty req WorkflowPermissions perms
@@ -68,7 +70,7 @@ module Functions =
         raise exn
 
     let authenticate req = 
-        authenticateRequest config req
+        authenticateRequest publicKey req
         >>= recordAuthenticatedUser req
 
     let permission req authFn model =
@@ -145,17 +147,17 @@ module Functions =
         let createUaaTokenRequest = createUaaTokenRequest config
         let requestTokenFromUaa = postAsync<JwtResponse> config.OAuth2TokenUrl
         let resolveAppUserId = data.People.TryGetId
-        let encodeAppJwt = encodeAppJwt config.JwtSecret (now().AddHours(8.))
+        let recordLoginAndReturnJwt req jwt =
+            decodeJwt publicKey jwt.access_token
+            >>= recordAuthenticatedUser req 
+            >>= (fun _ -> ok jwt)
 
         // workflow definition
         let workflow =  
             queryParam "oauth_code"
             >=> createUaaTokenRequest
             >=> requestTokenFromUaa
-            >=> decodeUaaJwt
-            >=> recordAuthenticatedUser req
-            >=> resolveAppUserId
-            >=> encodeAppJwt
+            >=> recordLoginAndReturnJwt req
 
         get req workflow
 
