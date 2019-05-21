@@ -310,8 +310,9 @@ type ToolPermission =
 type HistoricalPersonUnitMetadata =
   { [<Column("id")>] Id: Id
     [<Column("unit")>] Unit: string
+    [<Column("hr_department")>] HrDepartment: string
     [<Column("role")>] Role: Role
-    [<Column("permissions")>] UnitPermissions: UnitPermissions
+    [<Column("permissions")>] Permissions: UnitPermissions
     [<Column("title")>] Title: string
     [<Column("notes")>] Notes: string }
 

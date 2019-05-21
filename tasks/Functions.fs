@@ -23,8 +23,7 @@ module Types=
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
         GetPersonMemberships: NetId -> Async<Result<seq<HistoricalPersonUnitMetadata>, Error>>
-        RecordHistoricalPerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>>
-        DeletePerson: NetId -> Async<Result<NetId,Error>> }
+        InsertHistoricalPersonAndDeletePerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>> }
 
 module DataRepository =
     open Types
@@ -32,9 +31,11 @@ module DataRepository =
     open Core.Util
     open Database.Command
     open Dapper
+    open System
     open System.Net.Http
     open System.Net.Http.Headers
     open Novell.Directory.Ldap
+    open Newtonsoft.Json
 
     // DB Stuff
 
@@ -123,8 +124,9 @@ module DataRepository =
 
     let getPersonMemberships connStr netid =
         let sql = """
-            SELECT u.id, u.name, um.title, um.role, um.permissions, '' as notes
+            SELECT u.id, u.name as unit, um.title, um.role, um.permissions, '' as notes, d.name as hr_department
             FROM people p
+            JOIN departments d on d.id = p.department_id
             JOIN unit_members um ON p.id = um.person_id
             JOIN units u ON u.id = um.unit_id
             where p.netid = @NetId"""
@@ -132,7 +134,30 @@ module DataRepository =
         fetch connStr (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param))
 
     let insertHistoricalPersonAndDeletePerson connStr netid metadata = 
-        ok netid
+        let sql = """
+            -- add a row to the historical_people table
+            INSERT INTO historical_people (netid, metadata, removed_on)
+            VALUES (@NetId, CAST(@Metadata as json), @RemovedOn);
+            -- delete any unit member tool assignments
+            DELETE FROM unit_member_tools
+            WHERE id IN (
+                SELECT umt.id FROM unit_member_tools umt
+                JOIN unit_members um on um.id = umt.membership_id
+                JOIN people p on p.id = um.person_id
+                WHERE p.netid = @NetId);
+            -- delete any unit memberships
+            DELETE FROM unit_members
+            WHERE id IN (
+                SELECT um.id FROM unit_members um 
+                JOIN people p on p.id = um.person_id
+                WHERE p.netid = @NetId);
+            -- delete person record
+            DELETE FROM people WHERE netid = @NetId;
+            -- return the netid of the deleted person
+            SELECT @NetId;"""
+        let json = JsonConvert.SerializeObject(metadata, Core.Json.JsonSettings)
+        let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
+        fetch connStr (fun cn -> cn.QuerySingleAsync<NetId>(sql, param))
 
     let Repository connStr sharedSecret adUser adPassword =
      { GetAllNetIds = fun () -> getAllNetIds connStr
@@ -143,8 +168,7 @@ module DataRepository =
        GetAllToolUsers = getAllToolUsers connStr 
        UpdateADGroup = updateADGroup adUser adPassword
        GetPersonMemberships = getPersonMemberships connStr
-       RecordHistoricalPerson = insertHistoricalPerson connStr
-       DeletePerson = deletePerson connStr }
+       InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson connStr }
 
 module Functions=
 
@@ -190,7 +214,7 @@ module Functions=
     // canonical HR data.
     [<FunctionName("PeopleUpdateBatcher")>]
     let peopleUpdateBatcher
-        ([<TimerTrigger("0 0 14 * * *")>] timer: TimerInfo,
+        ([<TimerTrigger("0 0 14 * * *", RunOnStartup=true)>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
         
@@ -235,8 +259,7 @@ module Functions=
                 >>= logUpdatedPerson
             | None ->
                 data.GetPersonMemberships netid
-                >>= data.RecordHistoricalPerson netid
-                >>= data.DeletePerson
+                >>= data.InsertHistoricalPersonAndDeletePerson netid
                 >>= logRemovedPerson
 
         let workflow = 
@@ -250,6 +273,7 @@ module Functions=
         >> Seq.iter queue.Add
 
         // Enqueue the tools for which permissions need to be updated.
+    [<Disable>]
     [<FunctionName("ToolUpdateBatcher")>]
     let toolUpdateBatcher
         ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
@@ -274,6 +298,7 @@ module Functions=
     // all the people currently in the AD group associated with this tool. 
     // Determine which people should be added/removed from that AD group
     // and enqueue and add/remove message for each.
+    [<Disable>]
     [<FunctionName("ToolUpdateWorker")>]
     let toolUpdateWorker
         ([<QueueTrigger("tool-update")>] item: string,
