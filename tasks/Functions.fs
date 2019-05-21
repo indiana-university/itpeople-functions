@@ -278,7 +278,6 @@ module Functions=
         >> Seq.iter queue.Add
 
         // Enqueue the tools for which permissions need to be updated.
-    [<Disable>]
     [<FunctionName("ToolUpdateBatcher")>]
     let toolUpdateBatcher
         ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
@@ -303,7 +302,6 @@ module Functions=
     // all the people currently in the AD group associated with this tool. 
     // Determine which people should be added/removed from that AD group
     // and enqueue and add/remove message for each.
-    [<Disable>]
     [<FunctionName("ToolUpdateWorker")>]
     let toolUpdateWorker
         ([<QueueTrigger("tool-update")>] item: string,
