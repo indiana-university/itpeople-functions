@@ -306,11 +306,14 @@ type ToolPermission =
     /// For department-scoped tools, the name of the department
     [<Column("department_name")>] DepartmentName: Name }
 
+[<CLIMutable>]
 type HistoricalPersonUnitMetadata =
-  { Unit: string
-    Role: string
-    Title: string
-    Notes: string }
+  { [<Column("id")>] Id: Id
+    [<Column("unit")>] Unit: string
+    [<Column("role")>] Role: Role
+    [<Column("permissions")>] UnitPermissions: UnitPermissions
+    [<Column("title")>] Title: string
+    [<Column("notes")>] Notes: string }
 
 [<CLIMutable>]
 [<Table("historical_people")>]

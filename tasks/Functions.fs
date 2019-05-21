@@ -121,13 +121,17 @@ module DataRepository =
                 let msg = sprintf "Group modification failed for %A:\n%A" update exn
                 error(Status.InternalServerError, msg)
 
-    let getPersonMemberships connStr netid = 
-        ok Seq.empty<HistoricalPersonUnitMetadata> 
+    let getPersonMemberships connStr netid =
+        let sql = """
+            SELECT u.id, u.name, um.title, um.role, um.permissions, '' as notes
+            FROM people p
+            JOIN unit_members um ON p.id = um.person_id
+            JOIN units u ON u.id = um.unit_id
+            where p.netid = @NetId"""
+        let param = {NetId=netid}
+        fetch connStr (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param))
 
-    let insertHistoricalPerson connStr netid metadata = 
-        ok netid
-
-    let deletePerson connStr netid = 
+    let insertHistoricalPersonAndDeletePerson connStr netid metadata = 
         ok netid
 
     let Repository connStr sharedSecret adUser adPassword =
