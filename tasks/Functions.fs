@@ -135,6 +135,9 @@ module DataRepository =
 
     let insertHistoricalPersonAndDeletePerson connStr netid metadata = 
         let sql = """
+            -- begin a transaction to log the historical person and 
+            --   delete all person records as an atomic operation
+            BEGIN;
             -- add a row to the historical_people table
             INSERT INTO historical_people (netid, metadata, removed_on)
             VALUES (@NetId, CAST(@Metadata as json), @RemovedOn);
@@ -153,6 +156,8 @@ module DataRepository =
                 WHERE p.netid = @NetId);
             -- delete person record
             DELETE FROM people WHERE netid = @NetId;
+            -- commit the transaction (rolling back changes if anything fails.)
+            COMMIT;
             -- return the netid of the deleted person
             SELECT @NetId;"""
         let json = JsonConvert.SerializeObject(metadata, Core.Json.JsonSettings)
