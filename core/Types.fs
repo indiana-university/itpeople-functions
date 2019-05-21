@@ -306,6 +306,21 @@ type ToolPermission =
     /// For department-scoped tools, the name of the department
     [<Column("department_name")>] DepartmentName: Name }
 
+type HistoricalPersonUnitMetadata =
+  { Unit: string
+    Role: string
+    Title: string
+    Notes: string }
+
+[<CLIMutable>]
+[<Table("historical_people")>]
+type HistoricalPerson =
+  { /// The netid of the removed person
+    [<Column("netid")>] NetId: NetId
+    /// A JSON blob with an array of HistoricalPersonUnitMetadata. 
+    [<Column("metadata")>] Metadata: string
+    /// The name of the tool to which permissions have been granted 
+    [<Column("removed_on")>] RemovedOn: DateTime }
 
 // DOMAIN MODELS
 
