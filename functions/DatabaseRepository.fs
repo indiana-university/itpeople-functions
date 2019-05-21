@@ -293,7 +293,7 @@ module DatabaseRepository =
         return result
     }
 
-    let insertPerson connStr person =
+    let insertPerson connStr (person:Person) =
         queryDepartments connStr (Some(person.Notes))
         >>= fun results -> 
                 if Seq.isEmpty results
