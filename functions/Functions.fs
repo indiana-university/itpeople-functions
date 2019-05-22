@@ -461,16 +461,18 @@ module Functions =
     let ensurePersonInDirectory lookupDirectoryPeople lookupHrPeople addPersonToDirectory (um:UnitMember) =
         let findPersonWithMatchingNetId (results:seq<Person>) =
             let resultsMatchingNetId = 
-                results 
-                |> Seq.filter (fun r -> r.NetId.ToLowerInvariant() = um.NetId.Value.ToLowerInvariant())
+                results |> Seq.tryFind (fun r -> r.NetId.ToLowerInvariant() = um.NetId.Value.ToLowerInvariant())
             match resultsMatchingNetId with
-            | EmptySeq -> Error(Status.BadRequest, "No person found with that username.") |> ar
-            | _ -> 
-                let person = results |> Seq.head
+            | None -> 
+                printfn "resultsMatchingNetId: No person found with that username."
+                Error(Status.BadRequest, "No person found with that username.") |> ar
+            | Some(person) -> 
+                printfn "resultsMatchingNetId: %A" person
                 { person with PhotoUrl="" } |> Ok |> ar
         let resolveUnitMember (person:Person) = 
             Ok {um with PersonId=Some(person.Id)} |> ar
         let evaluateDirectorySearch (netid:NetId, idOption:Id option) =
+            printfn "evaluateDirectorySearch (netid: %s) (found id: %A)" netid idOption
             match idOption with
             | None -> 
                 lookupHrPeople (Some(netid))
@@ -483,6 +485,7 @@ module Functions =
         | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
         | (None, Some(netid))
         | (Some(0), Some(netid)) -> // We don't have this person in the directory. Add them now.
+            printfn "lookupDirectoryPeople %s" netid
             lookupDirectoryPeople netid
             >>= evaluateDirectorySearch
         | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
