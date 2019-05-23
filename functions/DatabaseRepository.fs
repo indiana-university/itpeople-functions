@@ -266,15 +266,15 @@ module DatabaseRepository =
     let queryPeople connStr (query:PeopleQuery) =
         let param = {
             Query = if query.Query = "" then "" else like query.Query
-            Responsibilities = query.Responsibilities
+            Classes = query.Classes
             Interests = query.Interests |> Array.map like
             InterestsRaw = query.Interests |> String.concat ""
         }
         // printfn "Query Param: %A" param
         let whereClause = 
             """(@Query='' OR (p.name ILIKE @Query OR p.netid ILIKE @Query))
-            AND (@Responsibilities=0 OR (p.responsibilities & @Responsibilities <> 0))
             AND (@InterestsRaw='' OR (p.expertise ILIKE ANY (@Interests)))
+            AND (@Classes=0 OR (p.responsibilities & @Classes <> 0))
             ORDER BY p.netid"""
         fetchAll connStr (mapPeople(WhereParam(whereClause, param)))
 

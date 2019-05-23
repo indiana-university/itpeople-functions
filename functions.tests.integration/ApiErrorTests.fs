@@ -76,22 +76,22 @@ module ApiErrorTests =
             |> shouldGetContent [swanson]
 
         [<Fact>]       
-        member __.``People search: single role`` () = 
-            requestFor HttpMethod.Get "people?role=ItLeadership"
+        member __.``People search: single class`` () = 
+            requestFor HttpMethod.Get "people?class=ItLeadership"
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [knope; swanson]
 
         [<Fact>]       
-        member __.``People search: role is case insensitive`` () = 
-            requestFor HttpMethod.Get "people?role=itleadership"
+        member __.``People search: class is case insensitive`` () = 
+            requestFor HttpMethod.Get "people?class=itleadership"
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [knope; swanson]
 
         [<Fact>]       
-        member __.``People search: multiple roles are unioned`` () = 
-            requestFor HttpMethod.Get "people?role=ItLeadership,ItProjectMgt"
+        member __.``People search: multiple classes are unioned`` () = 
+            requestFor HttpMethod.Get "people?class=ItLeadership,ItProjectMgt"
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [wyatt; knope; swanson;]
@@ -112,14 +112,14 @@ module ApiErrorTests =
 
         [<Fact>]       
         member __.``People search: multiple parameters are intersected`` () = 
-            requestFor HttpMethod.Get "people?role=ItLeadership&interest=waffles"
+            requestFor HttpMethod.Get "people?class=ItLeadership&interest=waffles"
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [knope]
 
         [<Fact>]       
         member __.``People search: handles junk roles`` () = 
-            requestFor HttpMethod.Get "people?role=FooBar,ItLeadership"
+            requestFor HttpMethod.Get "people?class=FooBar,ItLeadership"
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [knope; swanson]

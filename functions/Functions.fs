@@ -195,8 +195,8 @@ module Functions =
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="Search IT people", Description="""Search for IT people. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by name/netid, ex: 'Ron' or 'rswanso'
-    <li><strong>role</strong>: filter by job role/responsibility, ex: 'UserExperience' or 'UserExperience,WebAdminDevEng'
     <li><strong>interest</strong>: filter by interest, ex: 'serverless' or 'node,lambda'</ul></br>
+    <li><strong>class</strong>: filter by job classification/responsibility, ex: 'UserExperience' or 'UserExperience,WebAdminDevEng'
     Search results are unioned within a filter and intersected across filters. For example, 'interest=node,lambda' will 
     return people with an interest in either 'node' OR 'lambda', whereas `role=ItLeadership&interest=node` will only return
     people who are both in 'ItLeadership' AND have an interest in 'node'.""", Tags=[|"People"|])>]

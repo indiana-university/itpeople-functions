@@ -336,8 +336,8 @@ type NoContent = unit
 
 type PeopleQuery = 
   { Query: string
-    Responsibilities: int
     Interests: array<string> }
+    Classes: int
 
 type PeopleRepository = {
     /// Get a user record for a given net ID (e.g. 'jhoerr')
