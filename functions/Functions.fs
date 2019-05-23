@@ -195,35 +195,59 @@ module Functions =
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="Search IT people", Description="""Search for IT people. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by name/netid, ex: 'Ron' or 'rswanso'
-    <li><strong>role</strong>: filter by job role/responsibility, ex: 'UserExperience' or 'UserExperience,WebAdminDevEng'
-    <li><strong>interest</strong>: filter by interest, ex: 'serverless' or 'node,lambda'</ul></br>
+    <li><strong>class</strong>: filter by job classification/responsibility, ex: 'UserExperience' or 'UserExperience,WebAdminDevEng'
+    <li><strong>interest</strong>: filter by interest, ex: 'serverless' or 'node,lambda'
+    <li><strong>role</strong>: filter by unit role, ex: 'Leader' or 'Leader,Member'
+    <li><strong>permission</strong>: filter by unit permissions, ex: 'Owner' or 'Owner,ManageMembers'
+    </ul></br>
     Search results are unioned within a filter and intersected across filters. For example, 'interest=node,lambda' will 
     return people with an interest in either 'node' OR 'lambda', whereas `role=ItLeadership&interest=node` will only return
     people who are both in 'ItLeadership' AND have an interest in 'node'.""", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
-    [<OptionalQueryParameter("role", typeof<seq<Responsibilities>>)>]
+    [<OptionalQueryParameter("class", typeof<seq<Responsibilities>>)>]
     [<OptionalQueryParameter("interest", typeof<seq<string>>)>]
+    [<OptionalQueryParameter("role", typeof<seq<Role>>)>]
+    [<OptionalQueryParameter("permission", typeof<seq<UnitPermissions>>)>]
     let peopleGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people")>] req) =
         let getQueryParams _ =
             let delimiters = [|','; ';'; '+'|]
-            let query = 
+            let nonzero x = x <> 0
+            let query =
                 match tryQueryParam' req "q" with
                 | Some(str) -> str
                 | None -> ""
-            let responsibilites =
+            let classes =
                 let parseInt s = 
-                    try Enum.Parse<Responsibilities>(s, true) |> int
+                    try Enum.Parse<Responsibilities>(s, true) |> int 
                     with _ -> 0 
-                match tryQueryParam' req "role" with
+                match tryQueryParam' req "class" with
                 | Some(str) -> str.Split delimiters |> Seq.sumBy (trim >> parseInt)
                 | None -> 0
             let interests = 
                 match tryQueryParam' req "interest" with
                 | Some(str) -> str.Split delimiters |> Array.map trim
                 | None -> Array.empty                
-            ok { Query=query; Responsibilities=responsibilites; Interests=interests; }
+            let roles = 
+                let parseInt s = 
+                    try Enum.Parse<Role>(s, true) |> int 
+                    with _ -> 0 
+                match tryQueryParam' req "role" with
+                | Some(str) -> str.Split delimiters |> Seq.map (trim >> parseInt) |> Seq.filter nonzero |> Seq.toArray
+                | None -> [||]
+            let permissions = 
+                let parseInt s = 
+                    try Enum.Parse<UnitPermissions>(s, true) |> int 
+                    with _ -> 0 
+                match tryQueryParam' req "permission" with
+                | Some(str) -> str.Split delimiters |> Seq.map (trim >> parseInt) |> Seq.filter nonzero |> Seq.toArray
+                | None -> [||]
+            { Query=query
+              Classes=classes
+              Interests=interests
+              Roles=roles
+              Permissions=permissions } |> ok
 
         let workflow = 
             authenticate 
@@ -234,7 +258,7 @@ module Functions =
 
     let lookup data (filter:Filter option) = async {
         let query = if filter.IsSome then filter.Value else ""
-        let dirQuery = {Query=query; Responsibilities=0; Interests=Array.empty}
+        let dirQuery = {Query=query; Classes=0; Roles=[||]; Permissions=[||]; Interests=Array.empty}
         let! directoryTask = data.People.GetAll dirQuery |> Async.StartChild
         let! hrTask = data.Hr.GetAllPeople filter |> Async.StartChild
         let! directoryResult = directoryTask
