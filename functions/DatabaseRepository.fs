@@ -269,6 +269,8 @@ module DatabaseRepository =
         let whereClause = 
             """(@Query='' OR (p.name ILIKE @Query OR p.netid ILIKE @Query))
             AND (@Classes=0 OR (p.responsibilities & @Classes <> 0))
+            -- The built-in 'cardinality' function returns the number of elements in an array.
+            -- If there are no filter elements then don't try to apply that filter.
             AND (CARDINALITY(@Interests)=0 OR (p.expertise ILIKE ANY (@Interests)))
             AND (CARDINALITY(@Roles)=0 OR (um.role = ANY (@Roles)))
             AND (CARDINALITY(@Permissions)=0 OR (um.permissions = ANY (@Permissions)))
