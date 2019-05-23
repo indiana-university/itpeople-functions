@@ -464,15 +464,15 @@ module Functions =
                 results |> Seq.tryFind (fun r -> r.NetId.ToLowerInvariant() = um.NetId.Value.ToLowerInvariant())
             match resultsMatchingNetId with
             | None -> 
-                "resultsMatchingNetId: No person found with that username." |> log.Debug
+                "resultsMatchingNetId: No person found with that username." |> log.Information
                 Error(Status.BadRequest, "No person found with that username.") |> ar
             | Some(person) -> 
-                sprintf "resultsMatchingNetId: %A" person |> log.Debug
+                sprintf "resultsMatchingNetId: %A" person |> log.Information
                 { person with PhotoUrl="" } |> Ok |> ar
         let resolveUnitMember (person:Person) = 
             Ok {um with PersonId=Some(person.Id)} |> ar
         let evaluateDirectorySearch (netid:NetId, idOption:Id option) =
-            sprintf "evaluateDirectorySearch (netid: %s) (found id: %A)" netid idOption |> log.Debug
+            sprintf "evaluateDirectorySearch (netid: %s) (found id: %A)" netid idOption |> log.Information
             match idOption with
             | None -> 
                 lookupHrPeople (Some(netid))
@@ -485,7 +485,7 @@ module Functions =
         | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
         | (None, Some(netid))
         | (Some(0), Some(netid)) -> // We don't have this person in the directory. Add them now.
-            sprintf "lookupDirectoryPeople %s" netid |> log.Debug
+            sprintf "lookupDirectoryPeople %s" netid |> log.Information
             lookupDirectoryPeople netid
             >>= evaluateDirectorySearch
         | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
