@@ -21,22 +21,9 @@ module Types=
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
-        UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>> }
-
-module FakeRepository=
-
-    open Types
-    open Core.Types
-    open Core.Fakes
-
-    let Respository = 
-     { GetAllNetIds = fun () -> ["rswanso"] |> List.toSeq |> ok
-       FetchLatestHRPerson = fun _ -> Some(swanson) |> ok
-       UpdatePerson = ok
-       GetAllTools = fun () -> [tool] |> List.toSeq |> ok
-       GetADGroupMembers = fun _ -> ["rswanso"] |> List.toSeq |> ok
-       GetAllToolUsers = fun _ -> ["lknope"] |> List.toSeq |> ok 
-       UpdateADGroup = ok }
+        UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
+        GetPersonMemberships: NetId -> Async<Result<seq<HistoricalPersonUnitMetadata>, Error>>
+        InsertHistoricalPersonAndDeletePerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>> }
 
 module DataRepository =
     open Types
@@ -44,9 +31,11 @@ module DataRepository =
     open Core.Util
     open Database.Command
     open Dapper
+    open System
     open System.Net.Http
     open System.Net.Http.Headers
     open Novell.Directory.Ldap
+    open Newtonsoft.Json
 
     // DB Stuff
 
@@ -133,6 +122,48 @@ module DataRepository =
                 let msg = sprintf "Group modification failed for %A:\n%A" update exn
                 error(Status.InternalServerError, msg)
 
+    let getPersonMemberships connStr netid =
+        let sql = """
+            SELECT u.id, u.name as unit, um.title, um.role, um.permissions, '' as notes, d.name as hr_department
+            FROM people p
+            JOIN departments d on d.id = p.department_id
+            JOIN unit_members um ON p.id = um.person_id
+            JOIN units u ON u.id = um.unit_id
+            where p.netid = @NetId"""
+        let param = {NetId=netid}
+        fetch connStr (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param))
+
+    let insertHistoricalPersonAndDeletePerson connStr netid metadata = 
+        let sql = """
+            -- begin a transaction to log the historical person and 
+            --   delete all person records as an atomic operation
+            BEGIN;
+            -- add a row to the historical_people table
+            INSERT INTO historical_people (netid, metadata, removed_on)
+            VALUES (@NetId, CAST(@Metadata as json), @RemovedOn);
+            -- delete any unit member tool assignments
+            DELETE FROM unit_member_tools
+            WHERE id IN (
+                SELECT umt.id FROM unit_member_tools umt
+                JOIN unit_members um on um.id = umt.membership_id
+                JOIN people p on p.id = um.person_id
+                WHERE p.netid = @NetId);
+            -- delete any unit memberships
+            DELETE FROM unit_members
+            WHERE id IN (
+                SELECT um.id FROM unit_members um 
+                JOIN people p on p.id = um.person_id
+                WHERE p.netid = @NetId);
+            -- delete person record
+            DELETE FROM people WHERE netid = @NetId;
+            -- commit the transaction (rolling back changes if anything fails.)
+            COMMIT;
+            -- return the netid of the deleted person
+            SELECT @NetId;"""
+        let json = JsonConvert.SerializeObject(metadata, Core.Json.JsonSettings)
+        let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
+        fetch connStr (fun cn -> cn.QuerySingleAsync<NetId>(sql, param))
+
     let Repository connStr sharedSecret adUser adPassword =
      { GetAllNetIds = fun () -> getAllNetIds connStr
        FetchLatestHRPerson = fetchLatestHrPerson sharedSecret
@@ -140,7 +171,9 @@ module DataRepository =
        GetAllTools = fun () -> getAllTools connStr 
        GetADGroupMembers = getADGroupMembers adUser adPassword 
        GetAllToolUsers = getAllToolUsers connStr 
-       UpdateADGroup = updateADGroup adUser adPassword }
+       UpdateADGroup = updateADGroup adUser adPassword
+       GetPersonMemberships = getPersonMemberships connStr
+       InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson connStr }
 
 module Functions=
 
@@ -218,10 +251,10 @@ module Functions=
             |> log.LogInformation
             ok ()
 
-        let logPersonNotFound () = 
+        let logRemovedPerson netid = 
             netid
-            |> sprintf "HR data not found for %s."
-            |> log.LogWarning
+            |> sprintf "HR data not found for %s. The 'person' record for this netid has been removed. Any unit memberships have been logged to the 'historical_people' table."
+            |> log.LogInformation
             ok ()
 
         let processHRResult result =
@@ -230,7 +263,9 @@ module Functions=
                 data.UpdatePerson person
                 >>= logUpdatedPerson
             | None ->
-                logPersonNotFound ()
+                data.GetPersonMemberships netid
+                >>= data.InsertHistoricalPersonAndDeletePerson netid
+                >>= logRemovedPerson
 
         let workflow = 
             data.FetchLatestHRPerson

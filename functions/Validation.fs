@@ -47,7 +47,7 @@ module Validation =
         | None -> Ok m |> async.Return
     let membershipIsUnique data (m:UnitMember) = 
         let entities id = fun () -> data.People.GetMemberships id
-        let conflictPredicate mx = 
+        let conflictPredicate (mx:UnitMember) = 
             (m.Id = 0 || m.Id <> mx.Id)
             && m.UnitId = mx.UnitId 
             && m.PersonId = mx.PersonId
