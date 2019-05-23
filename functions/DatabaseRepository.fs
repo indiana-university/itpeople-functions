@@ -246,7 +246,8 @@ module DatabaseRepository =
     let queryPersonSql = """
         SELECT p.*, d.*
         FROM people p
-        JOIN departments d on d.id = p.department_id """
+        JOIN departments d on d.id = p.department_id
+        JOIN unit_members um on um.person_id = p.id"""
 
     let mapPeople filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryPersonSql filter
@@ -256,25 +257,21 @@ module DatabaseRepository =
     let mapPerson id = 
         mapPeople (WhereId("p.id", id))
 
-    type PeopleQueryParam = {
-        Query:string
-        Responsibilities:int
-        Interests:array<string>
-        InterestsRaw:string
-    }
-
     let queryPeople connStr (query:PeopleQuery) =
         let param = {
             Query = if query.Query = "" then "" else like query.Query
             Classes = query.Classes
+            Roles = query.Roles
+            Permissions = query.Permissions
             Interests = query.Interests |> Array.map like
-            InterestsRaw = query.Interests |> String.concat ""
         }
         // printfn "Query Param: %A" param
         let whereClause = 
             """(@Query='' OR (p.name ILIKE @Query OR p.netid ILIKE @Query))
-            AND (@InterestsRaw='' OR (p.expertise ILIKE ANY (@Interests)))
             AND (@Classes=0 OR (p.responsibilities & @Classes <> 0))
+            AND (CARDINALITY(@Interests)=0 OR (p.expertise ILIKE ANY (@Interests)))
+            AND (CARDINALITY(@Roles)=0 OR (um.role = ANY (@Roles)))
+            AND (CARDINALITY(@Permissions)=0 OR (um.permissions = ANY (@Permissions)))
             ORDER BY p.netid"""
         fetchAll connStr (mapPeople(WhereParam(whereClause, param)))
 

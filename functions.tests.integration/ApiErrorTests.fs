@@ -131,6 +131,34 @@ module ApiErrorTests =
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [knope]
 
+        [<Fact>]       
+        member __.``People search: single role`` () = 
+            requestFor HttpMethod.Get "people?role=Leader"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [wyatt; swanson ]
+
+        [<Fact>]       
+        member __.``People search: multiple roles are unioned`` () = 
+            requestFor HttpMethod.Get "people?role=Leader,Sublead"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [ wyatt; knope; swanson]
+
+        [<Fact>]       
+        member __.``People search: single permission`` () = 
+            requestFor HttpMethod.Get "people?permission=Viewer"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [knope]
+
+        [<Fact>]       
+        member __.``People search: multiple permission are unioned`` () = 
+            requestFor HttpMethod.Get "people?permission=Viewer,Owner"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [wyatt; knope; swanson]
+
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
 
