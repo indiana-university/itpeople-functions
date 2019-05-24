@@ -106,6 +106,7 @@ let knopeMembershipRequest:UnitMemberRequest = {
     Permissions=UnitPermissions.Viewer
     Title="Deputy Director"
     Percentage=100
+    Notes=""
 }
 
 let swansonMembership:UnitMember = {
@@ -120,6 +121,7 @@ let swansonMembership:UnitMember = {
     Permissions=UnitPermissions.Owner
     Percentage=100
     MemberTools=[ memberTool ]
+    Notes=""
 }
 
 let knopeMembership = {
@@ -134,6 +136,7 @@ let knopeMembership = {
     Person=Some(knope)
     Unit=parksAndRec
     MemberTools=Seq.empty
+    Notes="Owner of server PA-Parks-Web"
 }
 
 let parksAndRecVacancy = {
@@ -148,6 +151,7 @@ let parksAndRecVacancy = {
     Person=None
     Unit=parksAndRec
     MemberTools=Seq.empty
+    Notes=""
 }
 
 let wyattMembership:UnitMember = {
@@ -162,6 +166,7 @@ let wyattMembership:UnitMember = {
     Permissions=UnitPermissions.Owner
     Percentage=100
     MemberTools=Seq.empty
+    Notes=""
 }
 
 let supportRelationshipRequest:SupportRelationshipRequest = {

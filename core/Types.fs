@@ -266,6 +266,9 @@ type UnitMember =
     /// The percentage of time allocated to this position by this person (in case of split appointments).
     [<DefaultValue(100)>]
     [<Column("percentage")>] Percentage: int
+    /// Notes about this person (for admins/reporting eyes only.)
+    [<DefaultValue("")>]
+    [<Column("notes")>] Notes: string
     /// The netid of the person related to this membership.
     [<ReadOnly(true)>][<Column("netid")>] NetId: NetId option
     /// The person related to this membership.
@@ -295,7 +298,10 @@ type UnitMemberRequest =
     Title: string
     /// The percentage of time allocated to this position by this person (in case of split appointments).
     [<DefaultValue(100)>]
-    Percentage: int }
+    Percentage: int 
+    /// Ad-hoc notes about this person's relationship to the unit, to be used by unit managers.
+    [<DefaultValue("")>]
+    Notes: string }
 
 [<CLIMutable>]
 type ToolPermission = 
@@ -354,13 +360,17 @@ type PeopleRepository = {
     GetMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
 }
 
+type UnitMemberRecordFieldOptions = 
+    | MembersWithoutNotes of Unit
+    | MembersWithNotes of Unit
+
 type UnitRepository = {
     /// Get a list of all units
     GetAll: Filter option -> Async<Result<Unit seq,Error>>
     /// Get a single unit by ID
     Get: Id -> Async<Result<Unit,Error>>
-    /// Get a unit's members by unit ID        
-    GetMembers: Unit -> Async<Result<UnitMember seq,Error>>
+    /// Get a unit's members by unit ID 
+    GetMembers: UnitMemberRecordFieldOptions -> Async<Result<UnitMember seq,Error>>
     /// Get a unit's supported departments by unit ID        
     GetSupportedDepartments: Unit -> Async<Result<SupportRelationship seq,Error>>
     // Get a unit's child units by parent unit Id

@@ -32,6 +32,11 @@ module DatabaseRepository =
             {m with Unit=u; Person=person; MemberTools=tools}
         cn.QueryAsync<UnitMember, Unit, Person, MemberTool, UnitMember>(query, mapper, param)
 
+    let stripNotes (unitMembers:seq<UnitMember>) =
+        unitMembers
+        |> Seq.map (fun um -> {um with Notes=""})
+        |> ok
+
     let collectMemberTools (unitMembers:seq<UnitMember>) = 
         unitMembers
         |> Seq.groupBy (fun um -> um.Id)
@@ -51,11 +56,13 @@ module DatabaseRepository =
 
     let queryMemberships connStr =
         fetchAll connStr (mapUnitMembers(Unfiltered))
+        >>= stripNotes
         >>= collectMemberTools
 
     let queryMembership connStr id =
         fetchAll connStr (mapUnitMembers (WhereId("m.id", id)))
         >>= requireOne
+        >>= stripNotes
         >>= collectMemberTools
         >>= head
         
@@ -154,9 +161,15 @@ module DatabaseRepository =
     let queryUnitChildren connStr (unit:Unit) =
         fetchAll<Unit> connStr (mapUnits(WhereId("u.parent_id", unit.Id)))
 
-    let queryUnitMembers connStr (unit:Unit) =
-        fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
-        >>= collectMemberTools
+    let queryUnitMembers connStr (options:UnitMemberRecordFieldOptions) =
+        match options with
+        | MembersWithoutNotes(unit) ->
+            fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
+            >>= stripNotes
+            >>= collectMemberTools
+        | MembersWithNotes(unit) ->
+            fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
+            >>= collectMemberTools
 
     let queryUnitSupportedDepartments connStr (unit:Unit) =
         fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
@@ -303,6 +316,7 @@ module DatabaseRepository =
 
     let queryPersonMemberships connStr id =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
+        >>= stripNotes
         >>= collectMemberTools
 
     // ***********

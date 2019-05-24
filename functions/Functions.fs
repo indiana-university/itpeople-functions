@@ -397,6 +397,17 @@ module Functions =
             >=> data.Units.Delete
         delete req workflow
 
+    let getUnitMemberFetchOptions unitId netid  = async {
+        let! unitResult = data.Units.Get unitId
+        match unitResult with
+        | Ok(unit) -> 
+            let! canModifyResult = canModifyUnit unit.Id data.Authorization netid
+            match canModifyResult with
+            | Ok(true) -> return MembersWithNotes(unit) |> Ok
+            | _ -> return MembersWithoutNotes(unit) |> Ok
+        | Error(msg) -> return Error(msg)
+    }
+    
     [<FunctionName("UnitGetAllMembers")>]
     [<SwaggerOperation(Summary="List all unit members", Description="List all people who do IT work for this unit along with any vacant positions.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, "A collection of membership records.", typeof<seq<UnitMember>>)>]
@@ -405,7 +416,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
         let workflow =
             authenticate
-            >=> fun _ ->  data.Units.Get unitId
+            >=> getUnitMemberFetchOptions unitId
             >=> data.Units.GetMembers
             >=> permission req (canModifyUnit unitId)
         get req workflow
