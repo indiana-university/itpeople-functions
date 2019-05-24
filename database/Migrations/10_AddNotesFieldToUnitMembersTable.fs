@@ -15,5 +15,5 @@ type AddNotesFieldToUnitMembersTable() =
 
   override __.Down() =
     base.Execute("""
-    ALTER TABLE unit_members DROP COLUMN ad_path;
+    ALTER TABLE unit_members DROP COLUMN notes;
 """)
