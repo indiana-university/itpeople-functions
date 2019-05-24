@@ -72,14 +72,35 @@ module DatabaseTests=
             actual |> should contain fourthFloor
         
         [<Fact>]
-        member __.``Get members`` () = 
-            let actual = repo.Units.GetMembers parksAndRec |> awaitAndUnpack
+        member __.``Get members with notes`` () = 
+
+            let actual = 
+                parksAndRec
+                |> MembersWithNotes 
+                |> repo.Units.GetMembers  
+                |> awaitAndUnpack
 
             actual |> Seq.length |> should equal 3
+
             let ids = actual |> Seq.map (fun a -> a.Id)
             ids |> should contain swansonMembership.Id
             ids |> should contain knopeMembership.Id
             ids |> should contain parksAndRecVacancy.Id
+
+            let knope = actual |> Seq.find (fun a -> a.Id = knopeMembership.Id)
+            knope.Notes = knopeMembership.Notes
+
+        [<Fact>]
+        member __.``Get members without notes`` () = 
+
+            let actual = 
+                parksAndRec
+                |> MembersWithoutNotes
+                |> repo.Units.GetMembers  
+                |> awaitAndUnpack
+
+            actual |> Seq.length |> should equal 3
+            actual |> Seq.forall (fun a -> a.Notes = "")
 
         [<Fact>]
         member __.``Get children`` () = 
