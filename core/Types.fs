@@ -360,13 +360,17 @@ type PeopleRepository = {
     GetMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
 }
 
+type UnitMemberRecordFieldOptions = 
+    | MembersWithoutNotes of Unit
+    | MembersWithNotes of Unit
+
 type UnitRepository = {
     /// Get a list of all units
     GetAll: Filter option -> Async<Result<Unit seq,Error>>
     /// Get a single unit by ID
     Get: Id -> Async<Result<Unit,Error>>
-    /// Get a unit's members by unit ID        
-    GetMembers: Unit -> Async<Result<UnitMember seq,Error>>
+    /// Get a unit's members by unit ID 
+    GetMembers: UnitMemberRecordFieldOptions -> Async<Result<UnitMember seq,Error>>
     /// Get a unit's supported departments by unit ID        
     GetSupportedDepartments: Unit -> Async<Result<SupportRelationship seq,Error>>
     // Get a unit's child units by parent unit Id
