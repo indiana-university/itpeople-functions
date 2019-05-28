@@ -314,6 +314,9 @@ type UnitMemberRequest =
     /// The ID of the person record. This can be null if the position is vacant.
     [<DefaultValue(null)>]
     PersonId: PersonId option
+    /// The NetId of the person, if they are not already in the IT people directory. This can be null if the position is vacant.
+    [<DefaultValue(null)>]
+    NetId: NetId option
     /// The title/position of this membership.
     [<DefaultValue("")>]
     Title: string
@@ -373,8 +376,12 @@ type PeopleRepository = {
     TryGetId: NetId -> Async<Result<NetId * Id option,Error>>
     /// Get a list of all people
     GetAll: PeopleQuery -> Async<Result<Person seq,Error>>
+    /// Get a unioned list of IT and HR people, filtered by name/netid
+    GetAllWithHr: NetId -> Async<Result<Person seq,Error>>
     /// Get a single person by ID
     Get: PersonId -> Async<Result<Person,Error>>
+    /// Get a single HR person by NetId
+    GetHr: NetId -> Async<Result<Person,Error>>
     /// Create a person from canonical HR data
     Create: Person -> Async<Result<Person,Error>>
     /// Get a list of a person's unit memberships
