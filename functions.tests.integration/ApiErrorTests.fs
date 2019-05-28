@@ -7,6 +7,7 @@ module ApiErrorTests =
     open TestFixture
     open Core.Fakes
     open Core.Json
+    open Core.Types
     open FsUnit.Xunit
     open Newtonsoft.Json
     open System.Net
@@ -42,6 +43,15 @@ module ApiErrorTests =
             |> Async.RunSynchronously
             |> fun str -> JsonConvert.DeserializeObject<'T>(str, JsonSettings)
         actualContent |> should equal expectedContent
+        response
+
+    let evaluateContent<'T> (evalFn:'T -> unit) (response:HttpResponseMessage) =
+        let actualContent = 
+            response.Content.ReadAsStringAsync() 
+            |> Async.AwaitTask 
+            |> Async.RunSynchronously
+            |> fun str -> JsonConvert.DeserializeObject<'T>(str, JsonSettings)
+        actualContent |> evalFn
         response
 
     type ApiTests(output: ITestOutputHelper)=
@@ -158,6 +168,50 @@ module ApiErrorTests =
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [wyatt; knope; swanson]
+
+        [<Fact>]       
+        member __.``Donna is not in the directory`` () = 
+            requestFor HttpMethod.Get "people?q=donna"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent []
+
+        [<Fact>]       
+        member __.``Lookup of Leslie yields directory record`` () = 
+            requestFor HttpMethod.Get "people-lookup?q=leslie"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<Person>> (fun people -> 
+                people |> Seq.length |> should equal 1
+                let a = people |> Seq.head
+                a.NetId |> should equal knope.NetId)
+
+        [<Fact>]       
+        member __.``Lookup of Donna yields HR record`` () = 
+            requestFor HttpMethod.Get "people-lookup?q=donna"
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<Person>> (fun people -> 
+                people |> Seq.length |> should equal 1
+                let a = people |> Seq.head
+                a.NetId |> should equal donnaHr.NetId)
+
+        [<Fact>]       
+        member __.``Add Donna to Parks unit`` () = 
+            requestFor HttpMethod.Post "memberships"
+            |> withAuthentication
+            |> withBody 
+                { UnitId=parksAndRec.Id
+                  PersonId=None
+                  NetId=Some("dmeagle")
+                  Role=Role.Member
+                  Permissions=UnitPermissions.Viewer
+                  Title="Office Manager"
+                  Percentage=100
+                  Notes="" }
+            |> shouldGetResponse HttpStatusCode.Created
+            |> evaluateContent<UnitMember> (fun um -> 
+                um.Person.Value.NetId  |> should equal donnaHr.NetId)
 
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)

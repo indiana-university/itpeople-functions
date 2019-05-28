@@ -87,6 +87,17 @@ let admin = {
     IsServiceAdmin=true
 }
 
+let donnaHr:HrPerson = {
+    Id=1
+    NetId="dmeagle"
+    Name="Meagle, Donna"
+    Position="Office Manager"
+    Campus=""
+    CampusPhone=""
+    CampusEmail="dmeagle@pawnee.in.us"
+    HrDepartment="PA-PARKS"
+}
+
 let tool: Tool = 
   { Id=1
     Name="Hammer"
@@ -102,6 +113,7 @@ let memberTool:MemberTool =
 let knopeMembershipRequest:UnitMemberRequest = {
     UnitId=parksAndRec.Id
     PersonId=Some(knope.Id)
+    NetId=None
     Role=Role.Sublead
     Permissions=UnitPermissions.Viewer
     Title="Deputy Director"
