@@ -16,8 +16,8 @@ module Types=
 
     type IDataRepository =
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
-        FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
-        UpdatePerson: Person -> Async<Result<Person, Error>>
+        FetchLatestHRPerson: NetId -> Async<Result<HrPerson option, Error>>
+        UpdatePerson: HrPerson -> Async<Result<Person, Error>>
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
@@ -72,14 +72,17 @@ module DataRepository =
         let sql = "SELECT netid FROM people;"
         fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql))
 
-    let fetchLatestHrPerson sharedSecret netid =
-        let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" netid
-        let msg = new HttpRequestMessage(HttpMethod.Get, url)      
-        msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
-        sendAsync<seq<Person>> msg
-        >>= (Seq.tryFind (fun p -> p.NetId=netid) >> ok)
+    let fetchLatestHrPerson connStr netid = async {
+        let sql = """SELECT * FROM hr_people WHERE netid=@NetId"""
+        let param = {NetId = netid}
+        let! result = fetch connStr (fun cn -> cn.QueryAsync<HrPerson>(sql, param))
+        return
+            match result with
+            | Ok(people) -> people |> Seq.tryHead |> Ok
+            | Error(msg) -> Error(msg)
+    }
 
-    let updatePerson connStr (person:Person) = 
+    let updatePerson connStr (person:HrPerson) = 
         let sql = """
             UPDATE people 
             SET name = @Name,
