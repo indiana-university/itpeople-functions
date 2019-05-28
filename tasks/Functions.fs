@@ -23,19 +23,48 @@ module Types=
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
         GetPersonMemberships: NetId -> Async<Result<seq<HistoricalPersonUnitMetadata>, Error>>
-        InsertHistoricalPersonAndDeletePerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>> }
+        InsertHistoricalPersonAndDeletePerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>>
+        FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
+        UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>> }
 
 module DataRepository =
     open Types
     open Core.Types
-    open Core.Util
     open Database.Command
     open Dapper
     open System
-    open System.Net.Http
-    open System.Net.Http.Headers
     open Novell.Directory.Ldap
     open Newtonsoft.Json
+    open Oracle.ManagedDataAccess.Client
+
+    // ORACLE Stuff
+    let fetchAllHrPeople oracleConnStr = async {
+        printfn "%s Fetching HR people..." (DateTime.Now.ToLongTimeString())
+        let sql = """
+            SELECT
+                PRSN_PRM_1ST_LST_35_NM as name,
+                LOWER(PRSN_USER_ID) as netid,
+                POS_DESC as position,
+                JOB_DEPT_ID as hr_department,
+                JOB_LOC_DESC as campus,
+                PRSN_CMP_PHN_NBR as campus_phone,
+                PRSN_CMP_EMAIL_ADDR as campus_email
+            FROM DSS.HRS_IT_JOB_CUR_GT
+            WHERE
+                PRSN_USER_ID IS NOT NULL
+                AND JOB_PRM_2ND_IND = 'P'
+            ORDER BY PRSN_UNIV_ID"""
+        try
+            use db = new OracleConnection(oracleConnStr)
+            let! people =
+                sql
+                |> db.QueryAsync<HrPerson> 
+                |> Async.AwaitTask
+            printfn "%s Fetched HR people..." (DateTime.Now.ToLongTimeString())
+            return Ok people
+        with 
+        | exn -> return Error (Status.InternalServerError, (sprintf "Failed to query for users: %s." exn.Message ))
+    }
 
     // DB Stuff
 
@@ -74,6 +103,20 @@ module DataRepository =
             WHERE umt.tool_id = @Id"""
         let param = {Id=tool.Id}
         fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql, param))
+
+    let updateHrPeople psqlConnStr (hrPeople:seq<HrPerson>) =
+        let sql = """
+            INSERT INTO hr_people (name, netid, position, campus, campus_phone, campus_email, hr_department)
+            VALUES (@Name, @NetId, @Position, @Campus, @CampusPhone, @CampusEmail, @HrDepartment)
+            ON CONFLICT (netid)
+            DO UPDATE SET
+                name=@Name,
+                position=@Position,
+                campus=@Campus,
+                campus_phone=@CampusPhone,
+                campus_email=@CampusEmail,
+                hr_department=@HrDepartment"""
+        execute psqlConnStr sql hrPeople
 
     // LDAP Stuff
 
@@ -164,16 +207,18 @@ module DataRepository =
         let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
         fetch connStr (fun cn -> cn.QuerySingleAsync<NetId>(sql, param))
 
-    let Repository connStr sharedSecret adUser adPassword =
-     { GetAllNetIds = fun () -> getAllNetIds connStr
-       FetchLatestHRPerson = fetchLatestHrPerson sharedSecret
-       UpdatePerson = updatePerson connStr
-       GetAllTools = fun () -> getAllTools connStr 
+    let Repository psqlConnStr oracleConnStr adUser adPassword =
+     { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
+       FetchLatestHRPerson = fetchLatestHrPerson psqlConnStr
+       UpdatePerson = updatePerson psqlConnStr
+       GetAllTools = fun () -> getAllTools psqlConnStr 
        GetADGroupMembers = getADGroupMembers adUser adPassword 
-       GetAllToolUsers = getAllToolUsers connStr 
+       GetAllToolUsers = getAllToolUsers psqlConnStr 
        UpdateADGroup = updateADGroup adUser adPassword
-       GetPersonMemberships = getPersonMemberships connStr
-       InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson connStr }
+       GetPersonMemberships = getPersonMemberships psqlConnStr
+       InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
+       FetchAllHrPeople = fun () -> fetchAllHrPeople oracleConnStr
+       UpdateHrPeople = updateHrPeople psqlConnStr }
 
 module Functions=
 
@@ -202,18 +247,31 @@ module Functions=
         } |> Async.RunSynchronously
 
     let data = 
-        let connStr = Environment.GetEnvironmentVariable("DbConnectionString")
-        let sharedSecret = Environment.GetEnvironmentVariable("SharedSecret")
+        let psqlConnectionString = Environment.GetEnvironmentVariable("DbConnectionString")
+        let oracleConnectionString = Environment.GetEnvironmentVariable("OracleConnectionString")
         let adUser = Environment.GetEnvironmentVariable("AdUser")
         let adPassword = Environment.GetEnvironmentVariable("AdPassword")
         Database.Command.init()
-        DataRepository.Repository connStr sharedSecret adUser adPassword
+        DataRepository.Repository psqlConnectionString oracleConnectionString adUser adPassword
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req:HttpRequestMessage) =
         req.CreateResponse(HttpStatusCode.OK, "pong!")
+
+    // Enqueue the netids of all the people for whom we need to update
+    // canonical HR data.
+    [<FunctionName("PeopleUpdateHrTable")>]
+    let peopleUpdateHrTable
+        ([<TimerTrigger("0 30 13 * * 1-5", RunOnStartup=true)>] timer: TimerInfo,
+         log: ILogger) = 
+        
+        let workflow = 
+            data.FetchAllHrPeople
+            >=> data.UpdateHrPeople
+
+        execute workflow ()
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
