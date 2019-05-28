@@ -275,10 +275,16 @@ module Functions=
          log: ILogger) = 
 
         let enqueueBatchUpdate () = 
-            queue.Add ("go!")
+            queue.Add ("go go gadget update directory people!")
+
+        let skipIfIsPastDue () =
+            if timer.IsPastDue
+            then error(Status.BadRequest, "Due to DSS1PRD availability, only run this function at the scheduled time.")
+            else ok ()
 
         let workflow = 
-            data.FetchAllHrPeople
+            skipIfIsPastDue
+            >=> data.FetchAllHrPeople
             >=> data.UpdateHrPeople
             >=> tap enqueueBatchUpdate
 
