@@ -52,6 +52,7 @@ module DataRepository =
             FROM DSS.HRS_IT_JOB_CUR_GT
             WHERE
                 PRSN_USER_ID IS NOT NULL
+                AND POS_DESC IS NOT NULL
                 AND JOB_PRM_2ND_IND = 'P'
             ORDER BY PRSN_UNIV_ID"""
         try
@@ -84,12 +85,13 @@ module DataRepository =
 
     let updatePerson connStr (person:HrPerson) = 
         let sql = """
-            UPDATE people 
+            UPDATE people
             SET name = @Name,
                 position = @Position,
                 campus = @Campus,
                 campus_phone = @CampusPhone,
-                campus_email = @CampusEmail
+                campus_email = @CampusEmail,
+                department_id = (SELECT id FROM departments WHERE name=@HrDepartment)
             WHERE netid = @NetId
             RETURNING *;"""
         fetch connStr (fun cn -> cn.QuerySingleAsync<Person>(sql, person))
