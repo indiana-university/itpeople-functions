@@ -265,14 +265,20 @@ module Functions=
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
+    [<Disable>]
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
-        ([<TimerTrigger("0 30 13 * * 1-5", RunOnStartup=true)>] timer: TimerInfo,
+        ([<TimerTrigger("0 00 14 * * 1-5")>] timer: TimerInfo,
+         [<Queue("people-update-batch")>] queue: ICollector<string>,
          log: ILogger) = 
-        
+
+        let enqueueBatchUpdate () = 
+            queue.Add ("go!")
+
         let workflow = 
             data.FetchAllHrPeople
             >=> data.UpdateHrPeople
+            >=> tap enqueueBatchUpdate
 
         execute workflow ()
 
@@ -280,7 +286,7 @@ module Functions=
     // canonical HR data.
     [<FunctionName("PeopleUpdateBatcher")>]
     let peopleUpdateBatcher
-        ([<TimerTrigger("0 0 14 * * 1-5")>] timer: TimerInfo,
+        ([<QueueTrigger("people-update-batch")>] msg: string,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
         
