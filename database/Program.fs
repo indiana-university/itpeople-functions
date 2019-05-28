@@ -8,7 +8,7 @@ module Program =
     open Migration
 
     let usage () =             
-        printf """Usage : dotnet database.dll '<conn>' <args>
+        printf """Usage : dotnet run '<conn>' <args>
 
   <conn>: the Postgres database connection string
   <args>: SimpleMigration args (try 'help')"""

@@ -117,6 +117,27 @@ type Department =
 
 /// A person doing or supporting IT work
 [<CLIMutable>]
+[<Table("hr_people")>]
+type HrPerson = 
+  { /// The unique ID of this person record.
+    [<Key>][<Column("id")>] Id: Id
+    /// The net id (username) of this person.
+    [<Column("netid")>] NetId: NetId
+    /// The preferred name of this person.
+    [<Column("name")>] Name: Name
+    /// The job position of this person as defined by HR. This may be different than the person's title in relation to an IT unit.
+    [<Column("position")>] Position: string
+    /// The primary campus with which this person is affiliated.
+    [<Column("campus")>] Campus: string
+    /// The campus phone number of this person.
+    [<Column("campus_phone")>] CampusPhone: string
+    /// The campus (work) email address of this person.
+    [<Column("campus_email")>] CampusEmail: string 
+    /// Administrative notes about this person, visible only to IT Admins.
+    [<Column("hr_department")>] HrDepartment: string }
+
+/// A person doing or supporting IT work
+[<CLIMutable>]
 [<Table("people")>]
 type Person = 
   { /// The unique ID of this person record.
