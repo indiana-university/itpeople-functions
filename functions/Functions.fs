@@ -124,7 +124,7 @@ module Functions =
     let delete req workflow = execute Status.NoContent req workflow
 
 
-    let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'a,Error>> = async {
+    let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {
         let! result = getter (identity model)
         match result with 
         | Ok _ -> return Ok model
@@ -339,11 +339,31 @@ module Functions =
             >=> fun _ -> data.People.GetMemberships personId
         get req workflow
 
+    let setPersonId id (a:PersonRequest) = ok {a with Id=id}
+
+    [<FunctionName("PersonPut")>]
+    [<SwaggerOperation(Summary="Update a person's location, expertise, and responsibilities/job classes.", Tags=[|"People"|])>]
+    [<SwaggerRequestExample(typeof<UnitRequest>, typeof<PersonRequestExample>)>]
+    [<SwaggerResponse(200, "A record of the updated person", typeof<Person>)>]
+    [<SwaggerResponse(400, "The request body is malformed.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You do not have permission to modify this person.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
+    let personPut
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "people/{personId}")>] req, personId) =
+        let workflow =
+            deserializeBody<PersonRequest>
+            >=> setPersonId personId
+            >=> ensureEntityExistsForModel data.People.GetById      
+            >=> authorize req (canModifyPerson personId)
+            >=> data.People.Update
+        update req workflow
+
+
     // *****************
     // ** Units
     // *****************
 
-    let setUnitId id (a:Unit) = Ok { a with Id=id } |> async.Return
+    let setUnitId id (a:Unit) = ok { a with Id=id }
 
     let unitValidator = unitValidator(data)
 
