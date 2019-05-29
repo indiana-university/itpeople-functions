@@ -41,20 +41,19 @@ module DataRepository =
     let fetchAllHrPeople oracleConnStr = async {
         printfn "%s Fetching HR people..." (DateTime.Now.ToLongTimeString())
         let sql = """
-            SELECT
-                PRSN_PRM_1ST_LST_35_NM as name,
-                LOWER(PRSN_USER_ID) as netid,
-                POS_DESC as position,
-                JOB_DEPT_ID as hr_department,
-                JOB_LOC_DESC as campus,
-                PRSN_CMP_PHN_NBR as campus_phone,
-                PRSN_CMP_EMAIL_ADDR as campus_email
-            FROM DSS.HRS_IT_JOB_CUR_GT
-            WHERE
-                PRSN_USER_ID IS NOT NULL
-                AND POS_DESC IS NOT NULL
-                AND JOB_PRM_2ND_IND = 'P'
-            ORDER BY PRSN_UNIV_ID"""
+    SELECT
+        PRSN_PREF_FULL_NM as name,
+        LOWER(PRSN_USER_ID) as netid,
+        POS_DESC as position,
+        JOB_DEPT_ID as hr_department,
+        JOB_LOC_DESC as campus,
+        PRSN_CMP_PHN_NBR as campus_phone,
+        PRSN_CMP_EMAIL_ADDR as campus_email
+    FROM DSS.HRS_IT_JOB_CUR_GT
+    WHERE
+        PRSN_USER_ID IS NOT NULL
+        AND POS_DESC IS NOT NULL
+        AND JOB_PRM_2ND_IND = 'P'"""
         try
             use db = new OracleConnection(oracleConnStr)
             let! people =
@@ -109,19 +108,23 @@ module DataRepository =
         let param = {Id=tool.Id}
         fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql, param))
 
+    open NpgsqlTypes
+
     let updateHrPeople psqlConnStr (hrPeople:seq<HrPerson>) =
-        let sql = """
-            INSERT INTO hr_people (name, netid, position, campus, campus_phone, campus_email, hr_department)
-            VALUES (@Name, @NetId, @Position, @Campus, @CampusPhone, @CampusEmail, @HrDepartment)
-            ON CONFLICT (netid)
-            DO UPDATE SET
-                name=@Name,
-                position=@Position,
-                campus=@Campus,
-                campus_phone=@CampusPhone,
-                campus_email=@CampusEmail,
-                hr_department=@HrDepartment"""
-        execute psqlConnStr sql hrPeople
+        // convert the hr person to a formatting string representing the table row data.
+        let toRow (p:HrPerson) = 
+            let names = p.Name.Split([|','|])
+            sprintf "%s %s\t%s\t%s\t%s\t%s\t%s\t%s\n" names.[1] names.[0] p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment 
+        Database.Command.executeRaw psqlConnStr (fun cn ->
+            cn.Open()
+            // truncate the existing
+            cn.Execute("DELETE FROM hr_people;") |> ignore
+            // bulk insert the new rows
+            use writer = cn.BeginTextImport("COPY hr_people (name, netid, position, campus, campus_phone, campus_email, hr_department) FROM STDIN")
+            hrPeople |> Seq.map toRow  |> Seq.iter writer.Write
+            // flush the writer to finish the bulk insert
+            writer.Flush()
+        )
 
     // LDAP Stuff
 
