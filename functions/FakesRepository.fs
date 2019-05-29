@@ -13,9 +13,10 @@ module FakesRepository =
     let FakePeople = {
         TryGetId = fun netId -> stub (swanson.NetId, Some(swanson.Id))
         GetAll = fun query -> stub ([ swanson ] |> List.toSeq)
-        Get = fun id -> stub swanson
+        GetById = fun id -> stub swanson
+        GetByNetId = fun id -> stub swanson
         Create = fun person -> stub swanson
-        GetMemberships = fun personId -> stub ([ swansonMembership ] |> List.toSeq)
+        GetMemberships = fun id -> stub ([ swansonMembership ] |> List.toSeq)
     }
 
     let FakeUnits = {

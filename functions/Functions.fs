@@ -190,8 +190,6 @@ module Functions =
     // ** People
     // *****************
 
-    let getPerson personId _ = data.People.Get personId
-
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="Search IT people", Description="""Search for IT people. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by name/netid, ex: 'Ron' or 'rswanso'
@@ -295,10 +293,17 @@ module Functions =
     [<SwaggerResponse(200, "A person record.", typeof<Person>)>]
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetById
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
-        let workflow =
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId:string) =
+
+        let getPerson = 
+            match personId with
+            | Int id -> fun _ -> data.People.GetById id
+            | _      -> fun _ -> data.People.GetByNetId personId
+
+        let workflow = 
             authenticate
-            >=> fun _ -> data.People.Get personId
+            >=> getPerson
+
         get req workflow
 
     [<FunctionName("PeopleGetAllMemberships")>]
@@ -307,11 +312,10 @@ module Functions =
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
-        let getPersonMemberships p = data.People.GetMemberships (identity p)
         let workflow = 
             authenticate
-            >=> fun _ -> data.People.Get personId
-            >=> getPersonMemberships
+            >=> fun _ -> data.People.GetById personId
+            >=> fun _ -> data.People.GetMemberships personId
         get req workflow
 
     // *****************

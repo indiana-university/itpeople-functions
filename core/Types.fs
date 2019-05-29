@@ -353,11 +353,13 @@ type PeopleRepository = {
     /// Get a list of all people
     GetAll: PeopleQuery -> Async<Result<Person seq,Error>>
     /// Get a single person by ID
-    Get: PersonId -> Async<Result<Person,Error>>
+    GetById: Id -> Async<Result<Person,Error>>
+    /// Get a single person by NetId
+    GetByNetId: NetId -> Async<Result<Person,Error>>
     /// Create a person from canonical HR data
     Create: Person -> Async<Result<Person,Error>>
-    /// Get a list of a person's unit memberships
-    GetMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
+    /// Get a list of a person's unit memberships, by the person's ID
+    GetMemberships: Id -> Async<Result<UnitMember seq,Error>>
 }
 
 type UnitMemberRecordFieldOptions = 

@@ -7,6 +7,7 @@ module ApiErrorTests =
     open TestFixture
     open Core.Fakes
     open Core.Json
+    open Core.Types
     open FsUnit.Xunit
     open Newtonsoft.Json
     open System.Net
@@ -35,14 +36,19 @@ module ApiErrorTests =
         response.StatusCode |> should equal expectedStatus
         response
 
+    let parseContent<'T> (response:HttpResponseMessage) = 
+        response.Content.ReadAsStringAsync() 
+        |> Async.AwaitTask 
+        |> Async.RunSynchronously
+        |> fun str -> JsonConvert.DeserializeObject<'T>(value=str, settings=JsonSettings)
+
     let shouldGetContent<'T> (expectedContent:'T) (response:HttpResponseMessage) =
-        let actualContent = 
-            response.Content.ReadAsStringAsync() 
-            |> Async.AwaitTask 
-            |> Async.RunSynchronously
-            |> fun str -> JsonConvert.DeserializeObject<'T>(str, JsonSettings)
-        actualContent |> should equal expectedContent
+        response |> parseContent<'T> |> should equal expectedContent
         response
+
+    let evaluateContent<'T> (evalFn:'T -> unit) (response:HttpResponseMessage) =
+        response |> parseContent<'T> |> evalFn
+        response    
 
     type ApiTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
@@ -159,6 +165,32 @@ module ApiErrorTests =
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [wyatt; knope; swanson]
 
+
+        [<Fact>]       
+        member __.``People: get by id`` () = 
+            requestFor HttpMethod.Get (sprintf "people/%d" knope.Id)
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent knope
+
+        [<Fact>]       
+        member __.``People: get by netid`` () = 
+            requestFor HttpMethod.Get (sprintf "people/%s" knope.NetId)
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent knope
+
+        [<Fact>]       
+        member __.``People: get memberships by id`` () = 
+            requestFor HttpMethod.Get (sprintf "people/%d/memberships" knope.Id)
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<UnitMember>> (fun memberships ->
+                 memberships |> Seq.length |> should equal 1
+                 let head = memberships |> Seq.head
+                 head.Id |> should equal knopeMembership.Id)
+
+
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
 
@@ -188,6 +220,13 @@ module ApiErrorTests =
         member __.``Delete non-existent resource yields 404 Not Found`` (resource: string) = 
             sprintf "units/%s/1000" resource
             |> requestFor HttpMethod.Delete
+            |> withAuthentication
+            |> shouldGetResponse HttpStatusCode.NotFound
+
+
+        [<Fact>]       
+        member __.``Get non-existent person`` () = 
+            requestFor HttpMethod.Get "people/foo"
             |> withAuthentication
             |> shouldGetResponse HttpStatusCode.NotFound
 

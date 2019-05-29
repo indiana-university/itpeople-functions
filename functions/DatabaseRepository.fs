@@ -289,11 +289,16 @@ module DatabaseRepository =
             AND (CARDINALITY(@Permissions)=0 OR (um.permissions = ANY (@Permissions)))
             ORDER BY p.netid"""
         fetchAll connStr (mapPeople(WhereParam(whereClause, param)))
+    
 
-    let queryPerson connStr id =
-        fetchOne<Person> connStr mapPerson id
+    let queryPersonById connStr =
+        fetchOne<Person> connStr mapPerson
 
-    let queryPersonByNetId connStr netId = async {
+    let queryPersonByNetId connStr netid =
+        fetchAll<Person> connStr (mapPeople (WhereParam("p.netid=@NetId", {NetId=netid})))
+        >>= takeExactlyOne
+
+    let tryQueryPersonByNetId connStr netId = async {
         let! people = fetchAll<Person> connStr (mapPeople(WhereParam("netid = @NetId", {NetId=netId})))
         let result = 
             match people with
@@ -318,6 +323,7 @@ module DatabaseRepository =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
         >>= stripNotes
         >>= collectMemberTools
+
 
     // ***********
     // Tools
@@ -472,9 +478,10 @@ module DatabaseRepository =
         isServiceAdminOrHasUnitPermissions [ UnitPermissions.Owner; UnitPermissions.ManageTools ]
 
     let People(connStr) = {
-        TryGetId = queryPersonByNetId connStr
+        TryGetId = tryQueryPersonByNetId connStr
         GetAll = queryPeople connStr
-        Get = queryPerson connStr
+        GetById = queryPersonById connStr
+        GetByNetId = queryPersonByNetId connStr
         Create = insertPerson connStr
         GetMemberships = queryPersonMemberships connStr
     }

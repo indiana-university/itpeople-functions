@@ -43,7 +43,7 @@ module Validation =
         assertRelationExists data.Units.Get (unitId m) m 
     let membershipPersonExists data (m:UnitMember) = 
         match m.PersonId with 
-        | Some(id) -> assertRelationExists data.People.Get id m 
+        | Some(id) -> assertRelationExists data.People.GetById id m 
         | None -> Ok m |> async.Return
     let membershipIsUnique data (m:UnitMember) = 
         let entities id = fun () -> data.People.GetMemberships id
