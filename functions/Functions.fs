@@ -324,6 +324,7 @@ module Functions =
         let workflow = 
             authenticate
             >=> getPerson
+            >=> fun p -> permission req (canModifyPerson p.Id) p
 
         get req workflow
 
