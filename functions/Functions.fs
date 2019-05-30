@@ -255,25 +255,14 @@ module Functions =
         get req workflow
 
     let ensurePersonInDirectory =
-        let findPersonWithMatchingNetId (netid:NetId) (results:seq<Person>) =
-            match results |> Seq.tryFind (fun r -> netid.Equals(r.NetId, IgnoreCase)) with
-            | None -> error(Status.NotFound, "No person found with that netid.")
-            | Some(person) -> ok person
-        let tryAddToDirectory netid =
-            // look for all people that partially match this netid
-            data.Hr.GetAllPeople (Some(netid))
-            // try to find one person that exactly matches the netid
-            >>= findPersonWithMatchingNetId netid
-            // add that person to the directory
-            >>= data.People.Create
-        // try to find an existing directory member with this username.
         data.People.TryGetId
         >=> fun (netid, idOption) ->
             match idOption with
-            // If this person is in the directory, fetch them from the directory
-            | Some(id) -> data.People.GetById id
-            // If this person is not in the directory, try to find them in HR data and add them
-            | None ->  tryAddToDirectory netid
+            | Some(id) -> 
+                data.People.GetById id
+            | None ->  
+                data.People.GetHr netid
+                >>= data.People.Create
 
     [<FunctionName("PeopleLookupAll")>]
     [<SwaggerOperation(Summary="Search all staff", Description="Search for staff, including IT People, by name or username (netid).", Tags=[|"People"|])>]
