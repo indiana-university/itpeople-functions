@@ -48,8 +48,7 @@ type AppConfig =
     OAuth2RedirectUrl: string
     DbConnectionString: string
     UseFakes: bool
-    CorsHosts: string
-    SharedSecret: string }
+    CorsHosts: string }
 
 type Role =
     /// This person has an ancillary relationship to this unit. This can apply to administrative assistants or self-supporting faculty.
@@ -488,11 +487,6 @@ type SupportRelationshipRepository = {
     Delete : SupportRelationship -> Async<Result<unit,Error>>
 }
 
-type HrDataRepository = {
-    /// Get a list of all people from a canonical source
-    GetAllPeople: Filter option -> Async<Result<Person seq,Error>>
-}
-
 type AuthorizationRepository = {
     /// Given an OAuth token_key URL and return the public key.
     UaaPublicKey: string -> Async<Result<string,Error>>
@@ -510,7 +504,6 @@ type DataRepository = {
     MemberTools: MemberToolsRepository
     Tools: ToolsRepository
     SupportRelationships: SupportRelationshipRepository
-    Hr: HrDataRepository
     Authorization: AuthorizationRepository
 }
 

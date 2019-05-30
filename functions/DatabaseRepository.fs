@@ -453,19 +453,6 @@ module DatabaseRepository =
         queryMembership connStr memberTool.MembershipId
         >>= fun membership -> ok (memberTool, membership)
    
-    // *********************
-    // HR Lookups
-    // *********************
-
-    let lookupCanonicalHrPeople sharedSecret (query:NetId option) =
-        match query with
-        | None -> Ok Seq.empty<Person> |> ar
-        | Some(q) ->
-            let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" q
-            let msg = new HttpRequestMessage(HttpMethod.Get, url)
-            msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
-            sendAsync<seq<Person>> msg
-
     let isServiceAdminSql = """
     SELECT EXISTS (
         SELECT id 
@@ -639,10 +626,6 @@ module DatabaseRepository =
         Delete = deleteSupportRelationship connStr
     }
 
-    let HrRepository(sharedSecret) = {
-        GetAllPeople = lookupCanonicalHrPeople sharedSecret
-    }
-
     let AuthorizationRepository(connStr) = {
         UaaPublicKey = uaaPublicKey
         IsServiceAdmin = isServiceAdmin connStr
@@ -651,7 +634,7 @@ module DatabaseRepository =
         CanModifyPerson = canModifyPerson connStr
     }
 
-    let Repository(connStr, sharedSecret) = {
+    let Repository(connStr) = {
         People = People(connStr)
         Departments = Departments(connStr)
         Units = Units(connStr)
@@ -659,6 +642,5 @@ module DatabaseRepository =
         MemberTools = MemberToolsRepository(connStr)
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
-        Hr = HrRepository(sharedSecret)
         Authorization = AuthorizationRepository(connStr)
     }

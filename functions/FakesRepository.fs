@@ -71,9 +71,6 @@ module FakesRepository =
         Update = fun req -> stub supportRelationship
         Delete = fun id -> stub ()
     }
-    let FakeHr = {
-        GetAllPeople = fun query -> stub ([ swanson ] |> List.toSeq)
-    }
 
     let FakeAuthorization : AuthorizationRepository = {
         UaaPublicKey = fun _ -> stub adminJwt.access_token
@@ -91,7 +88,6 @@ module FakesRepository =
         MemberTools = FakeMemberToolsRepository
         Tools = FakeToolsRepository
         SupportRelationships = FakeSupportRelationships
-        Hr = FakeHr
         Authorization = FakeAuthorization
     }
 

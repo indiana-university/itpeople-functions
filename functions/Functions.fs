@@ -37,7 +37,7 @@ module Functions =
         then FakesRepository.Repository
         else
             Database.Command.init()
-            DatabaseRepository.Repository(config.DbConnectionString, config.SharedSecret)
+            DatabaseRepository.Repository(config.DbConnectionString)
     let log = createLogger config.DbConnectionString
     
     let publicKey =

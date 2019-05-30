@@ -50,7 +50,6 @@ let getConfiguration () =
         DbConnectionString = getRequiredValue<string> config "DbConnectionString"
         UseFakes = getValueOrDefault<bool> config "UseFakeData" false
         CorsHosts = getValueOrDefault<string> config "CorsHosts" "*"
-        SharedSecret = getRequiredValue<string> config "SharedSecret"
     }
 
 /// HTTP REQUEST
