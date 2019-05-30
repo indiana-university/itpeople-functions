@@ -3,7 +3,9 @@ module Core.Fakes
 open Types
 
 // UaaResponse 
-let uaaJwt = { access_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJqb2huZG9lIiwiZXhwIjoyOTE2MjM5MDIyfQ.ELo8I2IImgRRT75cOcUcSllbkWVWAIQA2WQr27WSpWwF2c7Wh9hjqkPriZ4PxSD4OR9IgGWt5HWpPQFDOwlv1O7tl2gLcZ5LayuRzQX2AEn-UsEBECStEwABUtwhg92q9Ov-GRbYqmP_5UpntbCr8aZfMEuMfLTIWePcORq_FrJhjyRUoKhUo8007W6RO58n03erVlslSB1f-JTYtBdhYOlgmDTOCp_rc-gPvKFePMb4c05IOD-x4ce2QGkZlL_pE1_OLKdn5A07k7B8x53v38WvWuisFGIPXUcuP3j9hdJHIzYLSfL5t1OABT1-57C91yaMAgVsATMRgT9qtzYQgg" }
+let adminJwt = { access_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJqb2huZG9lIiwiZXhwIjoyOTE2MjM5MDIyfQ.ELo8I2IImgRRT75cOcUcSllbkWVWAIQA2WQr27WSpWwF2c7Wh9hjqkPriZ4PxSD4OR9IgGWt5HWpPQFDOwlv1O7tl2gLcZ5LayuRzQX2AEn-UsEBECStEwABUtwhg92q9Ov-GRbYqmP_5UpntbCr8aZfMEuMfLTIWePcORq_FrJhjyRUoKhUo8007W6RO58n03erVlslSB1f-JTYtBdhYOlgmDTOCp_rc-gPvKFePMb4c05IOD-x4ce2QGkZlL_pE1_OLKdn5A07k7B8x53v38WvWuisFGIPXUcuP3j9hdJHIzYLSfL5t1OABT1-57C91yaMAgVsATMRgT9qtzYQgg" }
+let swansonJwt = { access_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJyc3dhbnNvIiwiZXhwIjoyOTE2MjM5MDIyfQ.kiFiqVpGH-BbZ_YP4y-C9krDfG9n8KNwYSaMauz8IE73shQYQs9v_H-uog26vOiX4u1YXeB_SDkqdl6lfrHz7lR5NRPezT_KFAikkpAvV1awX2J1YUTb6Kpj4W_QPU2--JGkEQf_kwgYc3firkROcnnmWKdn_fa9pG_BLGhWRMxNL_kCEXFaP8BgO_GNErI5ZiuQD8h9UmQhvPgpg5mFeHpmsw_46lxCPC0e-kyN1V50suFUIsttIhAxtoJopej2eU-ptc-RAOpk6vrxXjc4IHK-288KWyiS6nSHug11A7tXPT5l5FrRcM7jzdLkznG5luNiLtI7yqV_qJRFNKNgEA" }
+let knopeJwt = { access_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJsa25vcGUiLCJleHAiOjI5MTYyMzkwMjJ9.OfrJ3jSh91RXhfXGbi8sfZSrSdJH51Wz_46Dae2BlupaRPX6Rwn5JrHeW2dx3a8M5uVHPY7Av6kfFOCPwbHZHWIdGkQOgGMX20Yck5Utz7j8heEOwfXPQUvi5QD8UgC9NZCgxUNbWHkTF1H2awYECeuGCz6bZyHLoh357jGt5sG5yriuaAo2qnghc5vz70ZwHjTZaHrCdlpKkjxYfSCgcWiHYUfQ3gkUTIXJfoVNbcVst0k7t2T81hz5T-t7Iocgl3_daZ8wsiUMup1aypNwrUgdtNElYYqSBn8gbQ-kx6enzMMIgaWgXlct0r2f5MfplM5tIwxOgGbi2DMvgGAcHg" }
 let fakePublicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnzyis1ZjfNB0bBgKFMSv\nvkTtwlvBsaJq7S5wA+kzeVOVpVWwkWdVha4s38XM/pa/yr47av7+z3VTmvDRyAHc\naT92whREFpLv9cj5lTeJSibyr/Mrm/YtjCZVWgaOYIhwrXwKLqPr/11inWsAkfIy\ntvHWTxZYEcXLgAXFuUuaS3uF9gEiNQwzGTU1v0FqkqTBr4B8nW3HCN47XUu0t8Y0\ne+lf4s4OxQawWD79J9/5d3Ry0vbV3Am1FtGJiJvOwRsIfVChDpYStTcHTCMqtvWb\nV6L11BWkpzGXSW4Hv43qa+GSYOD2QU68Mb59oSk2OB+BtOLpJofmbGEGgvmwyCI9\nMwIDAQAB\n-----END PUBLIC KEY-----"
 // Units
 let cityOfPawnee:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url="http://pawneeindiana.com/"; ParentId=None; Parent=None}
@@ -49,6 +51,13 @@ let knope:Person = {
     DepartmentId=parksDept.Id
     Department=parksDept
     IsServiceAdmin=false
+}
+
+let knopeRequest:PersonRequest = {
+    Id=2
+    Location=""
+    Expertise="Canvasing; Waffles"
+    Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
 }
 
 let wyatt:Person = {

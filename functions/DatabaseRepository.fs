@@ -289,11 +289,15 @@ module DatabaseRepository =
             AND (CARDINALITY(@Permissions)=0 OR (um.permissions = ANY (@Permissions)))
             ORDER BY p.netid"""
         fetchAll connStr (mapPeople(WhereParam(whereClause, param)))
+    
+    let queryPersonById connStr =
+        fetchOne<Person> connStr mapPerson
 
-    let queryPerson connStr id =
-        fetchOne<Person> connStr mapPerson id
+    let queryPersonByNetId connStr netid =
+        fetchAll<Person> connStr (mapPeople (WhereParam("p.netid=@NetId", {NetId=netid})))
+        >>= takeExactlyOne
 
-    let queryPersonByNetId connStr netId = async {
+    let tryQueryPersonByNetId connStr netId = async {
         let! people = fetchAll<Person> connStr (mapPeople(WhereParam("netid = @NetId", {NetId=netId})))
         let result = 
             match people with
@@ -318,6 +322,19 @@ module DatabaseRepository =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
         >>= stripNotes
         >>= collectMemberTools
+
+    let updatePerson connStr (person:PersonRequest) = 
+        let sql = """
+            UPDATE people
+            SET location=@Location,
+                responsibilities=@Responsibilities,
+                expertise=@Expertise
+            WHERE id=@Id;
+            SELECT @Id"""
+        let updatePersonQuery (cn:Cn) = cn.QuerySingleAsync<Id>(sql, person)
+        
+        fetch<Id> connStr updatePersonQuery
+        >>= fetchOne<Person> connStr mapPerson
 
     // ***********
     // Tools
@@ -448,6 +465,8 @@ module DatabaseRepository =
 			AND um.permissions = ANY(@UnitPermissions)
     ) """
 
+
+
     type AuthParams = {UnitId: Id; NetId: NetId; UnitPermissions: int[]}
 
     let hasCascadedUnitPerms permissions connStr netid unitId  =
@@ -471,12 +490,56 @@ module DatabaseRepository =
     let isUnitToolManager = 
         isServiceAdminOrHasUnitPermissions [ UnitPermissions.Owner; UnitPermissions.ManageTools ]
 
+    let canModifyPersonSql = """
+        SELECT
+        ( -- The requestor is updating their own record 
+          SELECT netid = @NetId -- requestor netid
+          FROM people p 
+          WHERE id = @Id -- updated person id
+        ) 
+        OR
+        ( -- The requestor is updating the record of a person
+          -- who is in a unit that the requestor owns/manages.
+          -- We can figure this by count the common unit ids that the
+          --  a) person is a member of, and
+          --  b) requestor owns/manages.
+          SELECT COUNT(id) > 0 FROM 
+          (
+        	-- All the units the requested person is in
+        	(SELECT um.unit_id as id
+        	 FROM unit_members um
+        	 JOIN people p on p.id = um.person_id
+        	 WHERE p.id = @Id) -- updated person id
+        	INTERSECT -- keep only the common elements
+        	-- All the units for which the requestor has owner/manager permissions
+        	(SELECT um.unit_id as id
+        	 FROM unit_members um
+        	 JOIN people p on p.id = um.person_id
+        	 WHERE 
+        		um.permissions IN (1,3) -- unit owner/manager
+        		AND p.netid = @NetId) -- requestor netid 
+          ) intersection
+        )"""
+
+    type PersonParams = {Id:Id; NetId:NetId}
+    let canModifyPerson connStr netid personId = 
+        let param = {Id=personId; NetId=netid}
+        let canModifyPersonQuery (cn:Cn) = cn.QuerySingleAsync<bool>(canModifyPersonSql, param) 
+
+        isServiceAdmin connStr netid
+        >>= fun isServiceAdmin ->
+            if isServiceAdmin
+            then ok true
+            else fetch connStr canModifyPersonQuery
+
     let People(connStr) = {
-        TryGetId = queryPersonByNetId connStr
+        TryGetId = tryQueryPersonByNetId connStr
         GetAll = queryPeople connStr
-        Get = queryPerson connStr
+        GetById = queryPersonById connStr
+        GetByNetId = queryPersonByNetId connStr
         Create = insertPerson connStr
         GetMemberships = queryPersonMemberships connStr
+        Update = updatePerson connStr
     }
 
     let Units(connStr) = {
@@ -538,6 +601,7 @@ module DatabaseRepository =
         IsServiceAdmin = isServiceAdmin connStr
         IsUnitManager = isUnitManager connStr
         IsUnitToolManager = isUnitToolManager connStr
+        CanModifyPerson = canModifyPerson connStr
     }
 
     let Repository(connStr, sharedSecret) = {

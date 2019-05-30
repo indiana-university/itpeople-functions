@@ -12,7 +12,7 @@ type ApiEndpointExample<'T>(example:'T) =
     interface IExamplesProvider<'T> with
         member this.GetExamples () = ex
 
-type JwtResponseExample () = inherit ApiEndpointExample<JwtResponse>(uaaJwt)
+type JwtResponseExample () = inherit ApiEndpointExample<JwtResponse>(adminJwt)
 type UnitsExample() = inherit ApiEndpointExample<seq<Unit>>([parksAndRec])
 type UnitExample() = inherit ApiEndpointExample<Unit>(parksAndRec)
 type UnitRequestExample() = inherit ApiEndpointExample<UnitRequest>(parksAndRecUnitRequest)
@@ -20,6 +20,7 @@ type DepartmentsExample() = inherit ApiEndpointExample<seq<Department>>([parksDe
 type DepartmentExample() = inherit ApiEndpointExample<Department>(parksDept)
 type PeopleExample() = inherit ApiEndpointExample<seq<Person>>([knope; knope; wyatt])
 type PersonExample() = inherit ApiEndpointExample<Person>(knope)
+type PersonRequestExample() = inherit ApiEndpointExample<PersonRequest>(knopeRequest)
 type MembershipRequestExample() = inherit ApiEndpointExample<UnitMemberRequest>(knopeMembershipRequest)
 type MembershipExample() = inherit ApiEndpointExample<UnitMember>(knopeMembership)
 type MembershipsExample() = inherit ApiEndpointExample<seq<UnitMember>>([swansonMembership; knopeMembership])

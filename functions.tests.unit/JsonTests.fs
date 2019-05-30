@@ -43,3 +43,10 @@ module JsonTests =
       // printfn "serialized: %s" json
       let actual = deserialize<DU> json
       Assert.Equal(expected, actual);
+
+    [<Fact>]
+    let ``Deserialize PersonRequest`` () =
+      let json = """{"id":0, "expertise":"Pawnee History", "responsibilities":"UserExperience,BizSysAnalysis", "location":"JJ's Diner"}"""
+      let actual = deserialize<PersonRequest> json
+      Assert.Equal("Pawnee History", actual.Expertise)
+      Assert.Equal(Responsibilities.UserExperience|||Responsibilities.BizSysAnalysis, actual.Responsibilities)
