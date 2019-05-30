@@ -33,38 +33,54 @@ module DataRepository =
     open Database.Command
     open Dapper
     open System
+    open System.Net.Http
+    open System.Net.Http.Headers
     open Novell.Directory.Ldap
     open Newtonsoft.Json
     open Oracle.ManagedDataAccess.Client
 
-    // ORACLE Stuff
-    let fetchAllHrPeople oracleConnStr = async {
-        printfn "%s Fetching HR people..." (DateTime.Now.ToLongTimeString())
-        let sql = """
-    SELECT
-        PRSN_PREF_FULL_NM as name,
-        LOWER(PRSN_USER_ID) as netid,
-        POS_DESC as position,
-        JOB_DEPT_ID as hr_department,
-        JOB_LOC_DESC as campus,
-        PRSN_CMP_PHN_NBR as campus_phone,
-        PRSN_CMP_EMAIL_ADDR as campus_email
-    FROM DSS.HRS_IT_JOB_CUR_GT
-    WHERE
-        PRSN_USER_ID IS NOT NULL
-        AND POS_DESC IS NOT NULL
-        AND JOB_PRM_2ND_IND = 'P'"""
-        try
-            use db = new OracleConnection(oracleConnStr)
-            let! people =
-                sql
-                |> db.QueryAsync<HrPerson> 
-                |> Async.AwaitTask
-            printfn "%s Fetched HR people..." (DateTime.Now.ToLongTimeString())
-            return Ok people
-        with 
-        | exn -> return Error (Status.InternalServerError, (sprintf "Failed to query for users: %s." exn.Message ))
-    }
+
+    type DenodoElement =
+      { name: string
+        netid: string
+        position: string
+        hr_department: string
+        campus: string
+        campus_phone: string
+        campus_email: string }
+        
+    type DenodoList = 
+      { elements: seq<DenodoElement> }    
+
+    // DENODO Stuff
+    let fetchAllHrPeople (hrDataUrl:string) username password =
+
+        let fetchFromHrSource () =
+            printfn "%s Fetch people from HR source..." (DateTime.Now.ToLongTimeString())
+            let auth = 
+                sprintf "%s:%s" username password
+                |> System.Text.ASCIIEncoding.ASCII.GetBytes
+                |> System.Convert.ToBase64String
+                |> fun str -> AuthenticationHeaderValue("Basic", str)
+            let req = new HttpRequestMessage(HttpMethod.Get, hrDataUrl)
+            req.Headers.Authorization <- auth
+            Core.Util.sendAsync<DenodoList> req
+
+        let mapElementsToDomainRecords list = 
+            printfn "%s Fetched %d people from HR source." (DateTime.Now.ToLongTimeString()) (list.elements |> Seq.length)
+            let toDomainRecord e =
+              { Id=0
+                Name=e.name 
+                NetId=e.netid 
+                Position=e.position
+                HrDepartment=e.hr_department
+                Campus=e.campus
+                CampusEmail=e.campus_email
+                CampusPhone=e.campus_phone }
+            list.elements |> Seq.map toDomainRecord |> ok
+
+        fetchFromHrSource
+        >=> mapElementsToDomainRecords
 
     // DB Stuff
 
@@ -215,7 +231,7 @@ module DataRepository =
         let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
         fetch connStr (fun cn -> cn.QuerySingleAsync<NetId>(sql, param))
 
-    let Repository psqlConnStr oracleConnStr adUser adPassword =
+    let Repository psqlConnStr hrDataUrl adUser adPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
        FetchLatestHRPerson = fetchLatestHrPerson psqlConnStr
        UpdatePerson = updatePerson psqlConnStr
@@ -225,7 +241,7 @@ module DataRepository =
        UpdateADGroup = updateADGroup adUser adPassword
        GetPersonMemberships = getPersonMemberships psqlConnStr
        InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
-       FetchAllHrPeople = fun () -> fetchAllHrPeople oracleConnStr
+       FetchAllHrPeople = fetchAllHrPeople hrDataUrl adUser adPassword
        UpdateHrPeople = updateHrPeople psqlConnStr }
 
 module Functions=
@@ -256,11 +272,11 @@ module Functions=
 
     let data = 
         let psqlConnectionString = Environment.GetEnvironmentVariable("DbConnectionString")
-        let oracleConnectionString = Environment.GetEnvironmentVariable("OracleConnectionString")
+        let hrDataUrl = Environment.GetEnvironmentVariable("HrDataUrl")
         let adUser = Environment.GetEnvironmentVariable("AdUser")
         let adPassword = Environment.GetEnvironmentVariable("AdPassword")
         Database.Command.init()
-        DataRepository.Repository psqlConnectionString oracleConnectionString adUser adPassword
+        DataRepository.Repository psqlConnectionString hrDataUrl adUser adPassword
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
@@ -270,24 +286,17 @@ module Functions=
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
-    [<Disable>]
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
-        ([<TimerTrigger("0 00 14 * * 1-5")>] timer: TimerInfo,
+        ([<TimerTrigger("0 00 14 * * 1-5", RunOnStartup=true)>] timer: TimerInfo,
          [<Queue("people-update-batch")>] queue: ICollector<string>,
          log: ILogger) = 
 
         let enqueueBatchUpdate () = 
             queue.Add ("go go gadget update directory people!")
 
-        let skipIfIsPastDue () =
-            if timer.IsPastDue
-            then error(Status.BadRequest, "Due to DSS1PRD availability, only run this function at the scheduled time.")
-            else ok ()
-
         let workflow = 
-            skipIfIsPastDue
-            >=> data.FetchAllHrPeople
+            data.FetchAllHrPeople
             >=> data.UpdateHrPeople
             >=> tap enqueueBatchUpdate
 
