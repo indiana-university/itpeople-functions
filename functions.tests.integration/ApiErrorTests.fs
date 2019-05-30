@@ -53,8 +53,10 @@ module ApiErrorTests =
     let personUpdate = 
       { PersonRequest.Id=knope.Id
         Expertise="Pawnee History" 
-        Responsibilities=Responsibilities.UserExperience
+        Responsibilities=Responsibilities.UserExperience|||Responsibilities.BizSysAnalysis
         Location="JJ's Diner" }
+
+    let rawPersonUpdate = """{"id":0, "expertise":"Pawnee History", "responsibilities":"UserExperience,BizSysAnalysis", "location":"JJ's Diner"}"""
 
     let evaluatePersonUpdate (p:Person) = 
         p.Id |> should equal knope.Id
@@ -240,6 +242,14 @@ module ApiErrorTests =
             |> withAuthentication swansonJwt
             |> withBody personUpdate
             |> shouldGetResponse HttpStatusCode.Forbidden
+
+        [<Fact>]       
+        member __.``People: unit owner swanson can update member knope: raw`` () = 
+            requestFor HttpMethod.Put (sprintf "people/%d" knope.Id)
+            |> withAuthentication swansonJwt
+            |> withRawBody rawPersonUpdate
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<Person> evaluatePersonUpdate
 
 
     type ApiErrorTests(output: ITestOutputHelper)=
