@@ -153,6 +153,7 @@ module DataRepository =
         LdapAttribute("member", value)
 
     let doLdapAction adUser adsPassword action = 
+            let adUser = sprintf """ads\%s""" adUser
             use ldap = new LdapConnection()
             ldap.Connect("ads.iu.edu", 389)
             ldap.Bind(adUser, adsPassword)  
