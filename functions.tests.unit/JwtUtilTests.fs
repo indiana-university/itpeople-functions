@@ -19,7 +19,7 @@ module JwtUtilTests =
     [<Fact>]
     let ``Decode app JWT`` () =
         let expected = Ok (name)
-        let actual = decodeJwt fakePublicKey uaaJwt.access_token |> Async.RunSynchronously
+        let actual = decodeJwt fakePublicKey adminJwt.access_token |> Async.RunSynchronously
         Assert.Equal(expected, actual)
 
     [<Fact>]

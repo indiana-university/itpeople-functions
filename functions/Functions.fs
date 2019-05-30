@@ -124,7 +124,7 @@ module Functions =
     let delete req workflow = execute Status.NoContent req workflow
 
 
-    let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'a,Error>> = async {
+    let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {
         let! result = getter (identity model)
         match result with 
         | Ok _ -> return Ok model
@@ -190,8 +190,6 @@ module Functions =
     // ** People
     // *****************
 
-    let getPerson personId _ = data.People.Get personId
-
     [<FunctionName("PeopleGetAll")>]
     [<SwaggerOperation(Summary="Search IT people", Description="""Search for IT people. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by name/netid, ex: 'Ron' or 'rswanso'
@@ -256,6 +254,27 @@ module Functions =
 
         get req workflow
 
+    let ensurePersonInDirectory =
+        let findPersonWithMatchingNetId (netid:NetId) (results:seq<Person>) =
+            match results |> Seq.tryFind (fun r -> netid.Equals(r.NetId, IgnoreCase)) with
+            | None -> error(Status.NotFound, "No person found with that netid.")
+            | Some(person) -> ok person
+        let tryAddToDirectory netid =
+            // look for all people that partially match this netid
+            data.Hr.GetAllPeople (Some(netid))
+            // try to find one person that exactly matches the netid
+            >>= findPersonWithMatchingNetId netid
+            // add that person to the directory
+            >>= data.People.Create
+        // try to find an existing directory member with this username.
+        data.People.TryGetId
+        >=> fun (netid, idOption) ->
+            match idOption with
+            // If this person is in the directory, fetch them from the directory
+            | Some(id) -> data.People.GetById id
+            // If this person is not in the directory, try to find them in HR data and add them
+            | None ->  tryAddToDirectory netid
+
     [<FunctionName("PeopleLookupAll")>]
     [<SwaggerOperation(Summary="Search all staff", Description="Search for staff, including IT People, by name or username (netid).", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A collection of person records.", typeof<seq<Person>>)>]
@@ -273,10 +292,18 @@ module Functions =
     [<SwaggerResponse(200, "A person record.", typeof<Person>)>]
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetById
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
-        let workflow =
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId:string) =
+
+        let getPerson = 
+            match personId with
+            | Int id -> fun _ -> data.People.GetById id
+            | _      -> fun _ -> ensurePersonInDirectory personId
+
+        let workflow = 
             authenticate
-            >=> fun _ -> data.People.Get personId
+            >=> getPerson
+            >=> fun p -> permission req (canModifyPerson p.Id) p
+
         get req workflow
 
     [<FunctionName("PeopleGetAllMemberships")>]
@@ -285,18 +312,37 @@ module Functions =
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
-        let getPersonMemberships p = data.People.GetMemberships (identity p)
         let workflow = 
             authenticate
-            >=> fun _ -> data.People.Get personId
-            >=> getPersonMemberships
+            >=> fun _ -> data.People.GetById personId
+            >=> fun _ -> data.People.GetMemberships personId
         get req workflow
+
+    let setPersonId id (a:PersonRequest) = ok {a with Id=id}
+
+    [<FunctionName("PersonPut")>]
+    [<SwaggerOperation(Summary="Update a person's location, expertise, and responsibilities/job classes.", Tags=[|"People"|])>]
+    [<SwaggerRequestExample(typeof<UnitRequest>, typeof<PersonRequestExample>)>]
+    [<SwaggerResponse(200, "A record of the updated person", typeof<Person>)>]
+    [<SwaggerResponse(400, "The request body is malformed.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(403, "You do not have permission to modify this person.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
+    let personPut
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "people/{personId}")>] req, personId) =
+        let workflow =
+            deserializeBody<PersonRequest>
+            >=> setPersonId personId
+            >=> ensureEntityExistsForModel data.People.GetById      
+            >=> authorize req (canModifyPerson personId)
+            >=> data.People.Update
+        update req workflow
+
 
     // *****************
     // ** Units
     // *****************
 
-    let setUnitId id (a:Unit) = Ok { a with Id=id } |> async.Return
+    let setUnitId id (a:Unit) = ok { a with Id=id }
 
     let unitValidator = unitValidator(data)
 
@@ -471,26 +517,14 @@ module Functions =
             >=> permissionMembershipUnitModification req
         get req workflow
 
-    let ensurePersonInDirectory lookupDirectoryPeople lookupHrPeople addPersonToDirectory (um:UnitMember) =
-        let resolveUnitMember (person:Person) = 
-            printfn "*** Added person to directory ***\n %A" person
-            Ok {um with PersonId=Some(person.Id)} |> ar
-        let evaluateDirectorySearch (netid:NetId, idOption:Id option) =
-            match idOption with
-            | None -> 
-                lookupHrPeople netid
-                >>= fun p ->
-                    printfn "*** Adding person to directory ***\n %A" p
-                    addPersonToDirectory p
-                >>= resolveUnitMember
-            | Some(id) -> { um with PersonId=Some(id)} |> ok
+    let ensureUnitMemberInDirectory (um:UnitMember) =
         match (um.PersonId, um.NetId) with
         | (None, None) 
         | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
         | (None, Some(netid))
         | (Some(0), Some(netid)) -> // We don't have this person in the directory. Add them now.
-            lookupDirectoryPeople netid
-            >>= evaluateDirectorySearch
+            ensurePersonInDirectory netid
+            >>= fun person -> ok { um with PersonId=Some(person.Id)}
         | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
 
     [<FunctionName("MemberCreate")>]
@@ -506,7 +540,7 @@ module Functions =
             deserializeBody<UnitMember>
             >=> setMembershipId 0
             >=> authorizeMembershipUnitModification req
-            >=> ensurePersonInDirectory data.People.TryGetId data.People.GetHr data.People.Create
+            >=> ensureUnitMemberInDirectory
             >=> membershipValidator.ValidForCreate
             >=> data.Memberships.Create
         create req workflow
@@ -526,7 +560,7 @@ module Functions =
             >=> setMembershipId membershipId
             >=> ensureEntityExistsForModel data.Memberships.Get
             >=> authorizeMembershipUnitModification req
-            >=> ensurePersonInDirectory data.People.TryGetId data.People.GetHr data.People.Create
+            >=> ensureUnitMemberInDirectory
             >=> membershipValidator.ValidForUpdate
             >=> data.Memberships.Update
         update req workflow

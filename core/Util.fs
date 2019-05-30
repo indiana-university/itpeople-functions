@@ -39,3 +39,13 @@ let getAsync<'T> (url:string) =
 
 let sendAsync<'T> (msg:HttpRequestMessage) = 
     client.SendAsync(msg) |> getResponse<'T> 
+
+// Active Patterns
+// create an active pattern
+let (|Int|_|) str =
+   match System.Int32.TryParse(str) with
+   | (true,int) -> Some(int)
+   | _ -> None
+
+let IgnoreCase = StringComparison.InvariantCultureIgnoreCase
+               

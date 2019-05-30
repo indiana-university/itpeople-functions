@@ -14,10 +14,12 @@ module FakesRepository =
         TryGetId = fun netId -> stub (swanson.NetId, Some(swanson.Id))
         GetAll = fun query -> stub ([ swanson ] |> List.toSeq)
         GetAllWithHr = fun query -> stub ([ swanson ] |> List.toSeq)
-        Get = fun id -> stub swanson
         GetHr = fun netid -> stub swanson
+        GetById = fun id -> stub swanson
+        GetByNetId = fun id -> stub swanson
         Create = fun person -> stub swanson
-        GetMemberships = fun personId -> stub ([ swansonMembership ] |> List.toSeq)
+        GetMemberships = fun id -> stub ([ swansonMembership ] |> List.toSeq)
+        Update = fun person -> stub swanson
     }
 
     let FakeUnits = {
@@ -74,10 +76,11 @@ module FakesRepository =
     }
 
     let FakeAuthorization : AuthorizationRepository = {
-        UaaPublicKey = fun _ -> stub uaaJwt.access_token
+        UaaPublicKey = fun _ -> stub adminJwt.access_token
         IsServiceAdmin = fun id -> stub true
         IsUnitManager = fun netid id -> stub true
         IsUnitToolManager = fun netid id -> stub true
+        CanModifyPerson = fun netid id -> stub true
     }
     
     let Repository = {

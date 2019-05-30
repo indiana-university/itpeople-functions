@@ -161,6 +161,12 @@ module Command =
             return () |> Ok
         with exn -> return handleDbExn "executeRaw" "" exn
     }
+    let takeExactlyOne<'T> (seq:seq<'T>) =
+        match seq |> Seq.length with
+        | 1 -> seq |> Seq.head |> ok
+        | 0 -> error(Status.NotFound, sprintf "No %s was found with that identifier." (typedefof<'T>.Name))
+        | _ -> error(Status.BadRequest, sprintf "More than one %s was found with that identifier." (typedefof<'T>.Name))
+
 
     let init() = 
         SimpleCRUD.SetDialect(SimpleCRUD.Dialect.PostgreSQL)
