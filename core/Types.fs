@@ -150,6 +150,16 @@ type Person =
     /// The department in this relationship.
     [<ReadOnly(true)>] Department: Department }
 
+type PersonRequest =
+  { /// The unique ID of this person record.
+    [<Column("id")>] Id: Id
+    /// The physical location (building, room) of this person.
+    [<Column("location")>] Location: string
+    /// A collection of IT-related skills, expertise, or interests posessed by this person.
+    [<Column("expertise")>] Expertise: string
+    /// A collection of IT-related responsibilites of this person.
+    [<Column("responsibilities")>] Responsibilities: Responsibilities }
+
 /// An IT unit
 [<CLIMutable>]
 [<Table("units")>]
@@ -353,11 +363,15 @@ type PeopleRepository = {
     /// Get a list of all people
     GetAll: PeopleQuery -> Async<Result<Person seq,Error>>
     /// Get a single person by ID
-    Get: PersonId -> Async<Result<Person,Error>>
+    GetById: Id -> Async<Result<Person,Error>>
+    /// Get a single person by NetId
+    GetByNetId: NetId -> Async<Result<Person,Error>>
     /// Create a person from canonical HR data
     Create: Person -> Async<Result<Person,Error>>
-    /// Get a list of a person's unit memberships
-    GetMemberships: PersonId -> Async<Result<UnitMember seq,Error>>
+    /// Get a list of a person's unit memberships, by the person's ID
+    GetMemberships: Id -> Async<Result<UnitMember seq,Error>>
+    /// Update a person
+    Update: PersonRequest -> Async<Result<Person,Error>>
 }
 
 type UnitMemberRecordFieldOptions = 
@@ -457,6 +471,7 @@ type AuthorizationRepository = {
     IsServiceAdmin: NetId -> Async<Result<bool, Error>>
     IsUnitManager: NetId -> Id -> Async<Result<bool, Error>>
     IsUnitToolManager: NetId -> Id -> Async<Result<bool, Error>>
+    CanModifyPerson: NetId -> Id -> Async<Result<bool,Error>>
 }
 
 type DataRepository = {
