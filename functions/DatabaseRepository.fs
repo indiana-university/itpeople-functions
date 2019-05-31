@@ -260,7 +260,7 @@ module DatabaseRepository =
         SELECT p.*, d.*
         FROM people p
         JOIN departments d on d.id = p.department_id
-        JOIN unit_members um on um.person_id = p.id"""
+        LEFT JOIN unit_members um on um.person_id = p.id"""
 
     let mapPeople filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryPersonSql filter
@@ -293,6 +293,55 @@ module DatabaseRepository =
     let queryPersonById connStr =
         fetchOne<Person> connStr mapPerson
 
+    let queryPeopleWithHr connStr netId =
+        let sql = """
+        SELECT
+        	COALESCE(p.netid, hr.netid) as netid, 
+        	COALESCE(p.name, hr.name) as name, 
+        	COALESCE(p.position, hr.position) as position,
+        	COALESCE(p.campus, hr.campus) as campus,
+        	COALESCE(p.campus_phone, hr.campus_phone) as campus_phone,
+        	COALESCE(p.campus_email, hr.campus_email) as campus_email,
+        	COALESCE(p.expertise, '') as expertise,
+        	COALESCE(p.responsibilities, 0) as responsibilities,
+        	COALESCE(p.is_service_admin, false) as is_service_admin,
+        	COALESCE(p.location, '') as location,
+        	COALESCE(p.photo_url, '') as photo_url,
+        	COALESCE(p.notes, '') as notes
+        FROM people p
+        FULL OUTER JOIN hr_people hr using (netid)
+        WHERE COALESCE(p.netid, hr.netid) ILIKE @NetId
+           OR COALESCE(p.name, hr.name) ILIKE @NetId"""
+        let param = {NetId=like netId}
+        fetchAll connStr (fun cn -> cn.QueryAsync<Person>(sql, param))
+
+    let queryHrPerson connStr netId =
+        let sql = """
+        SELECT 
+            0 as id,
+            hr.netid, 
+            hr.name, 
+            COALESCE(hr.position, '') as position,
+            hr.campus, 
+            COALESCE(hr.campus_phone, '') as campus_phone,
+            COALESCE(hr.campus_email, '') as campus_email,
+            false as is_service_admin,
+            0 as responsibiliies,
+            '' as location,
+            '' as photo_url,
+            '' as expertise,
+            '' as notes,
+            d.id as department_id 
+        FROM hr_people hr 
+        LEFT JOIN departments d on d.name = hr.hr_department
+        WHERE netid ILIKE @NetId"""
+        let param = {NetId=netId}
+        fetchAll connStr (fun cn -> cn.QueryAsync<Person>(sql, param))
+        >>= fun people ->
+            match people with 
+            | EmptySeq -> error(Status.NotFound, "No HR person was found with that netid")
+            | _ -> people |> Seq.head |> ok
+
     let queryPersonByNetId connStr netid =
         fetchAll<Person> connStr (mapPeople (WhereParam("p.netid=@NetId", {NetId=netid})))
         >>= takeExactlyOne
@@ -310,13 +359,9 @@ module DatabaseRepository =
     }
 
     let insertPerson connStr (person:Person) =
-        queryDepartments connStr (Some(person.Notes))
-        >>= fun results -> 
-                if Seq.isEmpty results
-                then Error(Status.BadRequest, (sprintf "This person's department, '%s', is not known to the IT People directory." person.Notes)) |> ar
-                else results |> Seq.head |> Ok |> ar
-        >>= fun d -> { person with Notes=""; DepartmentId=d.Id } |> Ok |> ar
-        >>= insert<Person> connStr mapPerson
+        if isNull (box person.DepartmentId)
+        then error(Status.BadRequest, "This person's department is not known to the IT People directory.")
+        else insert<Person> connStr mapPerson person
 
     let queryPersonMemberships connStr id =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
@@ -408,19 +453,6 @@ module DatabaseRepository =
         queryMembership connStr memberTool.MembershipId
         >>= fun membership -> ok (memberTool, membership)
    
-    // *********************
-    // HR Lookups
-    // *********************
-
-    let lookupCanonicalHrPeople sharedSecret (query:NetId option) =
-        match query with
-        | None -> Ok Seq.empty<Person> |> ar
-        | Some(q) ->
-            let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" q
-            let msg = new HttpRequestMessage(HttpMethod.Get, url)
-            msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
-            sendAsync<seq<Person>> msg
-
     let isServiceAdminSql = """
     SELECT EXISTS (
         SELECT id 
@@ -535,6 +567,8 @@ module DatabaseRepository =
     let People(connStr) = {
         TryGetId = tryQueryPersonByNetId connStr
         GetAll = queryPeople connStr
+        GetAllWithHr = queryPeopleWithHr connStr
+        GetHr = queryHrPerson connStr
         GetById = queryPersonById connStr
         GetByNetId = queryPersonByNetId connStr
         Create = insertPerson connStr
@@ -592,10 +626,6 @@ module DatabaseRepository =
         Delete = deleteSupportRelationship connStr
     }
 
-    let HrRepository(sharedSecret) = {
-        GetAllPeople = lookupCanonicalHrPeople sharedSecret
-    }
-
     let AuthorizationRepository(connStr) = {
         UaaPublicKey = uaaPublicKey
         IsServiceAdmin = isServiceAdmin connStr
@@ -604,7 +634,7 @@ module DatabaseRepository =
         CanModifyPerson = canModifyPerson connStr
     }
 
-    let Repository(connStr, sharedSecret) = {
+    let Repository(connStr) = {
         People = People(connStr)
         Departments = Departments(connStr)
         Units = Units(connStr)
@@ -612,6 +642,5 @@ module DatabaseRepository =
         MemberTools = MemberToolsRepository(connStr)
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
-        Hr = HrRepository(sharedSecret)
         Authorization = AuthorizationRepository(connStr)
     }

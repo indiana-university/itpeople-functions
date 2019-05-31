@@ -24,13 +24,11 @@ module TestFakes =
         let req = new HttpRequestMessage()
         req
 
-    let appConfig = {
-        OAuth2ClientId="client id"
+    let appConfig = 
+      { OAuth2ClientId="client id"
         OAuth2ClientSecret="client secret"
         OAuth2TokenUrl="token url"
         OAuth2RedirectUrl="redirect url"
         DbConnectionString="db connectionString"
         UseFakes=false
-        CorsHosts="*"
-        SharedSecret="shared secret"
-    }
+        CorsHosts="*" }

@@ -154,6 +154,13 @@ module Command =
         with exn -> return handleDbExn "execute" "" exn
     }
 
+    let executeRaw connStr (fn:Cn->unit) = async {
+        try
+            use cn = new NpgsqlConnection(connStr)
+            fn cn
+            return () |> Ok
+        with exn -> return handleDbExn "executeRaw" "" exn
+    }
     let takeExactlyOne<'T> (seq:seq<'T>) =
         match seq |> Seq.length with
         | 1 -> seq |> Seq.head |> ok

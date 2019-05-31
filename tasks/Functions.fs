@@ -16,19 +16,20 @@ module Types=
 
     type IDataRepository =
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
-        FetchLatestHRPerson: NetId -> Async<Result<Person option, Error>>
-        UpdatePerson: Person -> Async<Result<Person, Error>>
+        FetchLatestHRPerson: NetId -> Async<Result<HrPerson option, Error>>
+        UpdatePerson: HrPerson -> Async<Result<Person, Error>>
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
         GetPersonMemberships: NetId -> Async<Result<seq<HistoricalPersonUnitMetadata>, Error>>
-        InsertHistoricalPersonAndDeletePerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>> }
+        InsertHistoricalPersonAndDeletePerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>>
+        FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
+        UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>> }
 
 module DataRepository =
     open Types
     open Core.Types
-    open Core.Util
     open Database.Command
     open Dapper
     open System
@@ -36,6 +37,50 @@ module DataRepository =
     open System.Net.Http.Headers
     open Novell.Directory.Ldap
     open Newtonsoft.Json
+    open Oracle.ManagedDataAccess.Client
+
+
+    type DenodoElement =
+      { name: string
+        netid: string
+        position: string
+        hr_department: string
+        campus: string
+        campus_phone: string
+        campus_email: string }
+        
+    type DenodoList = 
+      { elements: seq<DenodoElement> }    
+
+    // DENODO Stuff
+    let fetchAllHrPeople (hrDataUrl:string) username password =
+
+        let fetchFromHrSource () =
+            printfn "%s Fetch people from HR source..." (DateTime.Now.ToLongTimeString())
+            let auth = 
+                sprintf "%s:%s" username password
+                |> System.Text.ASCIIEncoding.ASCII.GetBytes
+                |> System.Convert.ToBase64String
+                |> fun str -> AuthenticationHeaderValue("Basic", str)
+            let req = new HttpRequestMessage(HttpMethod.Get, hrDataUrl)
+            req.Headers.Authorization <- auth
+            Core.Util.sendAsync<DenodoList> req
+
+        let mapElementsToDomainRecords list = 
+            printfn "%s Fetched %d people from HR source." (DateTime.Now.ToLongTimeString()) (list.elements |> Seq.length)
+            let toDomainRecord e =
+              { Id=0
+                Name=e.name 
+                NetId=e.netid 
+                Position=e.position
+                HrDepartment=e.hr_department
+                Campus=e.campus
+                CampusEmail=e.campus_email
+                CampusPhone=e.campus_phone }
+            list.elements |> Seq.map toDomainRecord |> ok
+
+        fetchFromHrSource
+        >=> mapElementsToDomainRecords
 
     // DB Stuff
 
@@ -43,21 +88,25 @@ module DataRepository =
         let sql = "SELECT netid FROM people;"
         fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql))
 
-    let fetchLatestHrPerson sharedSecret netid =
-        let url = sprintf "https://itpeople-adapter.apps.iu.edu/people/%s" netid
-        let msg = new HttpRequestMessage(HttpMethod.Get, url)      
-        msg.Headers.Authorization <-  AuthenticationHeaderValue("Bearer", sharedSecret)
-        sendAsync<seq<Person>> msg
-        >>= (Seq.tryFind (fun p -> p.NetId=netid) >> ok)
+    let fetchLatestHrPerson connStr netid = async {
+        let sql = """SELECT * FROM hr_people WHERE netid=@NetId"""
+        let param = {NetId = netid}
+        let! result = fetch connStr (fun cn -> cn.QueryAsync<HrPerson>(sql, param))
+        return
+            match result with
+            | Ok(people) -> people |> Seq.tryHead |> Ok
+            | Error(msg) -> Error(msg)
+    }
 
-    let updatePerson connStr (person:Person) = 
+    let updatePerson connStr (person:HrPerson) = 
         let sql = """
-            UPDATE people 
+            UPDATE people
             SET name = @Name,
                 position = @Position,
                 campus = @Campus,
                 campus_phone = @CampusPhone,
-                campus_email = @CampusEmail
+                campus_email = @CampusEmail,
+                department_id = (SELECT id FROM departments WHERE name=@HrDepartment)
             WHERE netid = @NetId
             RETURNING *;"""
         fetch connStr (fun cn -> cn.QuerySingleAsync<Person>(sql, person))
@@ -75,6 +124,24 @@ module DataRepository =
         let param = {Id=tool.Id}
         fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql, param))
 
+    open NpgsqlTypes
+
+    let updateHrPeople psqlConnStr (hrPeople:seq<HrPerson>) =
+        // convert the hr person to a formatting string representing the table row data.
+        let toRow (p:HrPerson) = 
+            let names = p.Name.Split([|','|])
+            sprintf "%s %s\t%s\t%s\t%s\t%s\t%s\t%s\n" names.[1] names.[0] p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment 
+        Database.Command.executeRaw psqlConnStr (fun cn ->
+            cn.Open()
+            // truncate the existing
+            cn.Execute("DELETE FROM hr_people;") |> ignore
+            // bulk insert the new rows
+            use writer = cn.BeginTextImport("COPY hr_people (name, netid, position, campus, campus_phone, campus_email, hr_department) FROM STDIN")
+            hrPeople |> Seq.map toRow  |> Seq.iter writer.Write
+            // flush the writer to finish the bulk insert
+            writer.Flush()
+        )
+
     // LDAP Stuff
 
     let searchBase = "ou=Accounts,dc=ads,dc=iu,dc=edu"
@@ -86,6 +153,7 @@ module DataRepository =
         LdapAttribute("member", value)
 
     let doLdapAction adUser adsPassword action = 
+            let adUser = sprintf """ads\%s""" adUser
             use ldap = new LdapConnection()
             ldap.Connect("ads.iu.edu", 389)
             ldap.Bind(adUser, adsPassword)  
@@ -164,16 +232,18 @@ module DataRepository =
         let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
         fetch connStr (fun cn -> cn.QuerySingleAsync<NetId>(sql, param))
 
-    let Repository connStr sharedSecret adUser adPassword =
-     { GetAllNetIds = fun () -> getAllNetIds connStr
-       FetchLatestHRPerson = fetchLatestHrPerson sharedSecret
-       UpdatePerson = updatePerson connStr
-       GetAllTools = fun () -> getAllTools connStr 
+    let Repository psqlConnStr hrDataUrl adUser adPassword =
+     { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
+       FetchLatestHRPerson = fetchLatestHrPerson psqlConnStr
+       UpdatePerson = updatePerson psqlConnStr
+       GetAllTools = fun () -> getAllTools psqlConnStr 
        GetADGroupMembers = getADGroupMembers adUser adPassword 
-       GetAllToolUsers = getAllToolUsers connStr 
+       GetAllToolUsers = getAllToolUsers psqlConnStr 
        UpdateADGroup = updateADGroup adUser adPassword
-       GetPersonMemberships = getPersonMemberships connStr
-       InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson connStr }
+       GetPersonMemberships = getPersonMemberships psqlConnStr
+       InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
+       FetchAllHrPeople = fetchAllHrPeople hrDataUrl adUser adPassword
+       UpdateHrPeople = updateHrPeople psqlConnStr }
 
 module Functions=
 
@@ -202,12 +272,12 @@ module Functions=
         } |> Async.RunSynchronously
 
     let data = 
-        let connStr = Environment.GetEnvironmentVariable("DbConnectionString")
-        let sharedSecret = Environment.GetEnvironmentVariable("SharedSecret")
+        let psqlConnectionString = Environment.GetEnvironmentVariable("DbConnectionString")
+        let hrDataUrl = Environment.GetEnvironmentVariable("HrDataUrl")
         let adUser = Environment.GetEnvironmentVariable("AdUser")
         let adPassword = Environment.GetEnvironmentVariable("AdPassword")
         Database.Command.init()
-        DataRepository.Repository connStr sharedSecret adUser adPassword
+        DataRepository.Repository psqlConnectionString hrDataUrl adUser adPassword
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
@@ -217,9 +287,27 @@ module Functions=
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
+    [<FunctionName("PeopleUpdateHrTable")>]
+    let peopleUpdateHrTable
+        ([<TimerTrigger("0 00 14 * * 1-5")>] timer: TimerInfo,
+         [<Queue("people-update-batch")>] queue: ICollector<string>,
+         log: ILogger) = 
+
+        let enqueueBatchUpdate () = 
+            queue.Add ("go go gadget update directory people!")
+
+        let workflow = 
+            data.FetchAllHrPeople
+            >=> data.UpdateHrPeople
+            >=> tap enqueueBatchUpdate
+
+        execute workflow ()
+
+    // Enqueue the netids of all the people for whom we need to update
+    // canonical HR data.
     [<FunctionName("PeopleUpdateBatcher")>]
     let peopleUpdateBatcher
-        ([<TimerTrigger("0 0 14 * * *")>] timer: TimerInfo,
+        ([<QueueTrigger("people-update-batch")>] msg: string,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
         
