@@ -48,8 +48,7 @@ type AppConfig =
     OAuth2RedirectUrl: string
     DbConnectionString: string
     UseFakes: bool
-    CorsHosts: string
-    SharedSecret: string }
+    CorsHosts: string }
 
 type Role =
     /// This person has an ancillary relationship to this unit. This can apply to administrative assistants or self-supporting faculty.
@@ -114,6 +113,27 @@ type Department =
     [<Column("name")>] Name: Name
     /// A description or longer name of this department.
     [<Column("description")>] Description: Name }
+
+/// A person doing or supporting IT work
+[<CLIMutable>]
+[<Table("hr_people")>]
+type HrPerson = 
+  { /// The unique ID of this person record.
+    [<Key>][<Column("id")>] Id: Id
+    /// The net id (username) of this person.
+    [<Column("netid")>] NetId: NetId
+    /// The preferred name of this person.
+    [<Column("name")>] Name: Name
+    /// The job position of this person as defined by HR. This may be different than the person's title in relation to an IT unit.
+    [<Column("position")>] Position: string
+    /// The primary campus with which this person is affiliated.
+    [<Column("campus")>] Campus: string
+    /// The campus phone number of this person.
+    [<Column("campus_phone")>] CampusPhone: string
+    /// The campus (work) email address of this person.
+    [<Column("campus_email")>] CampusEmail: string 
+    /// Administrative notes about this person, visible only to IT Admins.
+    [<Column("hr_department")>] HrDepartment: string }
 
 /// A person doing or supporting IT work
 [<CLIMutable>]
@@ -303,6 +323,9 @@ type UnitMemberRequest =
     /// The ID of the person record. This can be null if the position is vacant.
     [<DefaultValue(null)>]
     PersonId: PersonId option
+    /// The NetId of the person, if they are not already in the IT people directory. This can be null if the position is vacant.
+    [<DefaultValue(null)>]
+    NetId: NetId option
     /// The title/position of this membership.
     [<DefaultValue("")>]
     Title: string
@@ -362,6 +385,10 @@ type PeopleRepository = {
     TryGetId: NetId -> Async<Result<NetId * Id option,Error>>
     /// Get a list of all people
     GetAll: PeopleQuery -> Async<Result<Person seq,Error>>
+    /// Get a unioned list of IT and HR people, filtered by name/netid
+    GetAllWithHr: NetId -> Async<Result<Person seq,Error>>
+    /// Get a single HR person by NetId
+    GetHr: NetId -> Async<Result<Person,Error>>
     /// Get a single person by ID
     GetById: Id -> Async<Result<Person,Error>>
     /// Get a single person by NetId
@@ -460,11 +487,6 @@ type SupportRelationshipRepository = {
     Delete : SupportRelationship -> Async<Result<unit,Error>>
 }
 
-type HrDataRepository = {
-    /// Get a list of all people from a canonical source
-    GetAllPeople: Filter option -> Async<Result<Person seq,Error>>
-}
-
 type AuthorizationRepository = {
     /// Given an OAuth token_key URL and return the public key.
     UaaPublicKey: string -> Async<Result<string,Error>>
@@ -482,7 +504,6 @@ type DataRepository = {
     MemberTools: MemberToolsRepository
     Tools: ToolsRepository
     SupportRelationships: SupportRelationshipRepository
-    Hr: HrDataRepository
     Authorization: AuthorizationRepository
 }
 

@@ -37,7 +37,7 @@ module Functions =
         then FakesRepository.Repository
         else
             Database.Command.init()
-            DatabaseRepository.Repository(config.DbConnectionString, config.SharedSecret)
+            DatabaseRepository.Repository(config.DbConnectionString)
     let log = createLogger config.DbConnectionString
     
     let publicKey =
@@ -254,48 +254,15 @@ module Functions =
 
         get req workflow
 
-    let lookup data (filter:Filter option) = async {
-        let query = if filter.IsSome then filter.Value else ""
-        let dirQuery = {Query=query; Classes=0; Roles=[||]; Permissions=[||]; Interests=Array.empty}
-        let! directoryTask = data.People.GetAll dirQuery |> Async.StartChild
-        let! hrTask = data.Hr.GetAllPeople filter |> Async.StartChild
-        let! directoryResult = directoryTask
-        let! hrResult = hrTask
-        let notInDirectory (d:seq<Person>) (h':Person) = 
-            d |> Seq.exists (fun d' -> d'.NetId = h'.NetId) |> not
-        let result =
-            match (directoryResult, hrResult) with
-            | (Ok(d), Ok(h)) -> 
-                h 
-                |> Seq.filter (notInDirectory d)
-                |> Seq.append d
-                |> Seq.sortBy (fun x -> x.NetId)
-                |> Ok
-            | (Error(_), _) -> directoryResult
-            | (_, Error(_)) -> hrResult
-        return result
-    }
-
     let ensurePersonInDirectory =
-        let findPersonWithMatchingNetId (netid:NetId) (results:seq<Person>) =
-            match results |> Seq.tryFind (fun r -> netid.Equals(r.NetId, IgnoreCase)) with
-            | None -> error(Status.NotFound, "No person found with that netid.")
-            | Some(person) -> ok person
-        let tryAddToDirectory netid =
-            // look for all people that partially match this netid
-            data.Hr.GetAllPeople (Some(netid))
-            // try to find one person that exactly matches the netid
-            >>= findPersonWithMatchingNetId netid
-            // add that person to the directory
-            >>= data.People.Create
-        // try to find an existing directory member with this username.
         data.People.TryGetId
         >=> fun (netid, idOption) ->
             match idOption with
-            // If this person is in the directory, fetch them from the directory
-            | Some(id) -> data.People.GetById id
-            // If this person is not in the directory, try to find them in HR data and add them
-            | None ->  tryAddToDirectory netid
+            | Some(id) -> 
+                data.People.GetById id
+            | None ->  
+                data.People.GetHr netid
+                >>= data.People.Create
 
     [<FunctionName("PeopleLookupAll")>]
     [<SwaggerOperation(Summary="Search all staff", Description="Search for staff, including IT People, by name or username (netid).", Tags=[|"People"|])>]
@@ -305,8 +272,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people-lookup")>] req) =
         let workflow = 
             authenticate 
-            >=> fun _ -> tryQueryParam req "q"
-            >=> lookup data
+            >=> fun _ -> queryParam "q" req
+            >=> data.People.GetAllWithHr
         get req workflow
 
     [<FunctionName("PeopleGetById")>]
