@@ -276,23 +276,23 @@ module Functions =
             >=> data.People.GetAllWithHr
         get req workflow
 
+    /// Find a person by their record id (int) or a netid (string).
+    /// If using a netid, assume that the person may not yet be in the directory.
+    let findPerson (personId:string) = 
+        match personId with
+        | Int id -> fun _ -> data.People.GetById id
+        | _      -> fun _ -> ensurePersonInDirectory personId
+
     [<FunctionName("PeopleGetById")>]
     [<SwaggerOperation(Summary="Find a person by ID", Tags=[|"People"|])>]
     [<SwaggerResponse(200, "A person record.", typeof<Person>)>]
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetById
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId:string) =
-
-        let getPerson = 
-            match personId with
-            | Int id -> fun _ -> data.People.GetById id
-            | _      -> fun _ -> ensurePersonInDirectory personId
-
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
         let workflow = 
             authenticate
-            >=> getPerson
+            >=> findPerson personId
             >=> fun p -> permission req (canModifyPerson p.Id) p
-
         get req workflow
 
     [<FunctionName("PeopleGetAllMemberships")>]
@@ -303,8 +303,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
         let workflow = 
             authenticate
-            >=> fun _ -> data.People.GetById personId
-            >=> fun _ -> data.People.GetMemberships personId
+            >=> findPerson personId
+            >=> fun p -> data.People.GetMemberships p.Id
         get req workflow
 
     let setPersonId id (a:PersonRequest) = ok {a with Id=id}

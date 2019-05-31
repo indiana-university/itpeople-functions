@@ -249,6 +249,16 @@ module ApiErrorTests =
                  head.Id |> should equal knopeMembership.Id)
 
         [<Fact>]       
+        member __.``People: get memberships by netid`` () = 
+            requestFor HttpMethod.Get (sprintf "people/%s/memberships" knope.NetId)
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<UnitMember>> (fun memberships ->
+                 memberships |> Seq.length |> should equal 1
+                 let head = memberships |> Seq.head
+                 head.Id |> should equal knopeMembership.Id)
+
+        [<Fact>]       
         member __.``People: admin can update any record`` () = 
             requestFor HttpMethod.Put (sprintf "people/%d" knope.Id)
             |> withAuthentication adminJwt
