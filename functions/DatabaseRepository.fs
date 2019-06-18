@@ -295,49 +295,56 @@ module DatabaseRepository =
 
     let queryPeopleWithHr connStr netId =
         let sql = """
-        (   -- find matching people by netid
-        	SELECT
-        		COALESCE(p.netid, hr.netid) as netid, 
-        		COALESCE(p.name, hr.name) as name, 
-        		COALESCE(p.position, hr.position) as position,
-        		COALESCE(p.campus, hr.campus) as campus,
-        		COALESCE(p.campus_phone, hr.campus_phone) as campus_phone,
-        		COALESCE(p.campus_email, hr.campus_email) as campus_email,
-        		COALESCE(p.expertise, '') as expertise,
-        		COALESCE(p.responsibilities, 0) as responsibilities,
-        		COALESCE(p.is_service_admin, false) as is_service_admin,
-        		COALESCE(p.location, '') as location,
-        		COALESCE(p.photo_url, '') as photo_url,
-        		COALESCE(p.notes, '') as notes,
-        		1 as rank
-        	FROM people p
-        	FULL OUTER JOIN hr_people hr using (netid)
-        	WHERE COALESCE(p.netid, hr.netid) ILIKE @NetId
+        WITH cte AS
+        (
+        	(   -- find matching people by netid
+        		SELECT
+        			COALESCE(p.netid, hr.netid) as netid, 
+        			COALESCE(p.name, hr.name) as name, 
+        			COALESCE(p.position, hr.position) as position,
+        			COALESCE(p.campus, hr.campus) as campus,
+        			COALESCE(p.campus_phone, hr.campus_phone) as campus_phone,
+        			COALESCE(p.campus_email, hr.campus_email) as campus_email,
+        			COALESCE(p.expertise, '') as expertise,
+        			COALESCE(p.responsibilities, 0) as responsibilities,
+        			COALESCE(p.is_service_admin, false) as is_service_admin,
+        			COALESCE(p.location, '') as location,
+        			COALESCE(p.photo_url, '') as photo_url,
+        			COALESCE(p.notes, '') as notes,
+        			1 as rank
+        		FROM people p
+        		FULL OUTER JOIN hr_people hr using (netid)
+        		WHERE COALESCE(p.netid, hr.netid) ILIKE '%norzin%'
+        		LIMIT 10
+        	)
+        	UNION
+        	(   -- find matching people by name
+        		SELECT
+        			COALESCE(p.netid, hr.netid) as netid, 
+        			COALESCE(p.name, hr.name) as name, 
+        			COALESCE(p.position, hr.position) as position,
+        			COALESCE(p.campus, hr.campus) as campus,
+        			COALESCE(p.campus_phone, hr.campus_phone) as campus_phone,
+        			COALESCE(p.campus_email, hr.campus_email) as campus_email,
+        			COALESCE(p.expertise, '') as expertise,
+        			COALESCE(p.responsibilities, 0) as responsibilities,
+        			COALESCE(p.is_service_admin, false) as is_service_admin,
+        			COALESCE(p.location, '') as location,
+        			COALESCE(p.photo_url, '') as photo_url,
+        			COALESCE(p.notes, '') as notes,
+        			2 as rank
+        		FROM people p
+        		FULL OUTER JOIN hr_people hr using (netid)
+        		WHERE COALESCE(p.name, hr.name) ILIKE '%norzin%'
+        		LIMIT 10
+        	)
+        	ORDER BY rank -- favor netid matches
         	LIMIT 10
         )
-        UNION
-        (   -- find matching people by name
-        	SELECT
-        		COALESCE(p.netid, hr.netid) as netid, 
-        		COALESCE(p.name, hr.name) as name, 
-        		COALESCE(p.position, hr.position) as position,
-        		COALESCE(p.campus, hr.campus) as campus,
-        		COALESCE(p.campus_phone, hr.campus_phone) as campus_phone,
-        		COALESCE(p.campus_email, hr.campus_email) as campus_email,
-        		COALESCE(p.expertise, '') as expertise,
-        		COALESCE(p.responsibilities, 0) as responsibilities,
-        		COALESCE(p.is_service_admin, false) as is_service_admin,
-        		COALESCE(p.location, '') as location,
-        		COALESCE(p.photo_url, '') as photo_url,
-        		COALESCE(p.notes, '') as notes,
-        		2 as rank
-        	FROM people p
-        	FULL OUTER JOIN hr_people hr using (netid)
-        	WHERE COALESCE(p.name, hr.name) ILIKE @NetId
-        	LIMIT 10
-        )
-        ORDER BY rank -- favor netid matches
-        LIMIT 10"""
+        SELECT DISTINCT -- deduplicate results
+        	netid, name, position, campus, campus_phone, campus_email, 
+        	expertise, responsibilities, is_service_admin, location, photo_url, notes
+        FROM cte"""
         let param = {NetId=like netId}
         fetchAll connStr (fun cn -> cn.QueryAsync<Person>(sql, param))
 
