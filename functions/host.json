@@ -15,7 +15,7 @@
             }
         },
         "console": {
-            "isEnabled": "true"
+            "isEnabled": "false"
         }
     }
 }

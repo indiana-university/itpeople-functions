@@ -314,7 +314,7 @@ module DatabaseRepository =
         			1 as rank
         		FROM people p
         		FULL OUTER JOIN hr_people hr using (netid)
-        		WHERE COALESCE(p.netid, hr.netid) ILIKE '%norzin%'
+        		WHERE COALESCE(p.netid, hr.netid) ILIKE @NetId
         		LIMIT 10
         	)
         	UNION
@@ -335,7 +335,7 @@ module DatabaseRepository =
         			2 as rank
         		FROM people p
         		FULL OUTER JOIN hr_people hr using (netid)
-        		WHERE COALESCE(p.name, hr.name) ILIKE '%norzin%'
+        		WHERE COALESCE(p.name, hr.name) ILIKE @NetId
         		LIMIT 10
         	)
         	ORDER BY rank -- favor netid matches
