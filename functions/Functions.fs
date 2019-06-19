@@ -162,9 +162,7 @@ module Functions =
     // *****************
 
     [<FunctionName("AuthGet")>]
-    [<SwaggerOperation(Summary="Get OAuth JWT", Description="Exchanges a UAA OAuth code for an application-scoped JWT. The JWT is required to make authenticated requests to this API.", Tags=[|"Authentication"|])>]
-    [<SwaggerResponse(200, "A JWT access token scoped for the IT People API.", typeof<JwtResponse>)>]
-    [<SwaggerResponse(400, "The provided code was missing, invalid, or expired.", typeof<ErrorModel>)>]
+    [<SwaggerIgnore>]
     let authGet
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth")>] req) =
 
@@ -310,7 +308,7 @@ module Functions =
     let setPersonId id (a:PersonRequest) = ok {a with Id=id}
 
     [<FunctionName("PersonPut")>]
-    [<SwaggerOperation(Summary="Update a person's location, expertise, and responsibilities/job classes.", Tags=[|"People"|])>]
+    [<SwaggerOperation(Summary="Update a person's location, expertise, and responsibilities/job classes.", Description="<em>Authorization</em>: The JWT must represent either the person whose record is being modified (i.e., a person can modify their  own record), or someone who has permissions to manage a unit of which this person is a member (i.e., typically that person's manager/supervisor.)  ", Tags=[|"People"|])>]
     [<SwaggerRequestExample(typeof<UnitRequest>, typeof<PersonRequestExample>)>]
     [<SwaggerResponse(200, "A record of the updated person", typeof<Person>)>]
     [<SwaggerResponse(400, "The request body is malformed.", typeof<ErrorModel>)>]
@@ -336,7 +334,8 @@ module Functions =
     let unitValidator = unitValidator(data)
 
     [<FunctionName("UnitGetAll")>]
-    [<SwaggerOperation(Summary="List all IT units.", Description="Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units." , Tags=[|"Units"|])>]
+    [<SwaggerOperation(Summary="List all IT units.", Description="""Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units. Available filters include:<br/>
+    <ul><li><strong>q</strong>: filter by unit name/description, ex: 'Parks'</ul></br>""" , Tags=[|"Units"|])>]
     [<SwaggerResponse(200, "A collection of unit records.", typeof<seq<Unit>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let unitGetAll
@@ -361,7 +360,7 @@ module Functions =
         get req workflow
             
     [<FunctionName("UnitPost")>]
-    [<SwaggerOperation(Summary="Create a unit.", Tags=[|"Units"|])>]
+    [<SwaggerOperation(Summary="Create a unit.", Description="<em>Authorization</em>: Unit creation is restricted to service administrators.", Tags=[|"Units"|])>]
     [<SwaggerRequestExample(typeof<UnitRequest>, typeof<UnitRequestExample>)>]
     [<SwaggerResponse(201, "A record of the newly created unit.", typeof<Unit>)>]
     [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
@@ -377,7 +376,7 @@ module Functions =
         create req workflow
 
     [<FunctionName("UnitPut")>]
-    [<SwaggerOperation(Summary="Update a unit.", Tags=[|"Units"|])>]
+    [<SwaggerOperation(Summary="Update a unit.", Description="<em>Authorization</em>: Units can be modified by any unit member that has either the `Owner` or `ManageMembers` permission on their membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Units"|])>]
     [<SwaggerRequestExample(typeof<UnitRequest>, typeof<UnitRequestExample>)>]
     [<SwaggerResponse(200, "A record of the updated unit", typeof<Unit>)>]
     [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
@@ -396,7 +395,7 @@ module Functions =
         update req workflow
 
     [<FunctionName("UnitDelete")>]
-    [<SwaggerOperation(Summary="Delete a unit.", Tags=[|"Units"|])>]
+    [<SwaggerOperation(Summary="Delete a unit.", Description="<em>Authorization</em>: Unit deletion is restricted to service administrators.", Tags=[|"Units"|])>]
     [<SwaggerResponse(204)>]
     [<SwaggerResponse(403, "You do not have permission to modify this unit.", typeof<ErrorModel>)>]
     [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
@@ -517,7 +516,7 @@ module Functions =
         | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
 
     [<FunctionName("MemberCreate")>]
-    [<SwaggerOperation(Summary="Create a unit membership.", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerOperation(Summary="Create a unit membership.", Description="<em>Authorization</em>: Unit memberships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
     [<SwaggerResponse(201, "The newly created unit membership record", typeof<UnitMember>)>]
     [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing, or the specified unit does not exist.", typeof<ErrorModel>)>]
@@ -535,7 +534,7 @@ module Functions =
         create req workflow
 
     [<FunctionName("MemberUpdate")>]
-    [<SwaggerOperation(Summary="Update a unit membership.", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerOperation(Summary="Update a unit membership.", Description="<em>Authorization</em>: Unit memberships can be updated by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
     [<SwaggerResponse(200, "The update unit membership record.", typeof<UnitMember>)>]
     [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing, or the specified unit does not exist.", typeof<ErrorModel>)>]
@@ -555,7 +554,7 @@ module Functions =
         update req workflow
   
     [<FunctionName("MemberDelete")>]
-    [<SwaggerOperation(Summary="Delete a unit membership.", Tags=[|"Unit Memberships"|])>]
+    [<SwaggerOperation(Summary="Delete a unit membership.", Description="<em>Authorization</em>: Unit memberships can be deleted by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
     [<SwaggerResponse(204)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
     [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
@@ -604,7 +603,7 @@ module Functions =
         get req workflow
 
     [<FunctionName("MemberToolCreate")>]
-    [<SwaggerOperation(Summary="Create a unit member tool.", Tags=[|"Unit Member Tools"|])>]
+    [<SwaggerOperation(Summary="Create a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be created by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
     [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembertoolExample>)>]
     [<SwaggerResponse(201, "The newly created unit member tool record", typeof<MemberTool>)>]
     [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
@@ -622,7 +621,7 @@ module Functions =
         create req workflow
 
     [<FunctionName("MemberToolUpdate")>]
-    [<SwaggerOperation(Summary="Update a unit member tool.", Tags=[|"Unit Member Tools"|])>]
+    [<SwaggerOperation(Summary="Update a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be updated by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
     [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembertoolExample>)>]
     [<SwaggerResponse(200, "The update unit member tool record.", typeof<MemberTool>)>]
     [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
@@ -643,7 +642,7 @@ module Functions =
 
 
     [<FunctionName("MemberToolDelete")>]
-    [<SwaggerOperation(Summary="Delete a member.", Tags=[|"Unit Member Tools"|])>]
+    [<SwaggerOperation(Summary="Delete a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be deleted by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
     [<SwaggerResponse(204)>]
     [<SwaggerResponse(403, "You are not authorized to modify this member tool.", typeof<ErrorModel>)>]
     [<SwaggerResponse(404, "No member tool was found with the ID provided.", typeof<ErrorModel>)>]
@@ -664,7 +663,8 @@ module Functions =
 
 
     [<FunctionName("DepartmentGetAll")>]
-    [<SwaggerOperation(Summary="List all departments.", Description="Search for departments by name and/or description.", Tags=[|"Departments"|])>]
+    [<SwaggerOperation(Summary="List all departments.", Description="""Get a list of university departments. Available filters include:<br/>
+    <ul><li><strong>q</strong>: filter by department name/code, ex: 'Parks' or 'PA-PARK'</ul></br>""", Tags=[|"Departments"|])>]
     [<SwaggerResponse(200, "A collection of department records", typeof<seq<Department>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let departmentGetAll
@@ -745,7 +745,7 @@ module Functions =
         get req workflow
 
     [<FunctionName("SupportRelationshipsCreate")>]
-    [<SwaggerOperation(Summary="Create a unit-department support relationship", Tags=[|"Support Relationships"|])>]
+    [<SwaggerOperation(Summary="Create a unit-department support relationship.", Description="<em>Authorization</em>: Support relationships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Support Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(201, "The newly created support relationship record", typeof<SupportRelationship>)>]
     [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
@@ -762,7 +762,7 @@ module Functions =
         create req workflow
 
     [<FunctionName("SupportRelationshipsUpdate")>]
-    [<SwaggerOperation(Summary="Update a unit-department support relationship", Tags=[|"Support Relationships"|])>]
+    [<SwaggerOperation(Summary="Update a unit-department support relationship.", Description="<em>Authorization</em>: Support relationships can be modified by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Support Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(200, "The updated support relationship record", typeof<SupportRelationship>)>]
     [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
@@ -781,7 +781,7 @@ module Functions =
         update req workflow
 
     [<FunctionName("SupportRelationshipsDelete")>]
-    [<SwaggerOperation(Summary="Delete a unit-department support relationship", Tags=[|"Support Relationships"|])>]
+    [<SwaggerOperation(Summary="Delete a unit-department support relationship.", Description="<em>Authorization</em>: Support relationships can be deleted by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Support Relationships"|])>]
     [<SwaggerResponse(204)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
     [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
@@ -800,8 +800,9 @@ module Functions =
     // ********************
 
     [<FunctionName("ToolPermissionsGetAll")>]
-    [<SwaggerOperation(Summary="List all person-tool-department relationships.", Tags=[|"Tool Permissions"|])>]
-    [<SwaggerResponse(200, "A collection of tool permission records", typeof<ToolPermission seq>)>]
+    [<SwaggerIgnore>]
+    // [<SwaggerOperation(Summary="List all person-tool-department relationships.", Tags=[|"Tool Permissions"|])>]
+    // [<SwaggerResponse(200, "A collection of tool permission records", typeof<ToolPermission seq>)>]
     let toolPermissionsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "toolPermissions")>] req) =
         let workflow = 
