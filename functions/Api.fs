@@ -141,13 +141,28 @@ let createResponse req config log status result =
         logError log req status msg
         jsonResponse req config.CorsHosts status msg
 
+let description = """## Description
+IT People is the canonical source of information about people doing IT work at Indiana University, their responsibilities and interests, and the IT units to which they belong.
+
+## Need Help?
+If you need help using this API, please contact the [UITS DCD](mailto:dcdreq@iu.edu) team. 
+The source code for this [API](https://github.com/indiana-university/itpeople-functions) and the [web front end](https://github.com/indiana-university/itpeople-app) are available on GitHub. We welcome pull requests! 
+If you find a bug or would like to request a feature, please [file an issue in GitHub](https://github.com/indiana-university/itpeople-functions/issues).
+
+## Request/Response Formats
+All HTTP request and response bodies will be JSON formatted.
+
+## Authentication
+All requests to this API require an HTTP authentication header in the form `Authorization: Bearer TOKEN`, where the `TOKEN` is any valid JWT issued by the <a href="https://github.iu.edu/iu-uits-es/uaa">UITS UAA</a> service. 
+This API will infer the identity of the requestor from the *user_name* property of the UAA JWT.  
+
+All data query endpoints (i.e. `GET` endpoints) are publicly accessible with valid authentication.
+
+All data modification endpoints (i.e. `POST`, `PUT`, `DELETE`) are authorized against the identity of caller, as identified in the JWT *user_name* property. See individual endpoints for authorization details.
+"""
+
 /// OpenAPI SPEC
-let apiInfo = 
-    Info(
-        Title="IT People API",
-        Version="v1",
-        Description="IT People is the canonical source of information about the organization of IT units and people at Indiana University",
-        Contact = Contact (Name="UITS DCD", Email="dcdreq@iu.edu"))
+let apiInfo = Info(Title="IT People API", Version="v1", Description=description)
 
 let generateOpenAPISpec () = 
     let services = ServiceCollection()
