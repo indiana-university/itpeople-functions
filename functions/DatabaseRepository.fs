@@ -257,7 +257,7 @@ module DatabaseRepository =
     // ***********
 
     let queryPersonSql = """
-        SELECT p.*, d.*
+        SELECT DISTINCT p.*, d.*
         FROM people p
         JOIN departments d on d.id = p.department_id
         LEFT JOIN unit_members um on um.person_id = p.id"""
