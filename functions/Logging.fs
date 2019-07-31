@@ -25,6 +25,7 @@ module Logging =
         "parameters", SinglePropertyColumnWriter("Parameters", PropertyWriteMethod.Raw, NpgsqlDbType.Text) :> ColumnWriterBase
         "query", SinglePropertyColumnWriter("Query", PropertyWriteMethod.Raw, NpgsqlDbType.Text) :> ColumnWriterBase
         "detail", SinglePropertyColumnWriter("Detail", PropertyWriteMethod.Raw, NpgsqlDbType.Text) :> ColumnWriterBase
+        "content", SinglePropertyColumnWriter("Content", PropertyWriteMethod.Raw, NpgsqlDbType.Text) :> ColumnWriterBase
         "ip_address", SinglePropertyColumnWriter("IPAddress", PropertyWriteMethod.Raw, NpgsqlDbType.Text) :> ColumnWriterBase
         "netid", SinglePropertyColumnWriter("NetId", PropertyWriteMethod.Raw, NpgsqlDbType.Text) :> ColumnWriterBase
         "exception", ExceptionColumnWriter(NpgsqlDbType.Text) :> ColumnWriterBase ]
@@ -74,6 +75,11 @@ module Logging =
         then req.Properties.[WorkflowUser] :?> string
         else ""
 
+    let tryGetContent (req:HttpRequestMessage) = async {
+        let! content = req.Content.ReadAsStringAsync() |> Async.AwaitTask
+        return if content |> String.IsNullOrWhiteSpace  then "(none)" else content
+    }
+
     let createLogger dbConnectionString =
         Serilog.Debugging.SelfLog.Enable(Console.Out);
         Serilog.LoggerConfiguration()
@@ -84,9 +90,10 @@ module Logging =
             .WriteTo.ApplicationInsightsEvents(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 
-    let logSuccess (log:Logger) req (status:Status) =
+    let logSuccess (log:Logger) req (status:Status) = async {
+        let! content = req |> tryGetContent
         log.Information(
-            "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} finished in {Elapsed} ms with status {Status}.", 
+            "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} finished in {Elapsed} ms with status {Status}. Content: {Content}", 
             req |> tryGetIPAddress, 
             req |> tryGetAuthenticatedUser,
             req.Method, 
@@ -94,11 +101,14 @@ module Logging =
             req |> funcParams, 
             req |> query, 
             req |> tryGetElapsedTime, 
-            int status)
+            int status,
+            content)
+    }
 
-    let logError (log:Logger) req (status:Status) errors =
+    let logError (log:Logger) req (status:Status) errors = async {
+        let! content = req |> tryGetContent
         log.Error(
-            "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} errored in {Elapsed} ms with status {Status}. Errors: {Detail}", 
+            "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} errored in {Elapsed} ms with status {Status}. Errors: {Detail}. Content: {Content}", 
             req |> tryGetIPAddress, 
             req |> tryGetAuthenticatedUser,
             req.Method, 
@@ -107,12 +117,15 @@ module Logging =
             req |> query, 
             req |> tryGetElapsedTime, 
             int status, 
-            errors)
+            errors,
+            content)
+    }
 
-    let logFatal (log:Logger) req (exn:Exception) =
+    let logFatal (log:Logger) (req:HttpRequestMessage) (exn:Exception) = async {
+        let! content = req |> tryGetContent
         log.Fatal(
             exn,
-            "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} threw an exception after {Elapsed} ms with status {Status}. {Detail}", 
+            "{IPAddress} {NetId} {Method} {Function}/{Parameters}{Query} threw an exception after {Elapsed} ms with status {Status}. {Detail}. Content: {Content}", 
             req |> tryGetIPAddress, 
             req |> tryGetAuthenticatedUser,
             req.Method, 
@@ -121,4 +134,6 @@ module Logging =
             req |> query, 
             req |> tryGetElapsedTime, 
             int Status.InternalServerError, 
-            "See exception for details")
+            "See exception for details",
+            content)
+    }

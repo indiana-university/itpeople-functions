@@ -89,11 +89,6 @@ module Functions =
         addProperty req WorkflowPermissions perms
         ok model
     
-    /// Log and rethrow an unhandled exception.
-    let handle req exn = 
-        logFatal log req exn
-        raise exn
-
     let authenticate req = 
         authenticateRequest publicKey req
         >>= recordAuthenticatedUser req
@@ -114,8 +109,11 @@ module Functions =
             try
                 let workflow = timestamp >=> workflow
                 let! result = workflow(req)
-                return createResponse req config log successStatus result
-            with exn -> return handle req exn
+                return! createResponse req config log successStatus result
+            with exn -> 
+                do! logFatal log req exn
+                raise exn
+                return req.CreateErrorResponse(Status.InternalServerError, exn.Message)
         } |> Async.StartAsTask
 
     let get req workflow = execute Status.OK req workflow
