@@ -167,6 +167,27 @@ module ApiErrorTests =
             |> shouldGetContent [ wyatt; knope; swanson]
 
         [<Fact>]       
+        member __.``People search: single campus: Pawnee`` () = 
+            requestFor HttpMethod.Get "people?campus=Pawnee"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [ knope; swanson]
+
+        [<Fact>]       
+        member __.``People search: single campus: Indianapolis`` () = 
+            requestFor HttpMethod.Get "people?campus=Indianapolis"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [ wyatt; admin ]
+
+        [<Fact>]       
+        member __.``People search: multiple campus: Indianapolis and Pawnee`` () = 
+            requestFor HttpMethod.Get "people?campus=Pawnee,Indianapolis"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [ wyatt; admin; knope; swanson;  ]
+            
+        [<Fact>]       
         member __.``People search: single permission`` () = 
             requestFor HttpMethod.Get "people?permission=Viewer"
             |> withAuthentication adminJwt

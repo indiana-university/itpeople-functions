@@ -378,7 +378,8 @@ type PeopleQuery =
     Classes: int
     Interests: array<string>
     Roles: array<int>
-    Permissions: array<int> }
+    Permissions: array<int>
+    Campuses: array<string> }
 
 type PeopleRepository = {
     /// Get a user record for a given net ID (e.g. 'jhoerr')

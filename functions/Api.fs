@@ -132,14 +132,15 @@ let jsonResponse req corsHosts status model =
 /// The result of a successful trial will be passed to the provided success function.
 /// The result(s) of a failed trial will be aggregated, logged, and returned as a 
 /// JSON error message with an appropriate status code.
-let createResponse req config log status result = 
+let createResponse req config log status result = async { 
     match result with
     | Ok body ->
-        logSuccess log req status
-        jsonResponse req config.CorsHosts status body
+        do! logSuccess log req status
+        return jsonResponse req config.CorsHosts status body
     | Error (status,msg) -> 
-        logError log req status msg
-        jsonResponse req config.CorsHosts status msg
+        do! logError log req status msg
+        return jsonResponse req config.CorsHosts status msg
+}
 
 let description = """## Description
 IT People is the canonical source of information about people doing IT work at Indiana University, their responsibilities and interests, and the IT units to which they belong.
