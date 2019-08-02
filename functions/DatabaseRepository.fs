@@ -257,7 +257,7 @@ module DatabaseRepository =
     // ***********
 
     let queryPersonSql = """
-        SELECT p.*, d.*
+        SELECT DISTINCT p.*, d.*
         FROM people p
         JOIN departments d on d.id = p.department_id
         LEFT JOIN unit_members um on um.person_id = p.id"""
@@ -271,13 +271,13 @@ module DatabaseRepository =
         mapPeople (WhereId("p.id", id))
 
     let queryPeople connStr (query:PeopleQuery) =
-        let param = {
-            Query = if query.Query = "" then "" else like query.Query
+        let param =
+          { Query = if query.Query = "" then "" else like query.Query
             Classes = query.Classes
             Roles = query.Roles
             Permissions = query.Permissions
             Interests = query.Interests |> Array.map like
-        }
+            Campuses = query.Campuses |> Array.map like }
         // printfn "Query Param: %A" param
         let whereClause = 
             """(@Query='' OR (p.name ILIKE @Query OR p.netid ILIKE @Query))
@@ -285,6 +285,7 @@ module DatabaseRepository =
             -- The built-in 'cardinality' function returns the number of elements in an array.
             -- If there are no filter elements then don't try to apply that filter.
             AND (CARDINALITY(@Interests)=0 OR (p.expertise ILIKE ANY (@Interests)))
+            AND (CARDINALITY(@Campuses)=0 OR (p.campus ILIKE ANY (@Campuses)))
             AND (CARDINALITY(@Roles)=0 OR (um.role = ANY (@Roles)))
             AND (CARDINALITY(@Permissions)=0 OR (um.permissions = ANY (@Permissions)))
             ORDER BY p.netid"""

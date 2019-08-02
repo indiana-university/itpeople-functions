@@ -190,7 +190,8 @@ module Functions =
     [<SwaggerOperation(Summary="Search IT people", Description="""Search for IT people. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by name/netid, ex: 'Ron' or 'rswanso'
     <li><strong>class</strong>: filter by job classification/responsibility, ex: 'UserExperience' or 'UserExperience,WebAdminDevEng'
-    <li><strong>interest</strong>: filter by interest, ex: 'serverless' or 'node,lambda'
+    <li><strong>interest</strong>: filter by one interests, ex: 'serverless' or 'node,lambda'
+    <li><strong>campus</strong>: filter by primary campus: 'Bloomington','Indianapolis','Columbus','East','Fort Wayne','Kokomo','Northwest','South Bend','Southeast'
     <li><strong>role</strong>: filter by unit role, ex: 'Leader' or 'Leader,Member'
     <li><strong>permission</strong>: filter by unit permissions, ex: 'Owner' or 'Owner,ManageMembers'
     </ul></br>
@@ -201,6 +202,7 @@ module Functions =
     [<OptionalQueryParameter("q", typeof<string>)>]
     [<OptionalQueryParameter("class", typeof<seq<Responsibilities>>)>]
     [<OptionalQueryParameter("interest", typeof<seq<string>>)>]
+    [<OptionalQueryParameter("campus", typeof<seq<string>>)>]
     [<OptionalQueryParameter("role", typeof<seq<Role>>)>]
     [<OptionalQueryParameter("permission", typeof<seq<UnitPermissions>>)>]
     let peopleGetAll
@@ -222,7 +224,11 @@ module Functions =
             let interests = 
                 match tryQueryParam' req "interest" with
                 | Some(str) -> str.Split delimiters |> Array.map trim
-                | None -> Array.empty                
+                | None -> Array.empty             
+            let campuses = 
+                match tryQueryParam' req "campus" with
+                | Some(str) -> str.Split delimiters |> Array.map trim
+                | None -> Array.empty             
             let roles = 
                 let parseInt s = 
                     try Enum.Parse<Role>(s, true) |> int 
@@ -241,7 +247,8 @@ module Functions =
               Classes=classes
               Interests=interests
               Roles=roles
-              Permissions=permissions } |> ok
+              Permissions=permissions
+              Campuses=campuses } |> ok
 
         let workflow = 
             authenticate 
