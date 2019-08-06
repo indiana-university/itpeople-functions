@@ -138,7 +138,7 @@ module DatabaseRepository =
         let filter = 
             match query with 
             | None -> Where("u.parent_id IS NULL")
-            | Some(q) -> WhereParam("u.name ILIKE @Query OR u.description ILIKE @Query", {Query=like q})
+            | Some(q) -> WhereParam("u.name ILIKE @Query OR u.description ILIKE @Query ORDER BY u.name LIMIT 15", {Query=like q})
         fetchAll<Unit> connStr (mapUnits(filter))
 
     let queryUnit connStr =
@@ -234,7 +234,7 @@ module DatabaseRepository =
         let filter = 
             match query with 
             | None -> Unfiltered
-            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query", {Query=like q})
+            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
         fetchAll<Department> connStr (mapDepartments filter)
 
     let queryDepartment connStr id =
