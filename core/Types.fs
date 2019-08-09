@@ -262,6 +262,32 @@ type SupportRelationshipRequest =
     DepartmentId: Id }
 
 [<CLIMutable>]
+/// This relationship describes which IT Unit provides IT-related support for a given building.
+[<Table("building_relationships")>]
+type BuildingRelationship = 
+  { /// The unique ID of this unit record.
+    [<Key>][<Column("id")>] Id: Id
+    /// The ID of the unit in this relationship
+    [<JsonProperty(Required = Required.Always)>]
+    [<Column("unit_id")>] UnitId: Id
+    /// The ID of the department in this relationship
+    [<JsonProperty(Required = Required.Always)>]
+    [<Column("building_id")>] BuildingId: Id 
+    /// The unit in this relationship.
+    [<ReadOnly(true)>] Unit: Unit
+    /// The building in this relationship.
+    [<ReadOnly(true)>] Building: Building
+  }
+
+type BuildingRelationshipRequest = 
+  { /// The ID of the unit in this relationship
+    [<JsonProperty(Required = Required.Always)>]
+    UnitId: Id
+    /// The ID of the building in this relationship
+    [<JsonProperty(Required = Required.Always)>]
+    BuildingId: Id }
+
+[<CLIMutable>]
 [<Table("tools")>]
 type Tool =
   { /// The unique ID of this tool record.
@@ -514,6 +540,20 @@ type BuildingRepository = {
 }
 
 
+type BuildingRelationshipRepository = {
+    /// Get a list of all support relationships
+    GetAll: unit -> Async<Result<BuildingRelationship seq,Error>>
+    /// Get a single support relationsihps
+    Get : Id -> Async<Result<BuildingRelationship,Error>>
+    /// Crate a support relationship
+    Create: BuildingRelationship -> Async<Result<BuildingRelationship,Error>>
+    /// Update a support relationship
+    Update: BuildingRelationship -> Async<Result<BuildingRelationship,Error>>
+    /// Delete a support relationsihps
+    Delete : BuildingRelationship -> Async<Result<unit,Error>>
+}
+
+
 type AuthorizationRepository = {
     /// Given an OAuth token_key URL and return the public key.
     UaaPublicKey: string -> Async<Result<string,Error>>
@@ -532,6 +572,7 @@ type DataRepository = {
     MemberTools: MemberToolsRepository
     Tools: ToolsRepository
     SupportRelationships: SupportRelationshipRepository
+    BuildingRelationships: BuildingRelationshipRepository
     Authorization: AuthorizationRepository
 }
 
@@ -564,4 +605,8 @@ let inline unitId (model:^T) =
 
 let inline departmentId (model:^T) = 
     let id = (^T : (member DepartmentId:DepartmentId) model)
+    id
+
+let inline buildingId (model:^T) = 
+    let id = (^T : (member BuildingId:BuildingId) model)
     id

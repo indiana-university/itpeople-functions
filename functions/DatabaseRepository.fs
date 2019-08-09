@@ -657,12 +657,20 @@ module DatabaseRepository =
         Get = queryTool connStr
     }
 
-    let SupportRelationshipsRepository(connStr) = {
+    let SupportRelationshipsRepository(connStr) : SupportRelationshipRepository = {
         GetAll = fun () -> querySupportRelationships connStr 
         Get = querySupportRelationship connStr
         Create = insertSupportRelationship connStr
         Update = updateSupportRelationship connStr
         Delete = deleteSupportRelationship connStr
+    }
+
+    let BuildingRelationshipsRepository(connStr) : BuildingRelationshipRepository = {
+        GetAll = fun () -> System.NotImplementedException() |> raise
+        Get = fun id -> System.NotImplementedException() |> raise
+        Create = fun model -> System.NotImplementedException() |> raise
+        Update = fun model -> System.NotImplementedException() |> raise
+        Delete = fun model -> System.NotImplementedException() |> raise
     }
 
     let AuthorizationRepository(connStr) = {
@@ -682,5 +690,6 @@ module DatabaseRepository =
         MemberTools = MemberToolsRepository(connStr)
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
+        BuildingRelationships = BuildingRelationshipsRepository(connStr)
         Authorization = AuthorizationRepository(connStr)
     }

@@ -85,6 +85,14 @@ module FakesRepository =
         Get = fun id -> stub ballantine
     }
 
+    let FakeBuildingRelationships : BuildingRelationshipRepository = {
+        GetAll = fun () -> stub ([ buildingRelationship ] |> List.toSeq) 
+        Get = fun id -> stub buildingRelationship
+        Create = fun req -> stub buildingRelationship
+        Update = fun req -> stub buildingRelationship
+        Delete = fun id -> stub ()
+    }
+
     let Repository = {
         People = FakePeople
         Units = FakeUnits
@@ -94,6 +102,7 @@ module FakesRepository =
         MemberTools = FakeMemberToolsRepository
         Tools = FakeToolsRepository
         SupportRelationships = FakeSupportRelationships
+        BuildingRelationships = FakeBuildingRelationships
         Authorization = FakeAuthorization
     }
 

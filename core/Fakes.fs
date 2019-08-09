@@ -219,3 +219,16 @@ let ballantine:Building = {
     Country="USA"
     PostCode="47405"
 }
+
+let buildingRelationshipRequest:BuildingRelationshipRequest = {
+  UnitId=cityOfPawnee.Id
+  BuildingId=ballantine.Id
+}
+
+let buildingRelationship:BuildingRelationship = {
+  Id=1
+  UnitId=cityOfPawnee.Id
+  BuildingId=ballantine.Id
+  Unit=cityOfPawnee
+  Building=ballantine
+}
