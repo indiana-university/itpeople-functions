@@ -80,6 +80,8 @@ type MembershipId = int
 type UnitId = int
 /// The unique ID of a Department record
 type DepartmentId = int
+/// The unique ID of a Building record
+type BuildingId = int
 type Name = string
 type NetId = string
 type Filter = string
@@ -113,6 +115,22 @@ type Department =
     [<Column("name")>] Name: Name
     /// A description or longer name of this department.
     [<Column("description")>] Description: Name }
+
+/// A university building or location
+[<CLIMutable>]
+[<Table("buildings")>]
+type Building =
+  { /// The unique ID of this department record.
+    [<Key>][<Column("id")>] Id: Id
+    /// The name of this department.
+    [<Column("name")>] Name: Name
+    /// A description or longer name of this department.
+    [<Column("description")>] Description: Name
+    [<Column("address")>] Address: string
+    [<Column("city")>] City: string
+    [<Column("state")>] State: string
+    [<Column("country")>] Country: string
+    [<Column("postcode")>] PostCode: string }
 
 /// A person doing or supporting IT work
 [<CLIMutable>]
@@ -488,6 +506,14 @@ type SupportRelationshipRepository = {
     Delete : SupportRelationship -> Async<Result<unit,Error>>
 }
 
+type BuildingRepository = {
+    /// Get a list of all departments
+    GetAll: Filter option -> Async<Result<Building seq,Error>>
+    /// Get a single department by ID
+    Get: Id -> Async<Result<Building,Error>>
+}
+
+
 type AuthorizationRepository = {
     /// Given an OAuth token_key URL and return the public key.
     UaaPublicKey: string -> Async<Result<string,Error>>
@@ -501,6 +527,7 @@ type DataRepository = {
     People: PeopleRepository
     Units: UnitRepository
     Departments: DepartmentRepository
+    Buildings: BuildingRepository
     Memberships: MembershipRepository
     MemberTools: MemberToolsRepository
     Tools: ToolsRepository

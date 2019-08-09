@@ -208,3 +208,14 @@ let toolPermission:ToolPermission = {
     ToolName=tool.Name
     DepartmentName=parksDept.Name
 }
+
+let ballantine:Building = {
+    Id=1
+    Name="Ballantine Hall"
+    Description="The really tall one over by the Union"
+    Address="1020 E Kirkwood Ave"
+    City="Bloomington"
+    State="IN"
+    Country="USA"
+    PostCode="47405"
+}

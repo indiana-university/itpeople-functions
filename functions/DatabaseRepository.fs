@@ -629,6 +629,11 @@ module DatabaseRepository =
         GetSupportingUnits = queryDeptSupportingUnits connStr
     }
 
+    let Buildings (connStr) = {
+        GetAll = fun q -> System.NotImplementedException() |> raise
+        Get = fun id -> System.NotImplementedException() |> raise
+    }
+
     let Memberships (connStr) : MembershipRepository = {
         GetAll = fun () -> queryMemberships connStr
         Get = queryMembership connStr
@@ -671,6 +676,7 @@ module DatabaseRepository =
     let Repository(connStr) = {
         People = People(connStr)
         Departments = Departments(connStr)
+        Buildings = Buildings(connStr)
         Units = Units(connStr)
         Memberships = Memberships(connStr)
         MemberTools = MemberToolsRepository(connStr)

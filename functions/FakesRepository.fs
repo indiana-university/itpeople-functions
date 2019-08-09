@@ -80,10 +80,16 @@ module FakesRepository =
         CanModifyPerson = fun netid id -> stub true
     }
     
+    let FakeBuildings = {
+        GetAll = fun query -> stub ([ ballantine ] |> List.toSeq)
+        Get = fun id -> stub ballantine
+    }
+
     let Repository = {
         People = FakePeople
         Units = FakeUnits
         Departments = FakeDepartments
+        Buildings = FakeBuildings
         Memberships = FakeMembershipRepository
         MemberTools = FakeMemberToolsRepository
         Tools = FakeToolsRepository

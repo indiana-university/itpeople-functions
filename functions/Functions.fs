@@ -814,3 +814,32 @@ module Functions =
             authenticate
             >=> fun _ -> data.Tools.GetAllPermissions ()
         get req workflow
+
+
+    // *****************
+    // ** Buildings
+    // *****************
+
+    [<FunctionName("BuildingsGetAll")>]
+    [<SwaggerOperation(Summary="List all buildings.", Description="""Get a list of university buildings. Available filters include:<br/>
+    <ul><li><strong>q</strong>: filter by building name/description/address, ex: 'ballantine' or 'bloomington'</ul></br>""", Tags=[|"Buildings"|])>]
+    [<SwaggerResponse(200, "A collection of building records", typeof<seq<Department>>)>]
+    [<OptionalQueryParameter("q", typeof<string>)>]
+    let buildingGetAll
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings")>] req) =
+        let workflow = 
+            authenticate
+            >=> fun _ -> tryQueryParam req "q"
+            >=> data.Buildings.GetAll
+        get req workflow
+
+    [<FunctionName("BuildingGetId")>]
+    [<SwaggerOperation(Summary="Find a department by ID.", Tags=[|"Buildings"|])>]
+    [<SwaggerResponse(200, "A building record", typeof<Department>)>]
+    [<SwaggerResponse(404, "No building was found with the ID provided.", typeof<ErrorModel>)>]
+    let BuildingtGetId
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings/{buildingId}")>] req, buildingId) =
+        let workflow =
+            authenticate
+            >=> fun _ -> data.Buildings.Get buildingId
+        get req workflow    
