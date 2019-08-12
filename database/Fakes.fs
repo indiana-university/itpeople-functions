@@ -33,6 +33,8 @@ module Fakes =
         
         // departments
         db.Insert<Department>(parksDept) |> ignore 
+        // buildings
+        db.Insert<Building>(cityHall) |> ignore 
         // units
         db.Insert<Unit>(cityOfPawnee) |> ignore // db.Insert<Unit>(cityOfPawnee) |> ignore
         db.Insert<Unit>(parksAndRec) |> ignore

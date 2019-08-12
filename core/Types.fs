@@ -130,7 +130,7 @@ type Building =
     [<Column("city")>] City: string
     [<Column("state")>] State: string
     [<Column("country")>] Country: string
-    [<Column("postcode")>] PostCode: string }
+    [<Column("post_code")>] PostCode: string }
 
 /// A person doing or supporting IT work
 [<CLIMutable>]

@@ -209,10 +209,10 @@ let toolPermission:ToolPermission = {
     DepartmentName=parksDept.Name
 }
 
-let ballantine:Building = {
+let cityHall:Building = {
     Id=1
-    Name="Ballantine Hall"
-    Description="The really tall one over by the Union"
+    Name="Pawnee City Hall"
+    Description=""
     Address="1020 E Kirkwood Ave"
     City="Bloomington"
     State="IN"
@@ -222,13 +222,13 @@ let ballantine:Building = {
 
 let buildingRelationshipRequest:BuildingRelationshipRequest = {
   UnitId=cityOfPawnee.Id
-  BuildingId=ballantine.Id
+  BuildingId=cityHall.Id
 }
 
 let buildingRelationship:BuildingRelationship = {
   Id=1
   UnitId=cityOfPawnee.Id
-  BuildingId=ballantine.Id
+  BuildingId=cityHall.Id
   Unit=cityOfPawnee
-  Building=ballantine
+  Building=cityHall
 }

@@ -253,6 +253,31 @@ module DatabaseRepository =
         fetchAll<Unit> connStr (mapDeptMemberUnits(WhereId("p.department_id", (identity department))))
 
     // ***********
+    // Buildings
+    // ***********
+
+    let queryBuildingsSql = """
+        SELECT b.* FROM buildings b"""
+
+    let mapBuildings filter (cn:Cn) = 
+        parseQueryAndParam queryDepartmentsSql filter
+        |> cn.QueryAsync<Building>
+
+    let mapBuilding id = 
+        mapBuildings (WhereId("d.id", id))
+
+    let queryBuildings connStr query =
+        let filter = 
+            match query with 
+            | None -> Unfiltered
+            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
+        fetchAll<Building> connStr (mapBuildings filter)
+
+    let queryBuilding connStr id =
+        fetchOne<Building> connStr mapBuilding id
+
+
+    // ***********
     // People
     // ***********
 
@@ -630,8 +655,8 @@ module DatabaseRepository =
     }
 
     let Buildings (connStr) = {
-        GetAll = fun q -> System.NotImplementedException() |> raise
-        Get = fun id -> System.NotImplementedException() |> raise
+        GetAll = queryBuildings connStr
+        Get = queryBuilding connStr
     }
 
     let Memberships (connStr) : MembershipRepository = {

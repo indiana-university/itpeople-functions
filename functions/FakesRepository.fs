@@ -81,8 +81,9 @@ module FakesRepository =
     }
     
     let FakeBuildings = {
-        GetAll = fun query -> stub ([ ballantine ] |> List.toSeq)
-        Get = fun id -> stub ballantine
+        GetAll = fun query -> stub ([ cityHall ] |> List.toSeq)
+        Get = fun id -> stub cityHall
+        
     }
 
     let FakeBuildingRelationships : BuildingRelationshipRepository = {
