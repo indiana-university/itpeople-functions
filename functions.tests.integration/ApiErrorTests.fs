@@ -343,6 +343,24 @@ module ApiErrorTests =
             |> evaluateContent<Building> (fun building ->
                  building.Id |> should equal cityHall.Id)
 
+        [<Fact>]       
+        member __.``Building relationships: get all`` () = 
+            requestFor HttpMethod.Get "buildingRelationships"
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<BuildingRelationship>> (fun relationships ->
+                 relationships |> Seq.length |> should equal 1
+                 let head = relationships |> Seq.head
+                 head.Id |> should equal buildingRelationship.Id)
+
+        [<Fact>]       
+        member __.``Building relationships: get one`` () = 
+            requestFor HttpMethod.Get (sprintf "buildingRelationships/%d" buildingRelationship.Id)
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<BuildingRelationship> (fun building ->
+                 building.Id |> should equal buildingRelationship.Id)
+
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
 
@@ -481,6 +499,31 @@ module ApiErrorTests =
             requestFor HttpMethod.Post "supportRelationships"
             |> withAuthentication adminJwt
             |> withBody supportRelationship
+            |> shouldGetResponse HttpStatusCode.Conflict
+
+        // *********************
+        // Building Relationships
+        // *********************
+
+        [<Fact>]       
+        member __.``Create a building relationship with non existent unit yields 400 Bad Request`` () = 
+            requestFor HttpMethod.Post "buildingRelationships"
+            |> withAuthentication adminJwt
+            |> withBody { buildingRelationship with UnitId=1000 }
+            |> shouldGetResponse HttpStatusCode.BadRequest
+
+        [<Fact>]       
+        member __.``Create a building relationship with non existent department yields 400 Bad Request`` () = 
+            requestFor HttpMethod.Post "buildingRelationships"
+            |> withAuthentication adminJwt
+            |> withBody { buildingRelationship with BuildingId=1000 }
+            |> shouldGetResponse HttpStatusCode.BadRequest
+
+        [<Fact>]       
+        member __.``Create a building relationship that duplicates existing relationship yields 409 Conflict`` () = 
+            requestFor HttpMethod.Post "buildingRelationships"
+            |> withAuthentication adminJwt
+            |> withBody buildingRelationship
             |> shouldGetResponse HttpStatusCode.Conflict
 
         // *****************

@@ -52,6 +52,8 @@ module Fakes =
         db.Insert<UnitMember>(wyattMembership) |> ignore
         // support relationship
         db.Insert<SupportRelationship>(supportRelationship) |> ignore
+        // building relationship
+        db.Insert<BuildingRelationship>(buildingRelationship) |> ignore
         // tools 
         db.Insert<Tool>(tool) |> ignore
         // member tools 

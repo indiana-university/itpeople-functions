@@ -116,6 +116,40 @@ module DatabaseRepository =
         delete<SupportRelationship> connStr (identity supportRelationship)
    
 
+    // *********************
+    // Building Relationships
+    // *********************
+
+    let queryBuildingRelationshipSql = """
+        SELECT r.*, b.*, u.*
+        FROM building_relationships r
+        JOIN buildings b on b.id = r.building_id
+        JOIN units u on u.id = r.unit_id """
+
+    let mapBuildingRelationships filter (cn:Cn) = 
+        let (query, param) = parseQueryAndParam queryBuildingRelationshipSql filter
+        let mapper r b u = {r with Unit=u; Building=b}
+        cn.QueryAsync<BuildingRelationship, Building, Unit, BuildingRelationship>(query, mapper, param)
+
+    let mapBuildingRelationship id = 
+        mapBuildingRelationships (WhereId("r.id", id))
+
+    let queryBuildingRelationships connStr =
+        fetchAll<BuildingRelationship> connStr (mapBuildingRelationships Unfiltered)
+
+    let queryBuildingRelationship connStr id =
+        fetchOne connStr mapBuildingRelationship id
+
+    let insertBuildingRelationship connStr  =
+        insert<BuildingRelationship> connStr mapBuildingRelationship
+
+    let updateBuildingRelationship connStr (buildingRelationship:BuildingRelationship) =
+        update<BuildingRelationship> connStr mapBuildingRelationship buildingRelationship.Id buildingRelationship
+
+    let deleteBuildingRelationship connStr (buildingRelationship:BuildingRelationship) =
+        delete<BuildingRelationship> connStr (identity buildingRelationship)
+   
+
     // **********
     // Units
     // **********
@@ -691,11 +725,11 @@ module DatabaseRepository =
     }
 
     let BuildingRelationshipsRepository(connStr) : BuildingRelationshipRepository = {
-        GetAll = fun () -> System.NotImplementedException() |> raise
-        Get = fun id -> System.NotImplementedException() |> raise
-        Create = fun model -> System.NotImplementedException() |> raise
-        Update = fun model -> System.NotImplementedException() |> raise
-        Delete = fun model -> System.NotImplementedException() |> raise
+        GetAll = fun () -> queryBuildingRelationships connStr 
+        Get = queryBuildingRelationship connStr
+        Create = insertBuildingRelationship connStr
+        Update = updateBuildingRelationship connStr
+        Delete = deleteBuildingRelationship connStr
     }
 
     let AuthorizationRepository(connStr) = {
