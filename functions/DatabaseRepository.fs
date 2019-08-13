@@ -17,20 +17,20 @@ module DatabaseRepository =
     // Memberships
     // ***********
     let queryUnitMemberSql = """
-        SELECT m.*, u.*, p.*, umt.*
+        SELECT m.*, u.*, p.*, d.*, umt.*
         FROM unit_members m
         JOIN units u on u.id = m.unit_id
         LEFT JOIN people p on p.id = m.person_id
+        LEFT JOIN departments d on d.id = p.department_id
         LEFT JOIN unit_member_tools umt on umt.membership_id=m.id"""
-
 
     let mapUnitMembers filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryUnitMemberSql filter
-        let mapper (m:UnitMember) u p umt = 
-            let person = if isNull (box p) then None else Some(p)
+        let mapper (m:UnitMember) u (p:Person) d umt = 
+            let person = if isNull (box p) then None else Some({p with Department=d})
             let tools = if isNull (box umt) then Seq.empty else Seq.ofList [umt]
             {m with Unit=u; Person=person; MemberTools=tools}
-        cn.QueryAsync<UnitMember, Unit, Person, MemberTool, UnitMember>(query, mapper, param)
+        cn.QueryAsync<UnitMember, Unit, Person, Department, MemberTool, UnitMember>(query, mapper, param)
 
     let stripNotes (unitMembers:seq<UnitMember>) =
         unitMembers
