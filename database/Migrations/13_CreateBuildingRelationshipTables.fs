@@ -11,13 +11,14 @@ type CreateBuildingRelationshipTables() =
     base.Execute("""
     CREATE TABLE buildings ( 
       id SERIAL NOT NULL,
-      name TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
       description TEXT NULL,
       address TEXT NULL,
       city TEXT NULL,
       state TEXT NULL,
       country TEXT NULL,
       post_code TEXT NULL,
+      UNIQUE (name, city),
       PRIMARY KEY (id)
     );
 
