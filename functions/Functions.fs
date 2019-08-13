@@ -446,7 +446,7 @@ module Functions =
 
     [<FunctionName("UnitGetAllSupportedDepartments")>]
     [<SwaggerOperation(Summary="List all supported departments", Description="List all departments that receive IT support from this unit.", Tags=[|"Units"|])>]
-    [<SwaggerResponse(200, "A collection of department records.", typeof<seq<UnitMember>>)>]
+    [<SwaggerResponse(200, "A collection of unit-department relationship records.", typeof<seq<SupportRelationship>>)>]
     [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
     let unitGetAllSupportedDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/supportedDepartments")>] req, unitId) =
@@ -834,7 +834,7 @@ module Functions =
     [<FunctionName("BuildingsGetAll")>]
     [<SwaggerOperation(Summary="List all buildings.", Description="""Get a list of university buildings. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by building name/description/address, ex: 'ballantine' or 'bloomington'</ul></br>""", Tags=[|"Buildings"|])>]
-    [<SwaggerResponse(200, "A collection of building records", typeof<seq<Department>>)>]
+    [<SwaggerResponse(200, "A collection of building records", typeof<seq<Building>>)>]
     [<OptionalQueryParameter("q", typeof<string>)>]
     let buildingGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings")>] req) =
