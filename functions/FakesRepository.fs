@@ -28,6 +28,7 @@ module FakesRepository =
         GetMembers = fun unit -> stub ([ swansonMembership ] |> List.toSeq) 
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
+        GetSupportedBuildings = fun unit -> stub ([ buildingRelationship ] |> List.toSeq) 
         GetDescendantOfParent = fun (parentId, childId) -> stub None
         Create = fun req -> stub parksAndRec
         Update = fun req -> stub parksAndRec
