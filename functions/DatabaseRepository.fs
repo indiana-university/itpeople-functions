@@ -207,7 +207,10 @@ module DatabaseRepository =
 
     let queryUnitSupportedDepartments connStr (unit:Unit) =
         fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
-    
+
+    let queryUnitSupportedBuildings connStr (unit:Unit) =
+        fetchAll connStr (mapBuildingRelationships(WhereId("u.id", unit.Id)))
+
     // This query is recursive. (Whoa.)
     // Given some unit id (ChildId) it will recurse to 
     //  find every parent, grandparent, etc of that unit
@@ -294,11 +297,11 @@ module DatabaseRepository =
         SELECT b.* FROM buildings b"""
 
     let mapBuildings filter (cn:Cn) = 
-        parseQueryAndParam queryDepartmentsSql filter
+        parseQueryAndParam queryBuildingsSql filter
         |> cn.QueryAsync<Building>
 
     let mapBuilding id = 
-        mapBuildings (WhereId("d.id", id))
+        mapBuildings (WhereId("b.id", id))
 
     let queryBuildings connStr query =
         let filter = 
@@ -678,6 +681,7 @@ module DatabaseRepository =
         GetChildren = queryUnitChildren connStr
         GetMembers = queryUnitMembers connStr
         GetSupportedDepartments = queryUnitSupportedDepartments connStr
+        GetSupportedBuildings = queryUnitSupportedBuildings connStr
         GetDescendantOfParent = queryUnitGetDescendantOfParent connStr
     }
 

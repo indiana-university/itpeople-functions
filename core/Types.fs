@@ -459,6 +459,8 @@ type UnitRepository = {
     GetMembers: UnitMemberRecordFieldOptions -> Async<Result<UnitMember seq,Error>>
     /// Get a unit's supported departments by unit ID        
     GetSupportedDepartments: Unit -> Async<Result<SupportRelationship seq,Error>>
+    /// Get a unit's supported buildings by unit ID        
+    GetSupportedBuildings: Unit -> Async<Result<BuildingRelationship seq,Error>>
     // Get a unit's child units by parent unit Id
     GetChildren: Unit -> Async<Result<Unit seq,Error>>
     /// Create a unit

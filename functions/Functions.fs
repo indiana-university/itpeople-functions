@@ -457,6 +457,19 @@ module Functions =
             >=> permission req (canModifyUnit unitId)
         get req workflow
 
+    [<FunctionName("UnitGetAllSupportedBuildings")>]
+    [<SwaggerOperation(Summary="List all supported buildings", Description="List all buildings that receive IT support from this unit.", Tags=[|"Units"|])>]
+    [<SwaggerResponse(200, "A collection of unit-building relationship records.", typeof<seq<BuildingRelationship>>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
+    let unitGetAllSupportedBuildings
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/supportedBuildings")>] req, unitId) =
+        let workflow = 
+            authenticate
+            >=> fun _ ->  data.Units.Get unitId
+            >=> data.Units.GetSupportedBuildings
+            >=> permission req (canModifyUnit unitId)
+        get req workflow
+
     [<FunctionName("UnitGetAllChildren")>]
     [<SwaggerOperation(Summary="List all unit children", Description="List all units that fall below this unit in an organizational hierarchy.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, "A collection of unit records.", typeof<seq<Unit>>)>]

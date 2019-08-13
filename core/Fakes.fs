@@ -213,11 +213,11 @@ let cityHall:Building = {
     Id=1
     Name="Pawnee City Hall"
     Description=""
-    Address="1020 E Kirkwood Ave"
-    City="Bloomington"
+    Address="123 Main St"
+    City="Pawnee"
     State="IN"
     Country="USA"
-    PostCode="47405"
+    PostCode="47501"
 }
 
 let buildingRelationshipRequest:BuildingRelationshipRequest = {
