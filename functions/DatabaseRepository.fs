@@ -307,7 +307,7 @@ module DatabaseRepository =
         let filter = 
             match query with 
             | None -> Unfiltered
-            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
+            | Some(q) -> WhereParam("name ILIKE @Query OR address ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
         fetchAll<Building> connStr (mapBuildings filter)
 
     let queryBuilding connStr id =
