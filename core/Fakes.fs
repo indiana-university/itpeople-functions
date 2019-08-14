@@ -208,3 +208,27 @@ let toolPermission:ToolPermission = {
     ToolName=tool.Name
     DepartmentName=parksDept.Name
 }
+
+let cityHall:Building = {
+    Id=1
+    Name="Pawnee City Hall"
+    Code="PA123"
+    Address="123 Main St"
+    City="Pawnee"
+    State="IN"
+    Country="USA"
+    PostCode="47501"
+}
+
+let buildingRelationshipRequest:BuildingRelationshipRequest = {
+  UnitId=cityOfPawnee.Id
+  BuildingId=cityHall.Id
+}
+
+let buildingRelationship:BuildingRelationship = {
+  Id=1
+  UnitId=cityOfPawnee.Id
+  BuildingId=cityHall.Id
+  Unit=cityOfPawnee
+  Building=cityHall
+}

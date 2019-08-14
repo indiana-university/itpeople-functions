@@ -28,6 +28,7 @@ module FakesRepository =
         GetMembers = fun unit -> stub ([ swansonMembership ] |> List.toSeq) 
         GetChildren = fun unit -> stub ([ fourthFloor ] |> List.toSeq) 
         GetSupportedDepartments = fun unit -> stub ([ supportRelationship ] |> List.toSeq) 
+        GetSupportedBuildings = fun unit -> stub ([ buildingRelationship ] |> List.toSeq) 
         GetDescendantOfParent = fun (parentId, childId) -> stub None
         Create = fun req -> stub parksAndRec
         Update = fun req -> stub parksAndRec
@@ -80,14 +81,30 @@ module FakesRepository =
         CanModifyPerson = fun netid id -> stub true
     }
     
+    let FakeBuildings = {
+        GetAll = fun query -> stub ([ cityHall ] |> List.toSeq)
+        Get = fun id -> stub cityHall
+        
+    }
+
+    let FakeBuildingRelationships : BuildingRelationshipRepository = {
+        GetAll = fun () -> stub ([ buildingRelationship ] |> List.toSeq) 
+        Get = fun id -> stub buildingRelationship
+        Create = fun req -> stub buildingRelationship
+        Update = fun req -> stub buildingRelationship
+        Delete = fun id -> stub ()
+    }
+
     let Repository = {
         People = FakePeople
         Units = FakeUnits
         Departments = FakeDepartments
+        Buildings = FakeBuildings
         Memberships = FakeMembershipRepository
         MemberTools = FakeMemberToolsRepository
         Tools = FakeToolsRepository
         SupportRelationships = FakeSupportRelationships
+        BuildingRelationships = FakeBuildingRelationships
         Authorization = FakeAuthorization
     }
 
