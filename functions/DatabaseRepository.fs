@@ -17,20 +17,20 @@ module DatabaseRepository =
     // Memberships
     // ***********
     let queryUnitMemberSql = """
-        SELECT m.*, u.*, p.*, umt.*
+        SELECT m.*, u.*, p.*, d.*, umt.*
         FROM unit_members m
         JOIN units u on u.id = m.unit_id
         LEFT JOIN people p on p.id = m.person_id
+        LEFT JOIN departments d on d.id = p.department_id
         LEFT JOIN unit_member_tools umt on umt.membership_id=m.id"""
-
 
     let mapUnitMembers filter (cn:Cn) = 
         let (query, param) = parseQueryAndParam queryUnitMemberSql filter
-        let mapper (m:UnitMember) u p umt = 
-            let person = if isNull (box p) then None else Some(p)
+        let mapper (m:UnitMember) u (p:Person) d umt = 
+            let person = if isNull (box p) then None else Some({p with Department=d})
             let tools = if isNull (box umt) then Seq.empty else Seq.ofList [umt]
             {m with Unit=u; Person=person; MemberTools=tools}
-        cn.QueryAsync<UnitMember, Unit, Person, MemberTool, UnitMember>(query, mapper, param)
+        cn.QueryAsync<UnitMember, Unit, Person, Department, MemberTool, UnitMember>(query, mapper, param)
 
     let stripNotes (unitMembers:seq<UnitMember>) =
         unitMembers
@@ -116,6 +116,40 @@ module DatabaseRepository =
         delete<SupportRelationship> connStr (identity supportRelationship)
    
 
+    // *********************
+    // Building Relationships
+    // *********************
+
+    let queryBuildingRelationshipSql = """
+        SELECT r.*, b.*, u.*
+        FROM building_relationships r
+        JOIN buildings b on b.id = r.building_id
+        JOIN units u on u.id = r.unit_id """
+
+    let mapBuildingRelationships filter (cn:Cn) = 
+        let (query, param) = parseQueryAndParam queryBuildingRelationshipSql filter
+        let mapper r b u = {r with Unit=u; Building=b}
+        cn.QueryAsync<BuildingRelationship, Building, Unit, BuildingRelationship>(query, mapper, param)
+
+    let mapBuildingRelationship id = 
+        mapBuildingRelationships (WhereId("r.id", id))
+
+    let queryBuildingRelationships connStr =
+        fetchAll<BuildingRelationship> connStr (mapBuildingRelationships Unfiltered)
+
+    let queryBuildingRelationship connStr id =
+        fetchOne connStr mapBuildingRelationship id
+
+    let insertBuildingRelationship connStr  =
+        insert<BuildingRelationship> connStr mapBuildingRelationship
+
+    let updateBuildingRelationship connStr (buildingRelationship:BuildingRelationship) =
+        update<BuildingRelationship> connStr mapBuildingRelationship buildingRelationship.Id buildingRelationship
+
+    let deleteBuildingRelationship connStr (buildingRelationship:BuildingRelationship) =
+        delete<BuildingRelationship> connStr (identity buildingRelationship)
+   
+
     // **********
     // Units
     // **********
@@ -173,7 +207,10 @@ module DatabaseRepository =
 
     let queryUnitSupportedDepartments connStr (unit:Unit) =
         fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
-    
+
+    let queryUnitSupportedBuildings connStr (unit:Unit) =
+        fetchAll connStr (mapBuildingRelationships(WhereId("u.id", unit.Id)))
+
     // This query is recursive. (Whoa.)
     // Given some unit id (ChildId) it will recurse to 
     //  find every parent, grandparent, etc of that unit
@@ -251,6 +288,31 @@ module DatabaseRepository =
     let queryDeptMemberUnits connStr department =
         let mapDeptMemberUnits = mapUnits' queryDeptMemberUnitsSql
         fetchAll<Unit> connStr (mapDeptMemberUnits(WhereId("p.department_id", (identity department))))
+
+    // ***********
+    // Buildings
+    // ***********
+
+    let queryBuildingsSql = """
+        SELECT b.* FROM buildings b"""
+
+    let mapBuildings filter (cn:Cn) = 
+        parseQueryAndParam queryBuildingsSql filter
+        |> cn.QueryAsync<Building>
+
+    let mapBuilding id = 
+        mapBuildings (WhereId("b.id", id))
+
+    let queryBuildings connStr query =
+        let filter = 
+            match query with 
+            | None -> Unfiltered
+            | Some(q) -> WhereParam("name ILIKE @Query OR address ILIKE @Query OR code ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
+        fetchAll<Building> connStr (mapBuildings filter)
+
+    let queryBuilding connStr id =
+        fetchOne<Building> connStr mapBuilding id
+
 
     // ***********
     // People
@@ -619,6 +681,7 @@ module DatabaseRepository =
         GetChildren = queryUnitChildren connStr
         GetMembers = queryUnitMembers connStr
         GetSupportedDepartments = queryUnitSupportedDepartments connStr
+        GetSupportedBuildings = queryUnitSupportedBuildings connStr
         GetDescendantOfParent = queryUnitGetDescendantOfParent connStr
     }
 
@@ -627,6 +690,11 @@ module DatabaseRepository =
         Get = queryDepartment connStr
         GetMemberUnits = queryDeptMemberUnits connStr
         GetSupportingUnits = queryDeptSupportingUnits connStr
+    }
+
+    let Buildings (connStr) = {
+        GetAll = queryBuildings connStr
+        Get = queryBuilding connStr
     }
 
     let Memberships (connStr) : MembershipRepository = {
@@ -652,12 +720,20 @@ module DatabaseRepository =
         Get = queryTool connStr
     }
 
-    let SupportRelationshipsRepository(connStr) = {
+    let SupportRelationshipsRepository(connStr) : SupportRelationshipRepository = {
         GetAll = fun () -> querySupportRelationships connStr 
         Get = querySupportRelationship connStr
         Create = insertSupportRelationship connStr
         Update = updateSupportRelationship connStr
         Delete = deleteSupportRelationship connStr
+    }
+
+    let BuildingRelationshipsRepository(connStr) : BuildingRelationshipRepository = {
+        GetAll = fun () -> queryBuildingRelationships connStr 
+        Get = queryBuildingRelationship connStr
+        Create = insertBuildingRelationship connStr
+        Update = updateBuildingRelationship connStr
+        Delete = deleteBuildingRelationship connStr
     }
 
     let AuthorizationRepository(connStr) = {
@@ -671,10 +747,12 @@ module DatabaseRepository =
     let Repository(connStr) = {
         People = People(connStr)
         Departments = Departments(connStr)
+        Buildings = Buildings(connStr)
         Units = Units(connStr)
         Memberships = Memberships(connStr)
         MemberTools = MemberToolsRepository(connStr)
         Tools = ToolsRepository(connStr)
         SupportRelationships = SupportRelationshipsRepository(connStr)
+        BuildingRelationships = BuildingRelationshipsRepository(connStr)
         Authorization = AuthorizationRepository(connStr)
     }

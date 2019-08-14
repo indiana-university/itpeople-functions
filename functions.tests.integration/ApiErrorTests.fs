@@ -59,7 +59,7 @@ module ApiErrorTests =
     let rawPersonUpdate = """{"id":0, "expertise":"Pawnee History", "responsibilities":"UserExperience,BizSysAnalysis", "location":"JJ's Diner"}"""
 
     let evaluatePersonUpdate (p:Person) = 
-        p.Id |> should equal knope.Id
+        p.Id |> should equal personUpdate.Id
         p.Expertise |> should equal personUpdate.Expertise
         p.Responsibilities |> should equal personUpdate.Responsibilities
         p.Location |> should equal personUpdate.Location
@@ -325,6 +325,71 @@ module ApiErrorTests =
             |> shouldGetResponse HttpStatusCode.OK
             |> evaluateContent<Person> evaluatePersonUpdate
 
+        [<Fact>]       
+        member __.``Buildings: get all`` () = 
+            requestFor HttpMethod.Get "buildings"
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<Building>> (fun buildings ->
+                 buildings |> Seq.length |> should equal 1
+                 let head = buildings |> Seq.head
+                 head.Id |> should equal cityHall.Id)
+
+        [<Fact>]       
+        member __.``Buildings: get one`` () = 
+            requestFor HttpMethod.Get (sprintf "buildings/%d" cityHall.Id)
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<Building> (fun building ->
+                 building.Id |> should equal cityHall.Id)
+        
+        [<Fact>]       
+        member __.``Buildings: search name`` () = 
+            requestFor HttpMethod.Get "buildings?q=pawn"
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<Building>> (fun buildings ->
+                 buildings |> Seq.length |> should equal 1
+                 let head = buildings |> Seq.head
+                 head.Id |> should equal cityHall.Id)
+
+        [<Fact>]       
+        member __.``Buildings: search address`` () = 
+            requestFor HttpMethod.Get "buildings?q=main"
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<Building>> (fun buildings ->
+                 buildings |> Seq.length |> should equal 1
+                 let head = buildings |> Seq.head
+                 head.Id |> should equal cityHall.Id)
+
+        [<Fact>]       
+        member __.``Buildings: search code`` () = 
+            requestFor HttpMethod.Get "buildings?q=pa123"
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<Building>> (fun buildings ->
+                 buildings |> Seq.length |> should equal 1
+                 let head = buildings |> Seq.head
+                 head.Id |> should equal cityHall.Id)
+
+        [<Fact>]       
+        member __.``Building relationships: get all`` () = 
+            requestFor HttpMethod.Get "buildingRelationships"
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<BuildingRelationship>> (fun relationships ->
+                 relationships |> Seq.length |> should equal 1
+                 let head = relationships |> Seq.head
+                 head.Id |> should equal buildingRelationship.Id)
+
+        [<Fact>]       
+        member __.``Building relationships: get one`` () = 
+            requestFor HttpMethod.Get (sprintf "buildingRelationships/%d" buildingRelationship.Id)
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<BuildingRelationship> (fun building ->
+                 building.Id |> should equal buildingRelationship.Id)
 
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
@@ -337,9 +402,11 @@ module ApiErrorTests =
         [<Theory>]
         [<InlineDataAttribute("units")>]
         [<InlineDataAttribute("departments")>]
+        [<InlineDataAttribute("buildings")>]
         [<InlineDataAttribute("memberships")>]
         [<InlineDataAttribute("membertools")>]
         [<InlineDataAttribute("supportRelationships")>]
+        [<InlineDataAttribute("buildingRelationships")>]
         [<InlineDataAttribute("people")>]
         member __.``Get non-existent resource yields 404 Not Found`` (resource: string) = 
             sprintf "units/%s/1000" resource
@@ -352,6 +419,7 @@ module ApiErrorTests =
         [<InlineDataAttribute("memberships")>]
         [<InlineDataAttribute("membertools")>]
         [<InlineDataAttribute("supportRelationships")>]
+        [<InlineDataAttribute("buildingRelationships")>]
         member __.``Delete non-existent resource yields 404 Not Found`` (resource: string) = 
             sprintf "units/%s/1000" resource
             |> requestFor HttpMethod.Delete
@@ -461,6 +529,31 @@ module ApiErrorTests =
             requestFor HttpMethod.Post "supportRelationships"
             |> withAuthentication adminJwt
             |> withBody supportRelationship
+            |> shouldGetResponse HttpStatusCode.Conflict
+
+        // *********************
+        // Building Relationships
+        // *********************
+
+        [<Fact>]       
+        member __.``Create a building relationship with non existent unit yields 400 Bad Request`` () = 
+            requestFor HttpMethod.Post "buildingRelationships"
+            |> withAuthentication adminJwt
+            |> withBody { buildingRelationship with UnitId=1000 }
+            |> shouldGetResponse HttpStatusCode.BadRequest
+
+        [<Fact>]       
+        member __.``Create a building relationship with non existent department yields 400 Bad Request`` () = 
+            requestFor HttpMethod.Post "buildingRelationships"
+            |> withAuthentication adminJwt
+            |> withBody { buildingRelationship with BuildingId=1000 }
+            |> shouldGetResponse HttpStatusCode.BadRequest
+
+        [<Fact>]       
+        member __.``Create a building relationship that duplicates existing relationship yields 409 Conflict`` () = 
+            requestFor HttpMethod.Post "buildingRelationships"
+            |> withAuthentication adminJwt
+            |> withBody buildingRelationship
             |> shouldGetResponse HttpStatusCode.Conflict
 
         // *****************

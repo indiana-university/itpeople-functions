@@ -103,7 +103,7 @@ module Validation =
         assertRelationExists data.Units.Get (unitId m) m 
     let inline relationshipDepartmentExists data m = 
         assertRelationExists data.Departments.Get (departmentId m) m 
-    let inline relationshipIsUnique data m =
+    let inline departmentRelationshipIsUnique data m =
         let entities = data.SupportRelationships.GetAll
         let conflictPredicate mx = 
             ((identity m) = 0 || (identity m) <> (identity mx))
@@ -115,7 +115,7 @@ module Validation =
     let relationshipWriteValidationPipeline repository = 
         relationshipUnitExists repository
         >=> relationshipDepartmentExists repository
-        >=> relationshipIsUnique repository
+        >=> departmentRelationshipIsUnique repository
 
     let relationshipDeleteValidationPipeline m = m |> Ok |> async.Return  
 
@@ -123,6 +123,32 @@ module Validation =
         { ValidForCreate = relationshipWriteValidationPipeline data
           ValidForUpdate = relationshipWriteValidationPipeline data
           ValidForDelete = relationshipDeleteValidationPipeline } 
+
+    // Support Relationship Validation
+
+    let inline relationshipBuildingExists data m = 
+        assertRelationExists data.Buildings.Get (buildingId m) m 
+    let inline buildingRelationshipIsUnique data m =
+        let entities = data.BuildingRelationships.GetAll
+        let conflictPredicate mx = 
+            ((identity m) = 0 || (identity m) <> (identity mx))
+            && (unitId m) = (unitId mx)
+            && (buildingId m) = (buildingId mx)
+        let msg = "This unit already has a support relationship with this building."
+        assertUnique entities conflictPredicate msg m
+
+    let buildingRelationshipWriteValidationPipeline repository = 
+        relationshipUnitExists repository
+        >=> relationshipBuildingExists repository
+        >=> buildingRelationshipIsUnique repository
+
+    let buildingRelationshipDeleteValidationPipeline m = m |> Ok |> async.Return  
+
+    let inline buildingRelationshipValidator data : Validator<BuildingRelationship> = 
+        { ValidForCreate = buildingRelationshipWriteValidationPipeline data
+          ValidForUpdate = buildingRelationshipWriteValidationPipeline data
+          ValidForDelete = buildingRelationshipDeleteValidationPipeline } 
+
 
     // Unit Validation
 
