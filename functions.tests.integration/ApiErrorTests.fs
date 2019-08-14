@@ -391,6 +391,16 @@ module ApiErrorTests =
             |> evaluateContent<BuildingRelationship> (fun building ->
                  building.Id |> should equal buildingRelationship.Id)
 
+        [<Fact>]       
+        member __.``Building: get supporting units`` () = 
+            requestFor HttpMethod.Get (sprintf "buildings/%d/supportingUnits" cityHall.Id)
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<BuildingRelationship>> (fun relationships ->
+                 relationships |> Seq.length |> should equal 1
+                 let head = relationships |> Seq.head
+                 head.Id |> should equal buildingRelationship.Id)
+
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
 
