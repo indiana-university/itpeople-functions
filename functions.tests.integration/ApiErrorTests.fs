@@ -364,6 +364,16 @@ module ApiErrorTests =
                  head.Id |> should equal cityHall.Id)
 
         [<Fact>]       
+        member __.``Buildings: search code`` () = 
+            requestFor HttpMethod.Get "buildings?q=pa123"
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<seq<Building>> (fun buildings ->
+                 buildings |> Seq.length |> should equal 1
+                 let head = buildings |> Seq.head
+                 head.Id |> should equal cityHall.Id)
+
+        [<Fact>]       
         member __.``Building relationships: get all`` () = 
             requestFor HttpMethod.Get "buildingRelationships"
             |> withAuthentication swansonJwt
