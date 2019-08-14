@@ -14,7 +14,7 @@ type CreateBuildingRelationshipTables() =
       name TEXT NOT NULL,
       code TEXT NOT NULL UNIQUE,
       address TEXT NULL,
-      city TEXT NULL,
+      city TEXT NOT NULL,
       state TEXT NULL,
       country TEXT NULL,
       post_code TEXT NULL,
