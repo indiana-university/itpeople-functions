@@ -125,7 +125,7 @@ type Building =
     /// The name of this department.
     [<Column("name")>] Name: Name
     /// A description or longer name of this department.
-    [<Column("description")>] Description: Name
+    [<Column("code")>] Code: Name
     [<Column("address")>] Address: string
     [<Column("city")>] City: string
     [<Column("state")>] State: string

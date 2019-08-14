@@ -12,13 +12,12 @@ type CreateBuildingRelationshipTables() =
     CREATE TABLE buildings ( 
       id SERIAL NOT NULL,
       name TEXT NOT NULL,
-      description TEXT NULL,
+      code TEXT NOT NULL UNIQUE,
       address TEXT NULL,
       city TEXT NULL,
       state TEXT NULL,
       country TEXT NULL,
       post_code TEXT NULL,
-      UNIQUE (name, city),
       PRIMARY KEY (id)
     );
 
