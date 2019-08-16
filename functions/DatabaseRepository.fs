@@ -160,7 +160,7 @@ module DatabaseRepository =
         let filter = 
             match query with 
             | None -> Where("u.parent_id IS NULL")
-            | Some(q) -> WhereParam("u.name ILIKE @Query OR u.description ILIKE @Query ORDER BY u.name LIMIT 15", {Query=like q})
+            | Some(q) -> WhereParam("u.name ILIKE @Query OR u.description ILIKE @Query ORDER BY u.name LIMIT 25", {Query=like q})
         fetchAll<Unit> (mapUnits(filter)) connStr
 
     let queryUnit = fetchOne<Unit> mapUnit
@@ -253,7 +253,7 @@ module DatabaseRepository =
         let filter = 
             match query with 
             | None -> Unfiltered
-            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
+            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query ORDER BY name LIMIT 25", {Query=like q})
         fetchAll<Department> (mapDepartments filter) connStr
 
     let queryDepartment = fetchOne<Department> mapDepartment
@@ -266,6 +266,7 @@ module DatabaseRepository =
         LEFT JOIN units pu on pu.id = u.parent_id
         JOIN unit_members m ON m.unit_id = u.id
         JOIN people p on p.id = m.person_id"""
+
     let queryDeptMemberUnits connStr department =
         let mapDeptMemberUnits = mapUnits' queryDeptMemberUnitsSql
         fetchAll<Unit> (mapDeptMemberUnits(WhereId("p.department_id", (identity department)))) connStr
@@ -288,7 +289,7 @@ module DatabaseRepository =
         let filter = 
             match query with 
             | None -> Unfiltered
-            | Some(q) -> WhereParam("name ILIKE @Query OR address ILIKE @Query OR code ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
+            | Some(q) -> WhereParam("name ILIKE @Query OR address ILIKE @Query OR code ILIKE @Query ORDER BY name LIMIT 25", {Query=like q})
         fetchAll<Building> (mapBuildings filter) connStr
 
     let queryBuilding = fetchOne<Building> mapBuilding
@@ -333,7 +334,8 @@ module DatabaseRepository =
             AND (CARDINALITY(@Campuses)=0 OR (p.campus ILIKE ANY (@Campuses)))
             AND (CARDINALITY(@Roles)=0 OR (um.role = ANY (@Roles)))
             AND (CARDINALITY(@Permissions)=0 OR (um.permissions = ANY (@Permissions)))
-            ORDER BY p.netid"""
+            ORDER BY p.netid
+            LIMIT 25"""
         fetchAll<Person> (mapPeople(WhereParam(whereClause, param))) connStr
     
     let queryPersonById = fetchOne<Person> mapPerson
@@ -503,8 +505,7 @@ module DatabaseRepository =
         parseQueryAndParam queryMemberToolsSql filter
         |> cn.QueryAsync<MemberTool>
 
-    let mapMemberTool id = 
-        mapMemberTools (WhereId("umt.id", id))
+    let mapMemberTool id = mapMemberTools (WhereId("umt.id", id))
 
     let queryMemberTools = fetchAll<MemberTool> (mapMemberTools Unfiltered)
 
