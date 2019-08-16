@@ -86,12 +86,12 @@ module DataRepository =
 
     let getAllNetIds connStr =
         let sql = "SELECT netid FROM people;"
-        fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql))
+        fetch (fun cn -> cn.QueryAsync<NetId>(sql)) connStr
 
     let fetchLatestHrPerson connStr netid = async {
         let sql = """SELECT * FROM hr_people WHERE netid=@NetId"""
         let param = {NetId = netid}
-        let! result = fetch connStr (fun cn -> cn.QueryAsync<HrPerson>(sql, param))
+        let! result = fetch (fun cn -> cn.QueryAsync<HrPerson>(sql, param)) connStr
         return
             match result with
             | Ok(people) -> people |> Seq.tryHead |> Ok
@@ -109,11 +109,11 @@ module DataRepository =
                 department_id = (SELECT id FROM departments WHERE name=@HrDepartment)
             WHERE netid = @NetId
             RETURNING *;"""
-        fetch connStr (fun cn -> cn.QuerySingleAsync<Person>(sql, person))
+        fetch (fun cn -> cn.QuerySingleAsync<Person>(sql, person)) connStr
 
     let getAllTools connStr =
         let sql = "SELECT * FROM tools"
-        fetch connStr (fun cn -> cn.QueryAsync<Tool>(sql))
+        fetch (fun cn -> cn.QueryAsync<Tool>(sql)) connStr
 
     let getAllToolUsers connStr (tool:Tool) =
         let sql = """
@@ -122,7 +122,7 @@ module DataRepository =
             JOIN unit_member_tools umt ON umt.membership_id = um.id
             WHERE umt.tool_id = @Id"""
         let param = {Id=tool.Id}
-        fetch connStr (fun cn -> cn.QueryAsync<NetId>(sql, param))
+        fetch (fun cn -> cn.QueryAsync<NetId>(sql, param)) connStr
 
     open NpgsqlTypes
 
@@ -199,7 +199,7 @@ module DataRepository =
             JOIN units u ON u.id = um.unit_id
             where p.netid = @NetId"""
         let param = {NetId=netid}
-        fetch connStr (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param))
+        fetch (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param)) connStr
 
     let insertHistoricalPersonAndDeletePerson connStr netid metadata = 
         let sql = """
@@ -230,7 +230,7 @@ module DataRepository =
             SELECT @NetId;"""
         let json = JsonConvert.SerializeObject(metadata, Core.Json.JsonSettings)
         let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
-        fetch connStr (fun cn -> cn.QuerySingleAsync<NetId>(sql, param))
+        fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
 
     let Repository psqlConnStr hrDataUrl adUser adPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
