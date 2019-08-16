@@ -373,6 +373,7 @@ module Functions =
     [<SwaggerRequestExample(typeof<UnitRequest>, typeof<UnitRequestExample>)>]
     [<SwaggerResponse(201, "A record of the newly created unit.", typeof<Unit>)>]
     [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The specified unit parent does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
@@ -390,7 +391,7 @@ module Functions =
     [<SwaggerResponse(200, "A record of the updated unit", typeof<Unit>)>]
     [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You do not have permission to modify this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided, or the specified unit parent does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
@@ -536,7 +537,8 @@ module Functions =
     [<SwaggerOperation(Summary="Create a unit membership.", Description="<em>Authorization</em>: Unit memberships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
     [<SwaggerResponse(201, "The newly created unit membership record", typeof<UnitMember>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing, or the specified unit does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed or the unitId field was missing.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The specified unit does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberCreate
@@ -553,9 +555,9 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit membership.", Description="<em>Authorization</em>: Unit memberships can be updated by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
     [<SwaggerResponse(200, "The update unit membership record.", typeof<UnitMember>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing, or the specified unit does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No membership was found with the ID provided, or the specified unit does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
@@ -619,8 +621,9 @@ module Functions =
     [<SwaggerOperation(Summary="Create a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be created by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
     [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembertoolExample>)>]
     [<SwaggerResponse(201, "The newly created unit member tool record", typeof<MemberTool>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the tool was missing, or the member was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify tools for this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The specified member/tool does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided member already has access to the provided tool.", typeof<ErrorModel>)>]
     let memberToolCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "membertools")>] req) =
@@ -636,9 +639,9 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be updated by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
     [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembertoolExample>)>]
     [<SwaggerResponse(200, "The update unit member tool record.", typeof<MemberTool>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the tool was missing, or the member was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify tools for this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No member tool was found with the provided ID.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No member tool was found with the provided ID, or the specified member/tool does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided member already has access to the provided tool.", typeof<ErrorModel>)>]
     let memberToolUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "membertools/{memberToolId}")>] req, memberToolId) =
@@ -753,8 +756,9 @@ module Functions =
     [<SwaggerOperation(Summary="Create a unit-department support relationship.", Description="<em>Authorization</em>: Support relationships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Support Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(201, "The newly created department support relationship record", typeof<SupportRelationship>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided department.", typeof<ErrorModel>)>]
     let supportRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "supportRelationships")>] req) =
@@ -769,9 +773,9 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit-department support relationship.", Description="<em>Authorization</em>: Support relationships can be modified by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Support Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(200, "The updated department support relationship record", typeof<SupportRelationship>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No support relationship was found with the ID provided, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided department.", typeof<ErrorModel>)>]
     let supportRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
@@ -885,8 +889,9 @@ module Functions =
     [<SwaggerOperation(Summary="Create a unit-building support relationship.", Description="<em>Authorization</em>: Support relationships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Building Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(201, "The newly created building support relationship record", typeof<SupportRelationship>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or buildingId field was missing, or the specified unit and/or building does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or buildingId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The specified unit and/or building does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided building.", typeof<ErrorModel>)>]
     let buildingRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "buildingRelationships")>] req) =
@@ -901,9 +906,9 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit-building support relationship.", Description="<em>Authorization</em>: Support relationships can be modified by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Building Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(200, "The updated building support relationship record", typeof<SupportRelationship>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or buildingId field was missing, or the specified unit and/or building does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or buildingId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No support relationship was found with the ID provided, or the specified unit and/or building does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided building.", typeof<ErrorModel>)>]
     let buildingRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
