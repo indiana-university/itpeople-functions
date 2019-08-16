@@ -138,17 +138,18 @@ module Command =
         insertImpl<'T> connStr
         >=> fetchOne<'T> connStr writeParams
 
-    let updateImpl<'T> connStr id (obj:^T) = async {
+    let updateImpl<'T> connStr (obj:'T) = async {
         try
             use cn = new NpgsqlConnection(connStr)
-            let! _ = cn.UpdateAsync<'T>(obj) |> Async.AwaitTask
-            return Ok id
+            let! rowCount = cn.UpdateAsync<'T>(obj) |> Async.AwaitTask
+            return Ok rowCount
         with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
     }
 
-    let update<'T> connStr writeParams id  = 
-        updateImpl<'T> connStr id
-        >=> fetchOne<'T> connStr writeParams
+    let inline update< ^T when ^T: (member Id:Id)> writeParams connStr (obj:^T)  = 
+        let id = (^T : (member Id:Id) obj)
+        updateImpl<'T> connStr obj
+        >>= fun _ -> fetchOne<'T> connStr writeParams id
 
     let delete<'T> connStr (id:int) = async {
         try

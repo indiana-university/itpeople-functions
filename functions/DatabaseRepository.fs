@@ -4,7 +4,6 @@
 namespace Functions
 
 open System.Net.Http
-open System.Net.Http.Headers
 
 open Core.Types
 open Core.Util
@@ -70,8 +69,8 @@ module DatabaseRepository =
         insertImpl<UnitMember> connStr unitMember
         >>= queryMembership connStr
 
-    let updateMembership connStr (unitMember:UnitMember) =
-        updateImpl<UnitMember> connStr unitMember.Id unitMember
+    let updateMembership connStr unitMember =
+        updateImpl<UnitMember> connStr unitMember
         >>= queryMembership connStr
 
     let deleteMembershipSql = """
@@ -109,8 +108,7 @@ module DatabaseRepository =
     let insertSupportRelationship connStr  =
         insert<SupportRelationship> connStr mapSupportRelationship
 
-    let updateSupportRelationship connStr (supportRelationship:SupportRelationship) =
-        update<SupportRelationship> connStr mapSupportRelationship supportRelationship.Id supportRelationship
+    let updateSupportRelationship = update<SupportRelationship> mapSupportRelationship
 
     let deleteSupportRelationship connStr supportRelationship =
         delete<SupportRelationship> connStr (identity supportRelationship)
@@ -143,8 +141,7 @@ module DatabaseRepository =
     let insertBuildingRelationship connStr  =
         insert<BuildingRelationship> connStr mapBuildingRelationship
 
-    let updateBuildingRelationship connStr (buildingRelationship:BuildingRelationship) =
-        update<BuildingRelationship> connStr mapBuildingRelationship buildingRelationship.Id buildingRelationship
+    let updateBuildingRelationship = update<BuildingRelationship> mapBuildingRelationship
 
     let deleteBuildingRelationship connStr (buildingRelationship:BuildingRelationship) =
         delete<BuildingRelationship> connStr (identity buildingRelationship)
@@ -181,8 +178,7 @@ module DatabaseRepository =
     let insertUnit connStr =
         insert<Unit> connStr mapUnit
 
-    let updateUnit connStr (unit:Unit) =
-        update<Unit> connStr mapUnit unit.Id unit
+    let updateUnit = update<Unit> mapUnit
 
     let deleteUnitSql = """
         DELETE FROM unit_members WHERE unit_id=@Id;
@@ -544,8 +540,7 @@ module DatabaseRepository =
     let insertMemberTool connStr  =
         insert<MemberTool> connStr mapMemberTool
 
-    let updateMemberTool connStr (memberTool:MemberTool) =
-        update<MemberTool> connStr mapMemberTool memberTool.Id memberTool
+    let updateMemberTool = update<MemberTool> mapMemberTool
 
     let deleteMemberTool connStr memberTool =
         delete<MemberTool> connStr (identity memberTool)
