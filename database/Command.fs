@@ -134,7 +134,7 @@ module Command =
         with exn -> return handleDbExn "insert" (typedefof<'T>.Name) exn
     }
 
-    let insert<'T> connStr writeParams =
+    let insert<'T> writeParams connStr  =
         insertImpl<'T> connStr
         >=> fetchOne<'T> connStr writeParams
 

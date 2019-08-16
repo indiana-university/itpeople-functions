@@ -105,8 +105,7 @@ module DatabaseRepository =
     let querySupportRelationship connStr id =
         fetchOne connStr mapSupportRelationship id
 
-    let insertSupportRelationship connStr  =
-        insert<SupportRelationship> connStr mapSupportRelationship
+    let insertSupportRelationship = insert<SupportRelationship> mapSupportRelationship
 
     let updateSupportRelationship = update<SupportRelationship> mapSupportRelationship
 
@@ -138,8 +137,7 @@ module DatabaseRepository =
     let queryBuildingRelationship connStr id =
         fetchOne connStr mapBuildingRelationship id
 
-    let insertBuildingRelationship connStr  =
-        insert<BuildingRelationship> connStr mapBuildingRelationship
+    let insertBuildingRelationship = insert<BuildingRelationship> mapBuildingRelationship
 
     let updateBuildingRelationship = update<BuildingRelationship> mapBuildingRelationship
 
@@ -175,8 +173,7 @@ module DatabaseRepository =
     let queryUnit connStr =
         fetchOne<Unit> connStr mapUnit
 
-    let insertUnit connStr =
-        insert<Unit> connStr mapUnit
+    let insertUnit = insert<Unit> mapUnit
 
     let updateUnit = update<Unit> mapUnit
 
@@ -455,10 +452,7 @@ module DatabaseRepository =
         return result
     }
 
-    let insertPerson connStr (person:Person) =
-        if isNull (box person.DepartmentId)
-        then error(Status.BadRequest, "This person's department is not known to the IT People directory.")
-        else insert<Person> connStr mapPerson person
+    let insertPerson = insert<Person> mapPerson
 
     let queryPersonMemberships connStr id =
         fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
@@ -537,8 +531,7 @@ module DatabaseRepository =
     let queryMemberTool connStr id =
         fetchOne connStr mapMemberTool id
 
-    let insertMemberTool connStr  =
-        insert<MemberTool> connStr mapMemberTool
+    let insertMemberTool = insert<MemberTool> mapMemberTool
 
     let updateMemberTool = update<MemberTool> mapMemberTool
 
