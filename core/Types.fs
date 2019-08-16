@@ -539,6 +539,8 @@ type BuildingRepository = {
     GetAll: Filter option -> Async<Result<Building seq,Error>>
     /// Get a single department by ID
     Get: Id -> Async<Result<Building,Error>>
+    /// Get a list of a buildings's supporting units        
+    GetSupportingUnits: Building -> Async<Result<BuildingRelationship seq,Error>>
 }
 
 

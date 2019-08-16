@@ -719,8 +719,8 @@ module Functions =
         get req workflow
 
     [<FunctionName("DepartmentGetAllSupportingUnits")>]
-    [<SwaggerOperation(Summary="List a department's supporting units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
-    [<SwaggerResponse(200, "A collection of unit records", typeof<seq<Unit>>)>]
+    [<SwaggerOperation(Summary="List a department's supporting units.", Description="A supporting unit provides IT services for the department.", Tags=[|"Departments"|])>]
+    [<SwaggerResponse(200, "A collection of department relationship records", typeof<seq<SupportRelationship>>)>]
     [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
@@ -855,6 +855,17 @@ module Functions =
             >=> fun _ -> data.Buildings.Get buildingId
         get req workflow    
 
+    [<FunctionName("BuildingGetAllSupportingUnits")>]
+    [<SwaggerOperation(Summary="List a buildings's supporting units.", Description="A supporting unit provides IT services for the building.", Tags=[|"Buildings"|])>]
+    [<SwaggerResponse(200, "A collection of building relationship records", typeof<seq<BuildingRelationship>>)>]
+    [<SwaggerResponse(404, "No building was found with the ID provided.", typeof<ErrorModel>)>]
+    let buildingGetSupportingUnits
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings/{buildingId}/supportingUnits")>] req, buildingId) =
+        let workflow =
+            authenticate
+            >=> fun _ -> data.Buildings.Get buildingId
+            >=> data.Buildings.GetSupportingUnits
+        get req workflow
 
     // *********************************
     // ** Building Support Relationships

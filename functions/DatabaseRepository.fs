@@ -313,6 +313,11 @@ module DatabaseRepository =
     let queryBuilding connStr id =
         fetchOne<Building> connStr mapBuilding id
 
+    let queryBuildingSupportingUnits connStr = 
+        identity 
+        >> fun id -> WhereId ("b.id", id) 
+        >> mapBuildingRelationships 
+        >> fetchAll connStr
 
     // ***********
     // People
@@ -695,6 +700,7 @@ module DatabaseRepository =
     let Buildings (connStr) = {
         GetAll = queryBuildings connStr
         Get = queryBuilding connStr
+        GetSupportingUnits = queryBuildingSupportingUnits connStr
     }
 
     let Memberships (connStr) : MembershipRepository = {
