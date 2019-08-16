@@ -84,9 +84,21 @@ module Command =
         | WhereId (clause,id)-> ((where sql clause+"=@Id"), {Id=id}:>obj)
         | WhereParam (clause,param)-> ((where sql clause), param)
 
+    let (|Contains|_|) (substr:string) (str:string) = if str.Contains(substr) then Some str else None
+    
     let handleDbExn name resource (exn:System.Exception) = 
-        let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
-        Error (Status.InternalServerError, msg)
+        let (status, msg) = 
+            match exn.Message with
+            | Contains "violates foreign key constraint" _ ->
+                let msg = sprintf "Could not %s %s because one or more related entities could not be found." name resource
+                (Status.NotFound, msg)
+            | Contains "violates unique constraint" _ ->
+                let msg = sprintf "Could not %s %s because that %s already exists." name resource resource
+                (Status.Conflict, msg)
+            | _ ->
+                let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
+                (Status.InternalServerError, msg)
+        Error(status, msg)
 
     let fetchAll<'T> connStr (mapper:MapMany<'T>) = async {
         try
