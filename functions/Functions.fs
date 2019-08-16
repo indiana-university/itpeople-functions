@@ -342,8 +342,6 @@ module Functions =
 
     let setUnitId id (a:Unit) = ok { a with Id=id }
 
-    let unitValidator = unitValidator(data)
-
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all IT units.", Description="""Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by unit name/description, ex: 'Parks'</ul></br>""" , Tags=[|"Units"|])>]
@@ -382,7 +380,7 @@ module Functions =
             deserializeBody<Unit>
             >=> setUnitId 0      
             >=> authorize req canCreateDeleteUnit
-            >=> unitValidator.ValidForCreate
+            >=> assertUnitParentRelationshipIsNotCircular data
             >=> data.Units.Create
         create req workflow
 
@@ -401,7 +399,7 @@ module Functions =
             >=> setUnitId unitId
             >=> ensureEntityExistsForModel data.Units.Get      
             >=> authorize req (canModifyUnit unitId)
-            >=> unitValidator.ValidForUpdate
+            >=> assertUnitParentRelationshipIsNotCircular data
             >=> data.Units.Update
         update req workflow
 
@@ -416,7 +414,7 @@ module Functions =
         let workflow =
             fun _ -> data.Units.Get unitId
             >=> authorize req canCreateDeleteUnit
-            >=> unitValidator.ValidForDelete
+            >=> assertUnitHasNoChildren data
             >=> data.Units.Delete
         delete req workflow
 
@@ -500,7 +498,6 @@ module Functions =
     // ** Unit Memberships
     // *******************
 
-    let membershipValidator = membershipValidator(data)
     let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
 
     [<FunctionName("MemberGetAll")>]
@@ -549,7 +546,6 @@ module Functions =
             >=> setMembershipId 0
             >=> authorizeRelationUnitModification req
             >=> ensureUnitMemberInDirectory
-            >=> membershipValidator.ValidForCreate
             >=> data.Memberships.Create
         create req workflow
 
@@ -569,7 +565,6 @@ module Functions =
             >=> ensureEntityExistsForModel data.Memberships.Get
             >=> authorizeRelationUnitModification req
             >=> ensureUnitMemberInDirectory
-            >=> membershipValidator.ValidForUpdate
             >=> data.Memberships.Update
         update req workflow
   
@@ -583,7 +578,6 @@ module Functions =
         let workflow =
             fun _ -> data.Memberships.Get membershipId
             >=> authorizeRelationUnitModification req
-            >=> membershipValidator.ValidForDelete
             >=> data.Memberships.Delete
         delete req workflow
 
@@ -592,7 +586,6 @@ module Functions =
     // ** Unit Member Tools
     // *******************
 
-    let memberToolValidator = memberToolValidator(data)
     let setMemberToolId id (a:MemberTool) = Ok { a with Id=id } |> async.Return
     let authorizeMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
         authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
@@ -634,7 +627,6 @@ module Functions =
         let workflow =
             deserializeBody<MemberTool>
             >=> setMemberToolId 0
-            >=> memberToolValidator.ValidForCreate
             >=> data.MemberTools.GetMember 
             >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Create
@@ -654,7 +646,6 @@ module Functions =
             deserializeBody<MemberTool>
             >=> setMemberToolId memberToolId
             >=> ensureEntityExistsForModel data.MemberTools.Get
-            >=> memberToolValidator.ValidForUpdate
             >=> data.MemberTools.GetMember  
             >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Update
@@ -670,7 +661,6 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "membertools/{memberToolId}")>] req, memberToolId) =
         let workflow =
             fun _ -> data.MemberTools.Get memberToolId
-            >=> memberToolValidator.ValidForDelete
             >=> data.MemberTools.GetMember  
             >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Delete
@@ -736,7 +726,6 @@ module Functions =
     // ************************
 
     let setRelationshipId id (a:SupportRelationship) = Ok { a with Id=id } |> async.Return
-    let relationshipValidator = supportRelationshipValidator data
 
     [<FunctionName("SupportRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-department support relationships.", Tags=[|"Support Relationships"|])>]
@@ -772,7 +761,6 @@ module Functions =
         let workflow = 
             deserializeBody<SupportRelationship>
             >=> setRelationshipId 0
-            >=> relationshipValidator.ValidForCreate
             >=> authorizeRelationUnitModification req
             >=> data.SupportRelationships.Create          
         create req workflow
@@ -791,7 +779,6 @@ module Functions =
             deserializeBody<SupportRelationship>
             >=> setRelationshipId relationshipId
             >=> ensureEntityExistsForModel data.SupportRelationships.Get
-            >=> relationshipValidator.ValidForUpdate
             >=> authorizeRelationUnitModification req
             >=> data.SupportRelationships.Update
         update req workflow
@@ -805,7 +792,6 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = 
             fun _ -> data.SupportRelationships.Get relationshipId
-            >=> relationshipValidator.ValidForDelete
             >=> authorizeRelationUnitModification req
             >=> data.SupportRelationships.Delete
         delete req workflow
@@ -872,7 +858,6 @@ module Functions =
     // *********************************
 
     let setBuildingRelationshipId id (a:BuildingRelationship) = Ok { a with Id=id } |> async.Return
-    let buildingRelationshipValidator = buildingRelationshipValidator data
 
     [<FunctionName("BuildingRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-building support relationships.", Tags=[|"Building Relationships"|])>]
@@ -908,7 +893,6 @@ module Functions =
         let workflow = 
             deserializeBody<BuildingRelationship>
             >=> setBuildingRelationshipId 0
-            >=> buildingRelationshipValidator.ValidForCreate
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Create          
         create req workflow
@@ -927,7 +911,6 @@ module Functions =
             deserializeBody<BuildingRelationship>
             >=> setBuildingRelationshipId relationshipId
             >=> ensureEntityExistsForModel data.BuildingRelationships.Get
-            >=> buildingRelationshipValidator.ValidForUpdate
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Update
         update req workflow
@@ -941,7 +924,6 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = 
             fun _ -> data.BuildingRelationships.Get relationshipId
-            >=> buildingRelationshipValidator.ValidForDelete
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Delete
         delete req workflow
