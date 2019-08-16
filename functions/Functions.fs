@@ -374,7 +374,6 @@ module Functions =
     [<SwaggerResponse(201, "A record of the newly created unit.", typeof<Unit>)>]
     [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(404, "The specified unit parent does not exist.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow =
@@ -392,7 +391,6 @@ module Functions =
     [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You do not have permission to modify this unit.", typeof<ErrorModel>)>]
     [<SwaggerResponse(404, "No unit was found with the ID provided, or the specified unit parent does not exist.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow =

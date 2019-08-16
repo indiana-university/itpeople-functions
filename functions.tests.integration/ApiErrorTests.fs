@@ -462,13 +462,6 @@ module ApiErrorTests =
             |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
-        member __.``Create a unit with existing unit name yields 409 Conflict`` () = 
-            requestFor HttpMethod.Post "units"
-            |> withAuthentication adminJwt
-            |> withBody parksAndRec
-            |> shouldGetResponse HttpStatusCode.Conflict
-
-        [<Fact>]       
         member __.``Update a unit with circular relationship yields 409 Conflict`` () = 
             sprintf "units/%d" cityOfPawnee.Id
             |> requestFor HttpMethod.Put

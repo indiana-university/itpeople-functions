@@ -9,7 +9,6 @@ type AddUniqueConstraints() =
   inherit Migration()
   override __.Up() =
     base.Execute("""
-ALTER TABLE units ADD CONSTRAINT units_unique_name UNIQUE (name);
 ALTER TABLE support_relationships ADD CONSTRAINT support_relationships_unique_unitid_departmentid UNIQUE (unit_id, department_id);
 ALTER TABLE building_relationships ADD CONSTRAINT building_relationships_unique_unitid_buildingid UNIQUE (unit_id, building_id);
 ALTER TABLE unit_members ADD CONSTRAINT unit_members_unique_unitid_personid UNIQUE (unit_id, person_id);
@@ -18,7 +17,6 @@ ALTER TABLE unit_member_tools ADD CONSTRAINT unit_member_tools_unique_toolid_mem
 
   override __.Down() =
     base.Execute("""
-ALTER TABLE units DROP CONSTRAINT units_unique_name;
 ALTER TABLE support_relationships DROP CONSTRAINT support_relationships_unique_unitid_departmentid;
 ALTER TABLE building_relationships DROP CONSTRAINT building_relationships_unique_unitid_buildingid;
 ALTER TABLE unit_members DROP CONSTRAINT unit_members_unique_unitid_personid;
