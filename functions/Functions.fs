@@ -342,8 +342,6 @@ module Functions =
 
     let setUnitId id (a:Unit) = ok { a with Id=id }
 
-    let unitValidator = unitValidator(data)
-
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all IT units.", Description="""Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by unit name/description, ex: 'Parks'</ul></br>""" , Tags=[|"Units"|])>]
@@ -375,14 +373,14 @@ module Functions =
     [<SwaggerRequestExample(typeof<UnitRequest>, typeof<UnitRequestExample>)>]
     [<SwaggerResponse(201, "A record of the newly created unit.", typeof<Unit>)>]
     [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The specified unit parent does not exist.", typeof<ErrorModel>)>]
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow =
             deserializeBody<Unit>
             >=> setUnitId 0      
             >=> authorize req canCreateDeleteUnit
-            >=> unitValidator.ValidForCreate
+            >=> assertUnitParentRelationshipIsNotCircular data
             >=> data.Units.Create
         create req workflow
 
@@ -392,8 +390,7 @@ module Functions =
     [<SwaggerResponse(200, "A record of the updated unit", typeof<Unit>)>]
     [<SwaggerResponse(400, "The request body is malformed, or the unit name is missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You do not have permission to modify this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No unit was found with the ID provided.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(409, "The request body specifies a name that is already in use by another unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No unit was found with the ID provided, or the specified unit parent does not exist.", typeof<ErrorModel>)>]
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow =
@@ -401,7 +398,7 @@ module Functions =
             >=> setUnitId unitId
             >=> ensureEntityExistsForModel data.Units.Get      
             >=> authorize req (canModifyUnit unitId)
-            >=> unitValidator.ValidForUpdate
+            >=> assertUnitParentRelationshipIsNotCircular data
             >=> data.Units.Update
         update req workflow
 
@@ -416,7 +413,7 @@ module Functions =
         let workflow =
             fun _ -> data.Units.Get unitId
             >=> authorize req canCreateDeleteUnit
-            >=> unitValidator.ValidForDelete
+            >=> assertUnitHasNoChildren data
             >=> data.Units.Delete
         delete req workflow
 
@@ -500,7 +497,6 @@ module Functions =
     // ** Unit Memberships
     // *******************
 
-    let membershipValidator = membershipValidator(data)
     let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
 
     [<FunctionName("MemberGetAll")>]
@@ -539,7 +535,8 @@ module Functions =
     [<SwaggerOperation(Summary="Create a unit membership.", Description="<em>Authorization</em>: Unit memberships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
     [<SwaggerResponse(201, "The newly created unit membership record", typeof<UnitMember>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing, or the specified unit does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed or the unitId field was missing.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The specified unit does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberCreate
@@ -549,7 +546,6 @@ module Functions =
             >=> setMembershipId 0
             >=> authorizeRelationUnitModification req
             >=> ensureUnitMemberInDirectory
-            >=> membershipValidator.ValidForCreate
             >=> data.Memberships.Create
         create req workflow
 
@@ -557,9 +553,9 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit membership.", Description="<em>Authorization</em>: Unit memberships can be updated by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
     [<SwaggerRequestExample(typeof<UnitMemberRequest>, typeof<MembershipRequestExample>)>]
     [<SwaggerResponse(200, "The update unit membership record.", typeof<UnitMember>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing, or the specified unit does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No membership was found with the ID provided, or the specified unit does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
@@ -569,7 +565,6 @@ module Functions =
             >=> ensureEntityExistsForModel data.Memberships.Get
             >=> authorizeRelationUnitModification req
             >=> ensureUnitMemberInDirectory
-            >=> membershipValidator.ValidForUpdate
             >=> data.Memberships.Update
         update req workflow
   
@@ -583,7 +578,6 @@ module Functions =
         let workflow =
             fun _ -> data.Memberships.Get membershipId
             >=> authorizeRelationUnitModification req
-            >=> membershipValidator.ValidForDelete
             >=> data.Memberships.Delete
         delete req workflow
 
@@ -592,7 +586,6 @@ module Functions =
     // ** Unit Member Tools
     // *******************
 
-    let memberToolValidator = memberToolValidator(data)
     let setMemberToolId id (a:MemberTool) = Ok { a with Id=id } |> async.Return
     let authorizeMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
         authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
@@ -626,15 +619,15 @@ module Functions =
     [<SwaggerOperation(Summary="Create a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be created by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
     [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembertoolExample>)>]
     [<SwaggerResponse(201, "The newly created unit member tool record", typeof<MemberTool>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the tool was missing, or the member was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify tools for this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The specified member/tool does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided member already has access to the provided tool.", typeof<ErrorModel>)>]
     let memberToolCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "membertools")>] req) =
         let workflow =
             deserializeBody<MemberTool>
             >=> setMemberToolId 0
-            >=> memberToolValidator.ValidForCreate
             >=> data.MemberTools.GetMember 
             >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Create
@@ -644,9 +637,9 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be updated by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
     [<SwaggerRequestExample(typeof<MemberTool>, typeof<MembertoolExample>)>]
     [<SwaggerResponse(200, "The update unit member tool record.", typeof<MemberTool>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the tool was missing or incorrect, or the member was missing or incorrect.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the tool was missing, or the member was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify tools for this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No member tool was found with the provided ID.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No member tool was found with the provided ID, or the specified member/tool does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided member already has access to the provided tool.", typeof<ErrorModel>)>]
     let memberToolUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "membertools/{memberToolId}")>] req, memberToolId) =
@@ -654,7 +647,6 @@ module Functions =
             deserializeBody<MemberTool>
             >=> setMemberToolId memberToolId
             >=> ensureEntityExistsForModel data.MemberTools.Get
-            >=> memberToolValidator.ValidForUpdate
             >=> data.MemberTools.GetMember  
             >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Update
@@ -670,7 +662,6 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "membertools/{memberToolId}")>] req, memberToolId) =
         let workflow =
             fun _ -> data.MemberTools.Get memberToolId
-            >=> memberToolValidator.ValidForDelete
             >=> data.MemberTools.GetMember  
             >=> authorizeMemberToolUnitModification req
             >=> data.MemberTools.Delete
@@ -719,8 +710,8 @@ module Functions =
         get req workflow
 
     [<FunctionName("DepartmentGetAllSupportingUnits")>]
-    [<SwaggerOperation(Summary="List a department's supporting units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
-    [<SwaggerResponse(200, "A collection of unit records", typeof<seq<Unit>>)>]
+    [<SwaggerOperation(Summary="List a department's supporting units.", Description="A supporting unit provides IT services for the department.", Tags=[|"Departments"|])>]
+    [<SwaggerResponse(200, "A collection of department relationship records", typeof<seq<SupportRelationship>>)>]
     [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
@@ -736,7 +727,6 @@ module Functions =
     // ************************
 
     let setRelationshipId id (a:SupportRelationship) = Ok { a with Id=id } |> async.Return
-    let relationshipValidator = supportRelationshipValidator data
 
     [<FunctionName("SupportRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-department support relationships.", Tags=[|"Support Relationships"|])>]
@@ -764,15 +754,15 @@ module Functions =
     [<SwaggerOperation(Summary="Create a unit-department support relationship.", Description="<em>Authorization</em>: Support relationships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Support Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(201, "The newly created department support relationship record", typeof<SupportRelationship>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided department.", typeof<ErrorModel>)>]
     let supportRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "supportRelationships")>] req) =
         let workflow = 
             deserializeBody<SupportRelationship>
             >=> setRelationshipId 0
-            >=> relationshipValidator.ValidForCreate
             >=> authorizeRelationUnitModification req
             >=> data.SupportRelationships.Create          
         create req workflow
@@ -781,9 +771,9 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit-department support relationship.", Description="<em>Authorization</em>: Support relationships can be modified by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Support Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(200, "The updated department support relationship record", typeof<SupportRelationship>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or departmentId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No support relationship was found with the ID provided, or the specified unit and/or department does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided department.", typeof<ErrorModel>)>]
     let supportRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
@@ -791,7 +781,6 @@ module Functions =
             deserializeBody<SupportRelationship>
             >=> setRelationshipId relationshipId
             >=> ensureEntityExistsForModel data.SupportRelationships.Get
-            >=> relationshipValidator.ValidForUpdate
             >=> authorizeRelationUnitModification req
             >=> data.SupportRelationships.Update
         update req workflow
@@ -805,7 +794,6 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = 
             fun _ -> data.SupportRelationships.Get relationshipId
-            >=> relationshipValidator.ValidForDelete
             >=> authorizeRelationUnitModification req
             >=> data.SupportRelationships.Delete
         delete req workflow
@@ -855,13 +843,23 @@ module Functions =
             >=> fun _ -> data.Buildings.Get buildingId
         get req workflow    
 
+    [<FunctionName("BuildingGetAllSupportingUnits")>]
+    [<SwaggerOperation(Summary="List a buildings's supporting units.", Description="A supporting unit provides IT services for the building.", Tags=[|"Buildings"|])>]
+    [<SwaggerResponse(200, "A collection of building relationship records", typeof<seq<BuildingRelationship>>)>]
+    [<SwaggerResponse(404, "No building was found with the ID provided.", typeof<ErrorModel>)>]
+    let buildingGetSupportingUnits
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings/{buildingId}/supportingUnits")>] req, buildingId) =
+        let workflow =
+            authenticate
+            >=> fun _ -> data.Buildings.Get buildingId
+            >=> data.Buildings.GetSupportingUnits
+        get req workflow
 
     // *********************************
     // ** Building Support Relationships
     // *********************************
 
     let setBuildingRelationshipId id (a:BuildingRelationship) = Ok { a with Id=id } |> async.Return
-    let buildingRelationshipValidator = buildingRelationshipValidator data
 
     [<FunctionName("BuildingRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-building support relationships.", Tags=[|"Building Relationships"|])>]
@@ -889,15 +887,15 @@ module Functions =
     [<SwaggerOperation(Summary="Create a unit-building support relationship.", Description="<em>Authorization</em>: Support relationships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Building Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(201, "The newly created building support relationship record", typeof<SupportRelationship>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or buildingId field was missing, or the specified unit and/or building does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or buildingId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "The specified unit and/or building does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided building.", typeof<ErrorModel>)>]
     let buildingRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "buildingRelationships")>] req) =
         let workflow = 
             deserializeBody<BuildingRelationship>
             >=> setBuildingRelationshipId 0
-            >=> buildingRelationshipValidator.ValidForCreate
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Create          
         create req workflow
@@ -906,9 +904,9 @@ module Functions =
     [<SwaggerOperation(Summary="Update a unit-building support relationship.", Description="<em>Authorization</em>: Support relationships can be modified by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Building Relationships"|])>]
     [<SwaggerRequestExample(typeof<SupportRelationshipRequest>, typeof<SupportRelationshipRequestExample>)>]
     [<SwaggerResponse(200, "The updated building support relationship record", typeof<SupportRelationship>)>]
-    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or buildingId field was missing, or the specified unit and/or building does not exist.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(400, "The request body was malformed, the unitId and/or buildingId field was missing.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You are not authorized to modify this unit.", typeof<ErrorModel>)>]
-    [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
+    [<SwaggerResponse(404, "No support relationship was found with the ID provided, or the specified unit and/or building does not exist.", typeof<ErrorModel>)>]
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided building.", typeof<ErrorModel>)>]
     let buildingRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
@@ -916,7 +914,6 @@ module Functions =
             deserializeBody<BuildingRelationship>
             >=> setBuildingRelationshipId relationshipId
             >=> ensureEntityExistsForModel data.BuildingRelationships.Get
-            >=> buildingRelationshipValidator.ValidForUpdate
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Update
         update req workflow
@@ -930,7 +927,6 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = 
             fun _ -> data.BuildingRelationships.Get relationshipId
-            >=> buildingRelationshipValidator.ValidForDelete
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Delete
         delete req workflow

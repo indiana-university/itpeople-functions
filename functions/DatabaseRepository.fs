@@ -4,7 +4,6 @@
 namespace Functions
 
 open System.Net.Http
-open System.Net.Http.Headers
 
 open Core.Types
 open Core.Util
@@ -55,12 +54,12 @@ module DatabaseRepository =
     let head seq = Seq.head seq |> Ok |> async.Return
 
     let queryMemberships connStr =
-        fetchAll connStr (mapUnitMembers(Unfiltered))
+        fetchAll (mapUnitMembers(Unfiltered)) connStr
         >>= stripNotes
         >>= collectMemberTools
 
     let queryMembership connStr id =
-        fetchAll connStr (mapUnitMembers (WhereId("m.id", id)))
+        fetchAll (mapUnitMembers (WhereId("m.id", id))) connStr
         >>= requireOne
         >>= stripNotes
         >>= collectMemberTools
@@ -70,16 +69,16 @@ module DatabaseRepository =
         insertImpl<UnitMember> connStr unitMember
         >>= queryMembership connStr
 
-    let updateMembership connStr (unitMember:UnitMember) =
-        updateImpl<UnitMember> connStr unitMember.Id unitMember
+    let updateMembership connStr unitMember =
+        updateImpl<UnitMember> connStr unitMember
         >>= queryMembership connStr
 
     let deleteMembershipSql = """
         DELETE FROM unit_member_tools WHERE membership_id=@Id;
         DELETE FROM unit_members WHERE id=@Id;"""
 
-    let deleteMembership connStr (unitMember:UnitMember) =
-        execute connStr deleteMembershipSql {Id=unitMember.Id}
+    let deleteMembership connStr unitMember =
+        execute connStr deleteMembershipSql {Id=(identity unitMember)}
 
 
     // *********************
@@ -100,20 +99,15 @@ module DatabaseRepository =
     let mapSupportRelationship id = 
         mapSupportRelationships (WhereId("s.id", id))
 
-    let querySupportRelationships connStr =
-        fetchAll<SupportRelationship> connStr (mapSupportRelationships Unfiltered)
+    let querySupportRelationships = fetchAll<SupportRelationship> (mapSupportRelationships Unfiltered)
 
-    let querySupportRelationship connStr id =
-        fetchOne connStr mapSupportRelationship id
+    let querySupportRelationship = fetchOne<SupportRelationship> mapSupportRelationship
 
-    let insertSupportRelationship connStr  =
-        insert<SupportRelationship> connStr mapSupportRelationship
+    let insertSupportRelationship = insert<SupportRelationship> mapSupportRelationship
 
-    let updateSupportRelationship connStr (supportRelationship:SupportRelationship) =
-        update<SupportRelationship> connStr mapSupportRelationship supportRelationship.Id supportRelationship
+    let updateSupportRelationship = update<SupportRelationship> mapSupportRelationship
 
-    let deleteSupportRelationship connStr supportRelationship =
-        delete<SupportRelationship> connStr (identity supportRelationship)
+    let deleteSupportRelationship = delete<SupportRelationship>
    
 
     // *********************
@@ -131,23 +125,17 @@ module DatabaseRepository =
         let mapper r b u = {r with Unit=u; Building=b}
         cn.QueryAsync<BuildingRelationship, Building, Unit, BuildingRelationship>(query, mapper, param)
 
-    let mapBuildingRelationship id = 
-        mapBuildingRelationships (WhereId("r.id", id))
+    let mapBuildingRelationship id = mapBuildingRelationships (WhereId("r.id", id))
 
-    let queryBuildingRelationships connStr =
-        fetchAll<BuildingRelationship> connStr (mapBuildingRelationships Unfiltered)
+    let queryBuildingRelationships = fetchAll<BuildingRelationship> (mapBuildingRelationships Unfiltered)
 
-    let queryBuildingRelationship connStr id =
-        fetchOne connStr mapBuildingRelationship id
+    let queryBuildingRelationship = fetchOne<BuildingRelationship> mapBuildingRelationship
 
-    let insertBuildingRelationship connStr  =
-        insert<BuildingRelationship> connStr mapBuildingRelationship
+    let insertBuildingRelationship = insert<BuildingRelationship> mapBuildingRelationship
 
-    let updateBuildingRelationship connStr (buildingRelationship:BuildingRelationship) =
-        update<BuildingRelationship> connStr mapBuildingRelationship buildingRelationship.Id buildingRelationship
+    let updateBuildingRelationship = update<BuildingRelationship> mapBuildingRelationship
 
-    let deleteBuildingRelationship connStr (buildingRelationship:BuildingRelationship) =
-        delete<BuildingRelationship> connStr (identity buildingRelationship)
+    let deleteBuildingRelationship = delete<BuildingRelationship>
    
 
     // **********
@@ -172,44 +160,41 @@ module DatabaseRepository =
         let filter = 
             match query with 
             | None -> Where("u.parent_id IS NULL")
-            | Some(q) -> WhereParam("u.name ILIKE @Query OR u.description ILIKE @Query ORDER BY u.name LIMIT 15", {Query=like q})
-        fetchAll<Unit> connStr (mapUnits(filter))
+            | Some(q) -> WhereParam("u.name ILIKE @Query OR u.description ILIKE @Query ORDER BY u.name LIMIT 25", {Query=like q})
+        fetchAll<Unit> (mapUnits(filter)) connStr
 
-    let queryUnit connStr =
-        fetchOne<Unit> connStr mapUnit
+    let queryUnit = fetchOne<Unit> mapUnit
 
-    let insertUnit connStr =
-        insert<Unit> connStr mapUnit
+    let insertUnit = insert<Unit> mapUnit
 
-    let updateUnit connStr (unit:Unit) =
-        update<Unit> connStr mapUnit unit.Id unit
+    let updateUnit = update<Unit> mapUnit
 
     let deleteUnitSql = """
         DELETE FROM unit_members WHERE unit_id=@Id;
         DELETE FROM support_relationships WHERE unit_id=@Id;
         DELETE FROM units WHERE id=@Id"""
 
-    let deleteUnit connStr (unit:Unit) =
-        execute connStr deleteUnitSql {Id=unit.Id}
+    let deleteUnit connStr unit =
+        execute connStr deleteUnitSql {Id=(identity unit)}
 
     let queryUnitChildren connStr (unit:Unit) =
-        fetchAll<Unit> connStr (mapUnits(WhereId("u.parent_id", unit.Id)))
+        fetchAll<Unit> (mapUnits(WhereId("u.parent_id", unit.Id))) connStr
 
     let queryUnitMembers connStr (options:UnitMemberRecordFieldOptions) =
         match options with
         | MembersWithoutNotes(unit) ->
-            fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
+            fetchAll (mapUnitMembers (WhereId("u.id", unit.Id))) connStr
             >>= stripNotes
             >>= collectMemberTools
         | MembersWithNotes(unit) ->
-            fetchAll connStr (mapUnitMembers (WhereId("u.id", unit.Id)))
+            fetchAll (mapUnitMembers (WhereId("u.id", unit.Id))) connStr
             >>= collectMemberTools
 
     let queryUnitSupportedDepartments connStr (unit:Unit) =
-        fetchAll connStr (mapSupportRelationships(WhereId("u.id", unit.Id)))
+        fetchAll (mapSupportRelationships(WhereId("u.id", unit.Id))) connStr
 
     let queryUnitSupportedBuildings connStr (unit:Unit) =
-        fetchAll connStr (mapBuildingRelationships(WhereId("u.id", unit.Id)))
+        fetchAll (mapBuildingRelationships(WhereId("u.id", unit.Id))) connStr
 
     // This query is recursive. (Whoa.)
     // Given some unit id (ChildId) it will recurse to 
@@ -244,13 +229,10 @@ module DatabaseRepository =
 
     let tryGetFirstResult seq = seq |> Seq.tryHead |> Ok |> async.Return
 
-    let queryUnitGetDescendantOfParent connStr  =
-        let makeMapper (parentId, childId) =
-            let param = {ParentId=parentId; ChildId=childId}
-            (fun (cn:Cn) -> cn.QueryAsync<Unit>(queryUnitParentageSql, param)) |> Ok |> async.Return
-        makeMapper    
-        >=> fetchAll connStr
-        >=> tryGetFirstResult
+    let queryUnitGetDescendantOfParent connStr (parentId, childId) =
+        let mapper = fun (cn:Cn) -> cn.QueryAsync<Unit>(queryUnitParentageSql, {ParentId=parentId; ChildId=childId})
+        fetchAll<Unit> mapper connStr
+        >>= tryGetFirstResult
 
 
     // ***********
@@ -271,23 +253,23 @@ module DatabaseRepository =
         let filter = 
             match query with 
             | None -> Unfiltered
-            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
-        fetchAll<Department> connStr (mapDepartments filter)
+            | Some(q) -> WhereParam("name ILIKE @Query OR description ILIKE @Query ORDER BY name LIMIT 25", {Query=like q})
+        fetchAll<Department> (mapDepartments filter) connStr
 
-    let queryDepartment connStr id =
-        fetchOne<Department> connStr mapDepartment id
+    let queryDepartment = fetchOne<Department> mapDepartment
 
     let queryDeptSupportingUnits connStr department = 
-        fetchAll connStr (mapSupportRelationships (WhereId("d.id", (identity department))))
+        fetchAll<SupportRelationship> (mapSupportRelationships (WhereId("d.id", (identity department)))) connStr
 
     let queryDeptMemberUnitsSql = """
         SELECT DISTINCT ON (u.id) u.*, pu.* FROM units u
         LEFT JOIN units pu on pu.id = u.parent_id
         JOIN unit_members m ON m.unit_id = u.id
         JOIN people p on p.id = m.person_id"""
+
     let queryDeptMemberUnits connStr department =
         let mapDeptMemberUnits = mapUnits' queryDeptMemberUnitsSql
-        fetchAll<Unit> connStr (mapDeptMemberUnits(WhereId("p.department_id", (identity department))))
+        fetchAll<Unit> (mapDeptMemberUnits(WhereId("p.department_id", (identity department)))) connStr
 
     // ***********
     // Buildings
@@ -303,16 +285,24 @@ module DatabaseRepository =
     let mapBuilding id = 
         mapBuildings (WhereId("b.id", id))
 
+    type BuildingQuery =
+      { Query: string
+        QueryNoDash: string }
+
     let queryBuildings connStr query =
         let filter = 
             match query with 
             | None -> Unfiltered
-            | Some(q) -> WhereParam("name ILIKE @Query OR address ILIKE @Query OR code ILIKE @Query ORDER BY name LIMIT 15", {Query=like q})
-        fetchAll<Building> connStr (mapBuildings filter)
+            | Some(q:string) -> 
+                let param = {Query=like q; QueryNoDash=like (q.Replace("-",""))}
+                WhereParam("name ILIKE @Query OR address ILIKE @Query OR code ILIKE @Query OR code ILIKE @QueryNoDash ORDER BY name LIMIT 25", param)
+        fetchAll<Building> (mapBuildings filter) connStr
 
-    let queryBuilding connStr id =
-        fetchOne<Building> connStr mapBuilding id
+    let queryBuilding = fetchOne<Building> mapBuilding
 
+    let queryBuildingSupportingUnits connStr building= 
+        let filter = WhereId ("b.id", (identity building))
+        fetchAll<BuildingRelationship> (mapBuildingRelationships filter) connStr
 
     // ***********
     // People
@@ -350,11 +340,11 @@ module DatabaseRepository =
             AND (CARDINALITY(@Campuses)=0 OR (p.campus ILIKE ANY (@Campuses)))
             AND (CARDINALITY(@Roles)=0 OR (um.role = ANY (@Roles)))
             AND (CARDINALITY(@Permissions)=0 OR (um.permissions = ANY (@Permissions)))
-            ORDER BY p.netid"""
-        fetchAll connStr (mapPeople(WhereParam(whereClause, param)))
+            ORDER BY p.netid
+            LIMIT 25"""
+        fetchAll<Person> (mapPeople(WhereParam(whereClause, param))) connStr
     
-    let queryPersonById connStr =
-        fetchOne<Person> connStr mapPerson
+    let queryPersonById = fetchOne<Person> mapPerson
 
     let queryPeopleWithHr connStr netId =
         let sql = """
@@ -409,7 +399,7 @@ module DatabaseRepository =
         	expertise, responsibilities, is_service_admin, location, photo_url, notes
         FROM cte"""
         let param = {NetId=like netId}
-        fetchAll connStr (fun cn -> cn.QueryAsync<Person>(sql, param))
+        fetchAll<Person> (fun cn -> cn.QueryAsync<Person>(sql, param)) connStr
 
     let queryHrPerson connStr netId =
         let sql = """
@@ -432,18 +422,18 @@ module DatabaseRepository =
         LEFT JOIN departments d on d.name = hr.hr_department
         WHERE netid ILIKE @NetId"""
         let param = {NetId=netId}
-        fetchAll connStr (fun cn -> cn.QueryAsync<Person>(sql, param))
+        fetchAll<Person> (fun cn -> cn.QueryAsync<Person>(sql, param)) connStr
         >>= fun people ->
             match people with 
             | EmptySeq -> error(Status.NotFound, "No HR person was found with that netid")
             | _ -> people |> Seq.head |> ok
 
     let queryPersonByNetId connStr netid =
-        fetchAll<Person> connStr (mapPeople (WhereParam("p.netid=@NetId", {NetId=netid})))
+        fetchAll<Person> (mapPeople (WhereParam("p.netid=@NetId", {NetId=netid}))) connStr
         >>= takeExactlyOne
 
     let tryQueryPersonByNetId connStr netId = async {
-        let! people = fetchAll<Person> connStr (mapPeople(WhereParam("netid = @NetId", {NetId=netId})))
+        let! people = fetchAll<Person> (mapPeople(WhereParam("netid = @NetId", {NetId=netId}))) connStr
         let result = 
             match people with
             | Ok result ->
@@ -454,13 +444,10 @@ module DatabaseRepository =
         return result
     }
 
-    let insertPerson connStr (person:Person) =
-        if isNull (box person.DepartmentId)
-        then error(Status.BadRequest, "This person's department is not known to the IT People directory.")
-        else insert<Person> connStr mapPerson person
+    let insertPerson = insert<Person> mapPerson
 
     let queryPersonMemberships connStr id =
-        fetchAll connStr (mapUnitMembers(WhereId("p.id", id)))
+        fetchAll (mapUnitMembers(WhereId("p.id", id))) connStr
         >>= stripNotes
         >>= collectMemberTools
 
@@ -474,8 +461,8 @@ module DatabaseRepository =
             SELECT @Id"""
         let updatePersonQuery (cn:Cn) = cn.QuerySingleAsync<Id>(sql, person)
         
-        fetch<Id> connStr updatePersonQuery
-        >>= fetchOne<Person> connStr mapPerson
+        fetch<Id> updatePersonQuery connStr
+        >>= fetchOne<Person> mapPerson connStr
 
     // ***********
     // Tools
@@ -507,14 +494,11 @@ module DatabaseRepository =
     let mapTool id = 
         map<Tool> queryToolsSql (WhereId("t.id", id))
 
-    let queryTools connStr =
-        fetchAll<Tool> connStr (map queryToolsSql Unfiltered)
+    let queryTools = fetchAll<Tool> (map queryToolsSql Unfiltered)
 
-    let queryToolPermissions connStr =
-        fetchAll<ToolPermission> connStr (map queryToolPermissionsSql Unfiltered)
+    let queryToolPermissions = fetchAll<ToolPermission> (map queryToolPermissionsSql Unfiltered)
 
-    let queryTool connStr id =
-        fetchOne<Tool> connStr mapTool id
+    let queryTool = fetchOne<Tool> mapTool
 
     // *********************
     // Member Tools
@@ -527,23 +511,17 @@ module DatabaseRepository =
         parseQueryAndParam queryMemberToolsSql filter
         |> cn.QueryAsync<MemberTool>
 
-    let mapMemberTool id = 
-        mapMemberTools (WhereId("umt.id", id))
+    let mapMemberTool id = mapMemberTools (WhereId("umt.id", id))
 
-    let queryMemberTools connStr =
-        fetchAll<MemberTool> connStr (mapMemberTools Unfiltered)
+    let queryMemberTools = fetchAll<MemberTool> (mapMemberTools Unfiltered)
 
-    let queryMemberTool connStr id =
-        fetchOne connStr mapMemberTool id
+    let queryMemberTool = fetchOne<MemberTool> mapMemberTool
 
-    let insertMemberTool connStr  =
-        insert<MemberTool> connStr mapMemberTool
+    let insertMemberTool = insert<MemberTool> mapMemberTool
 
-    let updateMemberTool connStr (memberTool:MemberTool) =
-        update<MemberTool> connStr mapMemberTool memberTool.Id memberTool
+    let updateMemberTool = update<MemberTool> mapMemberTool
 
-    let deleteMemberTool connStr memberTool =
-        delete<MemberTool> connStr (identity memberTool)
+    let deleteMemberTool = delete<MemberTool>
 
     let getMemberToolMember connStr (memberTool:MemberTool) =
         queryMembership connStr memberTool.MembershipId
@@ -565,9 +543,8 @@ module DatabaseRepository =
         >>= fun resp -> ok resp.value
 
     let isServiceAdmin connStr netid =
-        let param = { NetId=netid }
-        let query (cn:Cn) = cn.QuerySingleAsync<bool>(isServiceAdminSql, param)
-        fetch connStr query        
+        let query (cn:Cn) = cn.QuerySingleAsync<bool>(isServiceAdminSql, { NetId=netid })
+        fetch query connStr
 
     let hasCascadedUnitPermsSql = """
     WITH RECURSIVE parentage AS (
@@ -603,7 +580,7 @@ module DatabaseRepository =
             NetId=netid 
             UnitPermissions= permissions |> Seq.map int |> Seq.toArray }
         let query (cn:Cn) = cn.QuerySingleAsync<bool>(hasCascadedUnitPermsSql, param)
-        fetch connStr query
+        fetch query connStr
 
     let isServiceAdminOrHasUnitPermissions permissions connStr netid unitId =
         isServiceAdmin connStr netid
@@ -658,7 +635,7 @@ module DatabaseRepository =
         >>= fun isServiceAdmin ->
             if isServiceAdmin
             then ok true
-            else fetch connStr canModifyPersonQuery
+            else fetch canModifyPersonQuery connStr
 
     let People(connStr) = {
         TryGetId = tryQueryPersonByNetId connStr
@@ -695,6 +672,7 @@ module DatabaseRepository =
     let Buildings (connStr) = {
         GetAll = queryBuildings connStr
         Get = queryBuilding connStr
+        GetSupportingUnits = queryBuildingSupportingUnits connStr
     }
 
     let Memberships (connStr) : MembershipRepository = {

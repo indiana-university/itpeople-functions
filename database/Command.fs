@@ -84,11 +84,23 @@ module Command =
         | WhereId (clause,id)-> ((where sql clause+"=@Id"), {Id=id}:>obj)
         | WhereParam (clause,param)-> ((where sql clause), param)
 
+    let (|Contains|_|) (substr:string) (str:string) = if str.Contains(substr) then Some str else None
+    
     let handleDbExn name resource (exn:System.Exception) = 
-        let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
-        Error (Status.InternalServerError, msg)
+        let (status, msg) = 
+            match exn.Message with
+            | Contains "violates foreign key constraint" _ ->
+                let msg = sprintf "Could not %s %s because one or more related entities could not be found." name resource
+                (Status.NotFound, msg)
+            | Contains "violates unique constraint" _ ->
+                let msg = sprintf "Could not %s %s because that %s already exists." name resource resource
+                (Status.Conflict, msg)
+            | _ ->
+                let msg = sprintf "Database error on %s %s: %s" name resource exn.Message
+                (Status.InternalServerError, msg)
+        Error(status, msg)
 
-    let fetchAll<'T> connStr (mapper:MapMany<'T>) = async {
+    let fetchAll<'T> (mapper:MapMany<'T>) connStr = async {
         try
             use cn = new NpgsqlConnection(connStr)
             let! result = cn |> mapper |> Async.AwaitTask
@@ -96,7 +108,7 @@ module Command =
         with exn -> return handleDbExn "fetch+map all" (typedefof<'T>.Name) exn
     }
 
-    let fetchOne<'T> connStr (mapper:MapOne<'T>) id  = async {
+    let fetchOne<'T> (mapper:MapOne<'T>) connStr id  = async {
         try
             use cn = new NpgsqlConnection(connStr)
             let! result = mapper id cn |> Async.AwaitTask
@@ -106,7 +118,7 @@ module Command =
         with exn -> return handleDbExn "fetch+map one" (typedefof<'T>.Name) exn
     }
 
-    let fetch<'T> connStr (queryFn:Cn -> Task<'T>)  = async {
+    let fetch<'T> (queryFn:Cn -> Task<'T>) connStr  = async {
         try
             use cn = new NpgsqlConnection(connStr)
             let! result = cn |> queryFn |> Async.AwaitTask
@@ -122,24 +134,26 @@ module Command =
         with exn -> return handleDbExn "insert" (typedefof<'T>.Name) exn
     }
 
-    let insert<'T> connStr writeParams =
+    let insert<'T> writeParams connStr  =
         insertImpl<'T> connStr
-        >=> fetchOne<'T> connStr writeParams
+        >=> fetchOne<'T> writeParams connStr
 
-    let updateImpl<'T> connStr id (obj:^T) = async {
+    let updateImpl<'T> connStr (obj:'T) = async {
         try
             use cn = new NpgsqlConnection(connStr)
-            let! _ = cn.UpdateAsync<'T>(obj) |> Async.AwaitTask
-            return Ok id
+            let! rowCount = cn.UpdateAsync<'T>(obj) |> Async.AwaitTask
+            return Ok rowCount
         with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
     }
 
-    let update<'T> connStr writeParams id  = 
-        updateImpl<'T> connStr id
-        >=> fetchOne<'T> connStr writeParams
+    let inline update< ^T when ^T: (member Id:Id)> writeParams connStr (obj:^T)  = 
+        let id = (identity obj)
+        updateImpl<'T> connStr obj
+        >>= fun _ -> fetchOne<'T> writeParams connStr id
 
-    let delete<'T> connStr (id:int) = async {
+    let inline delete< ^T when ^T: (member Id:Id)> connStr (obj:^T) = async {
         try
+            let id = (identity obj)
             use cn = new NpgsqlConnection(connStr)
             let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
             return () |> Ok
