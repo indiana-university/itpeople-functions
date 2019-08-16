@@ -285,11 +285,17 @@ module DatabaseRepository =
     let mapBuilding id = 
         mapBuildings (WhereId("b.id", id))
 
+    type BuildingQuery =
+      { Query: string
+        QueryNoDash: string }
+
     let queryBuildings connStr query =
         let filter = 
             match query with 
             | None -> Unfiltered
-            | Some(q) -> WhereParam("name ILIKE @Query OR address ILIKE @Query OR code ILIKE @Query ORDER BY name LIMIT 25", {Query=like q})
+            | Some(q:string) -> 
+                let param = {Query=like q; QueryNoDash=like (q.Replace("-",""))}
+                WhereParam("name ILIKE @Query OR address ILIKE @Query OR code ILIKE @Query OR code ILIKE @QueryNoDash ORDER BY name LIMIT 25", param)
         fetchAll<Building> (mapBuildings filter) connStr
 
     let queryBuilding = fetchOne<Building> mapBuilding
