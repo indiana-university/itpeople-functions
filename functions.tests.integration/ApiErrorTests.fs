@@ -455,18 +455,11 @@ module ApiErrorTests =
             |> shouldGetResponse HttpStatusCode.BadRequest
 
         [<Fact>]       
-        member __.``Create a unit with non existent parent yields 400 Bad Request`` () = 
+        member __.``Create a unit with non existent parent yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "units"
             |> withAuthentication adminJwt
-            |> withBody { parksAndRec with ParentId = Some(1000) }
-            |> shouldGetResponse HttpStatusCode.BadRequest
-
-        [<Fact>]       
-        member __.``Create a unit with existing unit name yields 409 Conflict`` () = 
-            requestFor HttpMethod.Post "units"
-            |> withAuthentication adminJwt
-            |> withBody parksAndRec
-            |> shouldGetResponse HttpStatusCode.Conflict
+            |> withBody { parksAndRec with Name="test"; ParentId = Some(1000) }
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
         member __.``Update a unit with circular relationship yields 409 Conflict`` () = 
@@ -488,18 +481,18 @@ module ApiErrorTests =
         // *********************
 
         [<Fact>]       
-        member __.``Create a membership with non existent unit yields 400 Bad Request`` () = 
+        member __.``Create a membership with non existent unit yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "memberships"
             |> withAuthentication adminJwt
             |> withBody { knopeMembership with UnitId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
-        member __.``Create a membership with non existent person yields 400 Bad Request`` () = 
+        member __.``Create a membership with non existent person yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "memberships"
             |> withAuthentication adminJwt
             |> withBody { knopeMembership with PersonId=Some(1000) }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
         member __.``Create a membership that duplicates existing memberships yields 409 Conflict`` () = 
@@ -521,18 +514,18 @@ module ApiErrorTests =
         // *********************
 
         [<Fact>]       
-        member __.``Create a support relationship with non existent unit yields 400 Bad Request`` () = 
+        member __.``Create a support relationship with non existent unit yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "supportRelationships"
             |> withAuthentication adminJwt
             |> withBody { supportRelationship with UnitId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
-        member __.``Create a support relationship with non existent department yields 400 Bad Request`` () = 
+        member __.``Create a support relationship with non existent department yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "supportRelationships"
             |> withAuthentication adminJwt
             |> withBody { supportRelationship with DepartmentId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
         member __.``Create a supportRelationship that duplicates existing relationship yields 409 Conflict`` () = 
@@ -546,18 +539,18 @@ module ApiErrorTests =
         // *********************
 
         [<Fact>]       
-        member __.``Create a building relationship with non existent unit yields 400 Bad Request`` () = 
+        member __.``Create a building relationship with non existent unit yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "buildingRelationships"
             |> withAuthentication adminJwt
             |> withBody { buildingRelationship with UnitId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
-        member __.``Create a building relationship with non existent department yields 400 Bad Request`` () = 
+        member __.``Create a building relationship with non existent department yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "buildingRelationships"
             |> withAuthentication adminJwt
             |> withBody { buildingRelationship with BuildingId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
         member __.``Create a building relationship that duplicates existing relationship yields 409 Conflict`` () = 
@@ -571,18 +564,18 @@ module ApiErrorTests =
         // *****************
 
         [<Fact>]       
-        member __.``Create a member tool with non existent membership yields 400 Bad Request`` () = 
+        member __.``Create a member tool with non existent membership yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "membertools"
             |> withAuthentication adminJwt
             |> withBody { memberTool with MembershipId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
-        member __.``Create a member tool with non existent tool yields 400 Bad Request`` () = 
+        member __.``Create a member tool with non existent tool yields 404 Not Found`` () = 
             requestFor HttpMethod.Post "membertools"
             |> withAuthentication adminJwt
             |> withBody { memberTool with ToolId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
         member __.``Update a nonexistent member tool yields 404 Not Found`` () = 
@@ -592,15 +585,15 @@ module ApiErrorTests =
             |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
-        member __.``Update a member tool with non existent membership yields 400 Bad Request`` () = 
+        member __.``Update a member tool with non existent membership yields 404 Not Found`` () = 
             requestFor HttpMethod.Put "membertools/1"
             |> withAuthentication adminJwt
             |> withBody { memberTool with MembershipId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
 
         [<Fact>]       
-        member __.``Update a member tool with non existent tool yields 400 Bad Request`` () = 
+        member __.``Update a member tool with non existent tool yields 404 Not Found`` () = 
             requestFor HttpMethod.Put "membertools/1"
             |> withAuthentication adminJwt
             |> withBody { memberTool with ToolId=1000 }
-            |> shouldGetResponse HttpStatusCode.BadRequest
+            |> shouldGetResponse HttpStatusCode.NotFound
