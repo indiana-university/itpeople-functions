@@ -100,7 +100,7 @@ module Command =
                 (Status.InternalServerError, msg)
         Error(status, msg)
 
-    let fetchAll<'T> connStr (mapper:MapMany<'T>) = async {
+    let fetchAll<'T> (mapper:MapMany<'T>) connStr = async {
         try
             use cn = new NpgsqlConnection(connStr)
             let! result = cn |> mapper |> Async.AwaitTask
@@ -108,7 +108,7 @@ module Command =
         with exn -> return handleDbExn "fetch+map all" (typedefof<'T>.Name) exn
     }
 
-    let fetchOne<'T> connStr (mapper:MapOne<'T>) id  = async {
+    let fetchOne<'T> (mapper:MapOne<'T>) connStr id  = async {
         try
             use cn = new NpgsqlConnection(connStr)
             let! result = mapper id cn |> Async.AwaitTask
@@ -118,7 +118,7 @@ module Command =
         with exn -> return handleDbExn "fetch+map one" (typedefof<'T>.Name) exn
     }
 
-    let fetch<'T> connStr (queryFn:Cn -> Task<'T>)  = async {
+    let fetch<'T> (queryFn:Cn -> Task<'T>) connStr  = async {
         try
             use cn = new NpgsqlConnection(connStr)
             let! result = cn |> queryFn |> Async.AwaitTask
@@ -136,7 +136,7 @@ module Command =
 
     let insert<'T> writeParams connStr  =
         insertImpl<'T> connStr
-        >=> fetchOne<'T> connStr writeParams
+        >=> fetchOne<'T> writeParams connStr
 
     let updateImpl<'T> connStr (obj:'T) = async {
         try
@@ -147,12 +147,13 @@ module Command =
     }
 
     let inline update< ^T when ^T: (member Id:Id)> writeParams connStr (obj:^T)  = 
-        let id = (^T : (member Id:Id) obj)
+        let id = (identity obj)
         updateImpl<'T> connStr obj
-        >>= fun _ -> fetchOne<'T> connStr writeParams id
+        >>= fun _ -> fetchOne<'T> writeParams connStr id
 
-    let delete<'T> connStr (id:int) = async {
+    let inline delete< ^T when ^T: (member Id:Id)> connStr (obj:^T) = async {
         try
+            let id = (identity obj)
             use cn = new NpgsqlConnection(connStr)
             let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
             return () |> Ok
