@@ -644,13 +644,17 @@ module DatabaseRepository =
 
     // LSPs are any member of a unit that has a support relationship with
     // one or more departmens. "LA" = "local administrator" = unit leader.
+    // Exclude "related" people from result.
     let queryLspListSql = """
         SELECT 
         	p.netid as NetworkID, 
-        	MAX(um.Role) = 4 as IsLA
+        	MAX(um.Role) = 4 as IsLA    -- unit 'leader' 
         FROM people p
-        JOIN unit_members um on um.person_id = p.id
-        WHERE um.unit_id in (SELECT sr.unit_id from support_relationships sr)
+        JOIN unit_members um 
+            ON um.person_id = p.id
+            AND um.role <> 1            -- exclude 'related'
+        WHERE um.unit_id IN
+         (SELECT sr.unit_id from support_relationships sr)
         GROUP BY p.netid
         ORDER BY p.netid"""
 
