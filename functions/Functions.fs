@@ -940,9 +940,15 @@ module Functions =
     // *********************************
     
     [<FunctionName("LegacyLspList")>]
-    [<SwaggerOperation(Summary="List all IT Pros.", Tags=[|"Legacy"|])>]
-    [<SwaggerResponse(200, "A collection of people records", typeof<SupportRelationship seq>)>]
+    [<SwaggerIgnore>]
     let legacyLspList
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspList")>] req) =
         let workflow = fun _ -> data.Legacy.GetLspList ()
         getXml req workflow
+
+    [<FunctionName("LegacyLspDepartments")>]
+    [<SwaggerIgnore>]
+    let legacyLspDepartments
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspDepartments/{netid}")>] req, netid) =
+        let workflow = fun _ -> data.Legacy.GetLspDepartments netid
+        getXml req workflow    

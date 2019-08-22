@@ -666,7 +666,21 @@ module DatabaseRepository =
         fetchAll<LspInfo> (mapLspList Unfiltered)
         >=> fun lspInfo -> ok { LspInfos = Seq.toArray lspInfo }
 
+    let queryLspDepartmentsSql = """
+        SELECT d.name
+        FROM departments d
+        JOIN support_relationships sr ON sr.department_id = d.id
+        JOIN unit_members um on um.unit_id = sr.unit_id
+        JOIN people p ON um.person_id = p.id
+        WHERE p.netid ILIKE @NetId
+        and um.role <> 1"""
 
+    let mapLspDepartments netid (cn:Cn) = 
+        cn.QueryAsync<string>(queryLspDepartmentsSql, {NetId=netid})
+
+    let queryLspDepartments connStr netid = 
+        fetchAll<string> (mapLspDepartments netid) connStr
+        >>= fun depts -> ok { NetworkID=netid; DeptCodeList={Values=Seq.toArray depts } }
 
 
     let People(connStr) = {
@@ -756,6 +770,7 @@ module DatabaseRepository =
 
     let LegacyRepository(connStr) = {
         GetLspList = fun () -> queryLspInfo connStr
+        GetLspDepartments = queryLspDepartments connStr
     }
 
     let Repository(connStr) = {

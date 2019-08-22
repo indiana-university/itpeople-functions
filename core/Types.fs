@@ -425,6 +425,19 @@ type LspInfoArray = {
   LspInfos: LspInfo []
 }
 
+[<CLIMutable>]
+[<Serializable>]
+type DeptCodeList =
+  { [<XmlElement("a")>] Values: string[] }
+
+[<CLIMutable>]
+[<Serializable>]
+[<XmlRoot("LspDepartment")>]
+type LspDepartmentArray = {
+  [<XmlElement("DeptCodeList")>] DeptCodeList: DeptCodeList
+  [<XmlElement("NetworkID")>] NetworkID: string
+}
+
 // DOMAIN MODELS
 
 type MessageResult = {
@@ -584,6 +597,8 @@ type AuthorizationRepository = {
 
 type LegacyRepository = {
     GetLspList: unit -> Async<Result<LspInfoArray, Error>>
+    GetLspDepartments: string -> Async<Result<LspDepartmentArray, Error>>
+    
 }
 
 type DataRepository = {

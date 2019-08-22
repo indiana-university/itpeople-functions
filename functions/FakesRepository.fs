@@ -97,6 +97,7 @@ module FakesRepository =
 
     let FakeLegacy = {
         GetLspList = fun () -> stub { LspInfos = [|lspInfo|] }
+        GetLspDepartments = fun dept -> stub lspDepartments
     }
 
     let Repository = {

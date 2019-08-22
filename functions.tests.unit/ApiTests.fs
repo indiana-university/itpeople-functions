@@ -37,3 +37,11 @@ module ApiTests =
             { LspInfos = [| lspInfo|]} 
             |> xmlResponse<LspInfoArray>
         printfn "XML content: %s" (actual.ToString())
+
+    [<Fact>]
+    let ``can serialize LspDepartmentArray`` ()=
+        let record = 
+          { DeptCodeList = { Values = [|"BL-DEP1"; "BL-DEP2" |] }
+            NetworkID = "netid" } 
+        let actual = record |> serializeXml<LspDepartmentArray>
+        printfn "XML content: %s" (actual.ToString())

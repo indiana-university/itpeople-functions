@@ -239,3 +239,8 @@ let lspInfo = {
   IsLA=true
   NetworkID=wyatt.NetId
 }
+
+let lspDepartments = {
+  DeptCodeList={ Values = [|parksDept.Name|] }
+  NetworkID=wyatt.NetId
+}

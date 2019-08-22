@@ -440,6 +440,16 @@ module ApiErrorTests =
                  let head = arr.LspInfos |> Seq.head
                  head |> should equal lspInfo)
 
+        
+        [<Fact>]       
+        member __.``Legacy: LspDepartments`` () = 
+            requestFor HttpMethod.Get (sprintf "LspdbWebService.svc/LspDepartments/%s" wyatt.NetId)
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateXmlContent<LspDepartmentArray> (fun arr ->
+                 arr.NetworkID |> should equal wyatt.NetId 
+                 arr.DeptCodeList.Values |> should equal [| parksDept.Name |] )
+
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
 
