@@ -637,6 +637,34 @@ module DatabaseRepository =
             then ok true
             else fetch canModifyPersonQuery connStr
 
+
+    // *********************
+    // Legacy
+    // *********************
+
+    // LSPs are any member of a unit that has a support relationship with
+    // one or more departmens. "LA" = "local administrator" = unit leader.
+    let queryLspListSql = """
+        SELECT 
+        	p.netid as NetworkID, 
+        	MAX(um.Role) = 4 as IsLA
+        FROM people p
+        JOIN unit_members um on um.person_id = p.id
+        WHERE um.unit_id in (SELECT sr.unit_id from support_relationships sr)
+        GROUP BY p.netid
+        ORDER BY p.netid"""
+
+    let mapLspList filter (cn:Cn) = 
+        parseQueryAndParam queryLspListSql filter
+        |> cn.QueryAsync<LspInfo>
+
+    let queryLspInfo = 
+        fetchAll<LspInfo> (mapLspList Unfiltered)
+        >=> fun lspInfo -> ok { LspInfos = Seq.toArray lspInfo }
+
+
+
+
     let People(connStr) = {
         TryGetId = tryQueryPersonByNetId connStr
         GetAll = queryPeople connStr
@@ -722,6 +750,10 @@ module DatabaseRepository =
         CanModifyPerson = canModifyPerson connStr
     }
 
+    let LegacyRepository(connStr) = {
+        GetLspList = fun () -> queryLspInfo connStr
+    }
+
     let Repository(connStr) = {
         People = People(connStr)
         Departments = Departments(connStr)
@@ -733,4 +765,5 @@ module DatabaseRepository =
         SupportRelationships = SupportRelationshipsRepository(connStr)
         BuildingRelationships = BuildingRelationshipsRepository(connStr)
         Authorization = AuthorizationRepository(connStr)
+        Legacy = LegacyRepository(connStr)
     }

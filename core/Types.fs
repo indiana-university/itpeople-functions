@@ -409,6 +409,22 @@ type HistoricalPerson =
     /// The name of the tool to which permissions have been granted 
     [<Column("removed_on")>] RemovedOn: DateTime }
 
+open System.Xml.Serialization
+
+[<CLIMutable>]
+[<Serializable>]
+type LspInfo =
+  { [<XmlElement("IsLA")>] IsLA: bool
+    [<XmlElement("NetworkID")>] NetworkID: string }
+
+[<CLIMutable>]
+[<Serializable>]
+[<XmlRoot("ArrayOfLspInfo")>]
+type LspInfoArray = {
+  [<XmlElement("LspInfo")>] 
+  LspInfos: LspInfo []
+}
+
 // DOMAIN MODELS
 
 type MessageResult = {
@@ -557,7 +573,6 @@ type BuildingRelationshipRepository = {
     Delete : BuildingRelationship -> Async<Result<unit,Error>>
 }
 
-
 type AuthorizationRepository = {
     /// Given an OAuth token_key URL and return the public key.
     UaaPublicKey: string -> Async<Result<string,Error>>
@@ -565,6 +580,10 @@ type AuthorizationRepository = {
     IsUnitManager: NetId -> Id -> Async<Result<bool, Error>>
     IsUnitToolManager: NetId -> Id -> Async<Result<bool, Error>>
     CanModifyPerson: NetId -> Id -> Async<Result<bool,Error>>
+}
+
+type LegacyRepository = {
+    GetLspList: unit -> Async<Result<LspInfoArray, Error>>
 }
 
 type DataRepository = {
@@ -578,6 +597,7 @@ type DataRepository = {
     SupportRelationships: SupportRelationshipRepository
     BuildingRelationships: BuildingRelationshipRepository
     Authorization: AuthorizationRepository
+    Legacy: LegacyRepository
 }
 
 let stub a = a |> Ok |> async.Return

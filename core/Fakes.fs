@@ -232,3 +232,10 @@ let buildingRelationship:BuildingRelationship = {
   Unit=cityOfPawnee
   Building=cityHall
 }
+
+// Legacy
+
+let lspInfo = {
+  IsLA=true
+  NetworkID=wyatt.NetId
+}

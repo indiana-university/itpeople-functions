@@ -934,3 +934,15 @@ module Functions =
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Delete
         delete req workflow
+
+    // *********************************
+    // ** Legacy Endpoints
+    // *********************************
+    
+    [<FunctionName("LegacyLspList")>]
+    [<SwaggerOperation(Summary="List all IT Pros.", Tags=[|"Legacy"|])>]
+    [<SwaggerResponse(200, "A collection of people records", typeof<SupportRelationship seq>)>]
+    let legacyLspList
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspList")>] req) =
+        let workflow = fun _ -> data.Legacy.GetLspList ()
+        getXml req workflow
