@@ -19,11 +19,11 @@ module ApiTests =
 
     [<Fact>]
     let ``can serialize XML`` ()=
-        let expected = """<?xml version="1.0" encoding="utf-16"?>
+        let expected = """<?xml version="1.0" encoding="utf-8"?>
 <ArrayOfLspInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <LspInfo>
-    <IsLA>false</IsLA>
-    <NetworkID>lknope</NetworkID>
+    <IsLA>true</IsLA>
+    <NetworkID>bwyatt</NetworkID>
   </LspInfo>
 </ArrayOfLspInfo>"""
         let actual = 
