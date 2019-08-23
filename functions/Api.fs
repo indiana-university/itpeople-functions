@@ -117,6 +117,8 @@ let optionsResponse req config  =
 
 let formatJson = "application/json"
 let formatXml = "application/xml"
+let formatText = "text/plain"
+let formatHtml = "text/html"
 
 let contentResponse req corsHosts status content  = 
     let response = new HttpResponseMessage(status)

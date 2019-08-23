@@ -144,26 +144,55 @@ module Functions =
 
 
     // FUNCTION WORKFLOWS 
+
+    // *****************
+    // ** Availability
+    // *****************
+
     [<FunctionName("Options")>]
     [<SwaggerIgnore>]
     let options
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "options", Route = "{*url}")>] req) =
         optionsResponse req config
 
-    [<FunctionName("OpenAPI")>]
-    [<SwaggerIgnore>]
-    let openapi
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
-        let (content, status) = 
-            try (openApiSpec.Value |> jsonResponse, Status.OK)
-            with exn -> (new StringContent(exn.ToString()), Status.InternalServerError)
-        contentResponse req "*" status content
-
     [<FunctionName("PingGet")>]
     [<SwaggerIgnore>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req) =
-        contentResponse req "*" Status.OK (new StringContent("Pong!"))
+        stringContent formatText "Pong!" |> contentResponse req "*" Status.OK
+
+    // *****************
+    // ** Documentation
+    // *****************
+
+    [<FunctionName("OpenAPI")>]
+    [<SwaggerIgnore>]
+    let openapi
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
+        try  stringContent formatJson openApiSpec.Value |> contentResponse req "*" Status.OK
+        with exn -> stringContent formatText (exn.ToString()) |>  contentResponse req "*" Status.InternalServerError
+
+    [<FunctionName("OpenAPIHtml")>]
+    [<SwaggerIgnore>]
+    let openapihtml
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "/")>] req) =
+        """<!DOCTYPE html>
+<html>
+<head>
+    <title>IT People API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+    <style> body { margin: 0; padding: 0; }</style>
+</head>
+<body>
+    <redoc spec-url='/openapi.json'></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
+</body>
+</html>"""
+        |> stringContent formatHtml
+        |> contentResponse req "*" Status.OK
+
 
     // *****************
     // ** Authentication
