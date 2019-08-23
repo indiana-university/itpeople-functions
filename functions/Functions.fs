@@ -144,26 +144,55 @@ module Functions =
 
 
     // FUNCTION WORKFLOWS 
+
+    // *****************
+    // ** Availability
+    // *****************
+
     [<FunctionName("Options")>]
     [<SwaggerIgnore>]
     let options
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "options", Route = "{*url}")>] req) =
         optionsResponse req config
 
-    [<FunctionName("OpenAPI")>]
-    [<SwaggerIgnore>]
-    let openapi
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
-        let (content, status) = 
-            try (openApiSpec.Value |> jsonResponse, Status.OK)
-            with exn -> (new StringContent(exn.ToString()), Status.InternalServerError)
-        contentResponse req "*" status content
-
     [<FunctionName("PingGet")>]
     [<SwaggerIgnore>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req) =
-        contentResponse req "*" Status.OK (new StringContent("Pong!"))
+        "Pong!" |> textContent |> contentResponse req "*" Status.OK
+
+    // *****************
+    // ** Documentation
+    // *****************
+
+    [<FunctionName("OpenAPI")>]
+    [<SwaggerIgnore>]
+    let openapi
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
+        try openApiSpec.Value |> jsonContent |> contentResponse req "*" Status.OK
+        with exn -> exn.ToString() |> textContent |> contentResponse req "*" Status.InternalServerError
+
+    [<FunctionName("OpenAPIHtml")>]
+    [<SwaggerIgnore>]
+    let openapihtml
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "/")>] req) =
+        """<!DOCTYPE html>
+<html>
+<head>
+    <title>IT People API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+    <style> body { margin: 0; padding: 0; }</style>
+</head>
+<body>
+    <redoc spec-url='/openapi.json'></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
+</body>
+</html>"""
+        |> htmlContent
+        |> contentResponse req "*" Status.OK
+
 
     // *****************
     // ** Authentication
@@ -957,8 +986,9 @@ module Functions =
     [<SwaggerIgnore>]
     let legacyLspPrefixes
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspPrefixes/{netid}")>] req, netid) =
-        let dummyResponse = sprintf """<LspPrefixList><NetworkID>%s</NetworkID><PrefixCodeList><a:string/></PrefixCodeList></LspPrefixList>""" netid
-        new StringContent(dummyResponse, Text.Encoding.UTF8, formatXml)
+        netid
+        |> sprintf """<LspPrefixList><NetworkID>%s</NetworkID><PrefixCodeList><a:string/></PrefixCodeList></LspPrefixList>"""
+        |> xmlContent
         |> contentResponse req "*" Status.OK
 
     [<FunctionName("LegacyDepartmentLsps")>]
