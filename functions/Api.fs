@@ -10,6 +10,8 @@ open Examples
 
 open System.Net.Http
 open System.Net.Http.Headers
+open System.Xml
+open System.Xml.Serialization
 open System.Reflection
 open Microsoft.AspNetCore.WebUtilities
 open Microsoft.Extensions.Configuration
@@ -113,34 +115,39 @@ let optionsResponse req config  =
     addCORSHeader response origin config.CorsHosts
     response
 
-let contentResponse req corsHosts status content = 
+let formatJson = "application/json"
+let formatXml = "application/xml"
+
+let contentResponse req corsHosts status content  = 
     let response = new HttpResponseMessage(status)
     response.Content <- content
-    response.Content.Headers.ContentType <- MediaTypeHeaderValue "application/json"
-    response.Content.Headers.ContentType.CharSet <- "utf-8"
     addCORSHeader response (origin req) corsHosts
     addPermissionsHeader req response
     response
 
-/// Construct an HTTP response with JSON content
-let jsonResponse req corsHosts status model = 
+let serializeJson model = 
     JsonConvert.SerializeObject(model, JsonSettings)
-    |> (fun s -> new StringContent(s))
-    |> contentResponse req corsHosts status
 
-/// Convert an ROP trial into an HTTP response. 
-/// The result of a successful trial will be passed to the provided success function.
-/// The result(s) of a failed trial will be aggregated, logged, and returned as a 
-/// JSON error message with an appropriate status code.
-let createResponse req config log status result = async { 
-    match result with
-    | Ok body ->
-        do! logSuccess log req status
-        return jsonResponse req config.CorsHosts status body
-    | Error (status,msg) -> 
-        do! logError log req status msg
-        return jsonResponse req config.CorsHosts status msg
-}
+let stringContent format str  = 
+    new StringContent(str, System.Text.Encoding.UTF8, format)
+
+/// Construct an HTTP response with JSON content
+let inline jsonResponse model = 
+    model |> serializeJson |> stringContent formatJson
+
+type Utf8StringWriter()=
+    inherit System.IO.StringWriter()
+    override __.Encoding = System.Text.Encoding.UTF8
+
+let serializeXml<'a> (model: 'a) = 
+    let serializer = XmlSerializer(typeof<'a>)
+    use writer = new Utf8StringWriter()
+    serializer.Serialize(writer, model)
+    writer.ToString()
+
+/// Construct an HTTP response with JSON content
+let inline xmlResponse<'a> (model:'a) = 
+    model |> serializeXml<'a> |> stringContent formatXml
 
 let description = """## Description
 IT People is the canonical source of information about people doing IT work at Indiana University, their responsibilities and interests, and the IT units to which they belong.

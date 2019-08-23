@@ -95,6 +95,12 @@ module FakesRepository =
         Delete = fun id -> stub ()
     }
 
+    let FakeLegacy = {
+        GetLspList = fun () -> stub { LspInfos = [|lspInfo|] }
+        GetLspDepartments = fun dept -> stub lspDepartments
+        GetDepartmentLsps = fun dept -> stub { LspContacts = [|lspContact|] }
+    }
+
     let Repository = {
         People = FakePeople
         Units = FakeUnits
@@ -106,5 +112,6 @@ module FakesRepository =
         SupportRelationships = FakeSupportRelationships
         BuildingRelationships = FakeBuildingRelationships
         Authorization = FakeAuthorization
+        Legacy = FakeLegacy
     }
 

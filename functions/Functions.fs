@@ -110,23 +110,28 @@ module Functions =
         permission req (canModifyUnit (unitId relation)) relation     
 
     /// Execute a workflow for an authenticated user and return a response.
-    let execute (successStatus:Status) (req:HttpRequestMessage) workflow  = 
+    let inline execute (successStatus:Status) (req:HttpRequestMessage) (formatter: 'a -> StringContent) (workflow: HttpRequestMessage -> Async<Result<'a,Error>>)  = 
         async {
             try
                 let workflow = timestamp >=> workflow
-                let! result = workflow(req)
-                return! createResponse req config log successStatus result
+                match! workflow(req) with
+                | Ok body ->
+                    do! logSuccess log req successStatus
+                    return body |> formatter |> contentResponse req config.CorsHosts successStatus
+                | Error (status,msg) -> 
+                    do! logError log req status msg
+                    return msg |> jsonResponse |> contentResponse req config.CorsHosts status
             with exn -> 
                 do! logFatal log req exn
                 raise exn
                 return req.CreateErrorResponse(Status.InternalServerError, exn.Message)
         } |> Async.StartAsTask
 
-    let get req workflow = execute Status.OK req workflow
-    let create req workflow = execute Status.Created req workflow
-    let update req workflow = execute Status.OK req workflow
-    let delete req workflow = execute Status.NoContent req workflow
-
+    let get req workflow = execute Status.OK req jsonResponse workflow
+    let create req workflow = execute Status.Created req jsonResponse workflow
+    let update req workflow = execute Status.OK req jsonResponse workflow
+    let delete req workflow = execute Status.NoContent req jsonResponse workflow
+    let getXml req workflow = execute Status.OK req xmlResponse workflow
 
     let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {
         let! result = getter (identity model)
@@ -150,7 +155,7 @@ module Functions =
     let openapi
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
         let (content, status) = 
-            try (new StringContent(openApiSpec.Value), Status.OK)
+            try (openApiSpec.Value |> jsonResponse, Status.OK)
             with exn -> (new StringContent(exn.ToString()), Status.InternalServerError)
         contentResponse req "*" status content
 
@@ -158,8 +163,7 @@ module Functions =
     [<SwaggerIgnore>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req) =
-        new StringContent("Pong!") 
-        |> contentResponse req "*" Status.OK
+        contentResponse req "*" Status.OK (new StringContent("Pong!"))
 
     // *****************
     // ** Authentication
@@ -930,3 +934,37 @@ module Functions =
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Delete
         delete req workflow
+
+    // *********************************
+    // ** Legacy Endpoints
+    // *********************************
+    
+    [<FunctionName("LegacyLspList")>]
+    [<SwaggerIgnore>]
+    let legacyLspList
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspList")>] req) =
+        let workflow = fun _ -> data.Legacy.GetLspList ()
+        getXml req workflow
+
+    [<FunctionName("LegacyLspDepartments")>]
+    [<SwaggerIgnore>]
+    let legacyLspDepartments
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspDepartments/{netid}")>] req, netid) =
+        let workflow = fun _ -> data.Legacy.GetLspDepartments netid
+        getXml req workflow    
+
+    [<FunctionName("LegacyLspPrefixes")>]
+    [<SwaggerIgnore>]
+    let legacyLspPrefixes
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspPrefixes/{netid}")>] req, netid) =
+        let dummyResponse = sprintf """<LspPrefixList><NetworkID>%s</NetworkID><PrefixCodeList><a:string/></PrefixCodeList></LspPrefixList>""" netid
+        new StringContent(dummyResponse, Text.Encoding.UTF8, formatXml)
+        |> contentResponse req "*" Status.OK
+
+    [<FunctionName("LegacyDepartmentLsps")>]
+    [<SwaggerIgnore>]
+    let legacyDepartmentLsps
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspsInDept/{department}")>] req, department) =
+        let workflow = fun _ -> data.Legacy.GetDepartmentLsps department
+        getXml req workflow   
+
