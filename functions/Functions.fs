@@ -952,3 +952,10 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspDepartments/{netid}")>] req, netid) =
         let workflow = fun _ -> data.Legacy.GetLspDepartments netid
         getXml req workflow    
+
+    [<FunctionName("LegacyDepartmentLsps")>]
+    [<SwaggerIgnore>]
+    let legacyDepartmentLsps
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspsInDept/{department}")>] req, department) =
+        let workflow = fun _ -> data.Legacy.GetDepartmentLsps department
+        getXml req workflow   

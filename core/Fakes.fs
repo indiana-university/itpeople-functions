@@ -244,3 +244,13 @@ let lspDepartments = {
   DeptCodeList={ Values = [|parksDept.Name|] }
   NetworkID=wyatt.NetId
 }
+
+let lspContact = { 
+  IsLSPAdmin=true
+  NetworkID=wyatt.NetId 
+  Email=wyatt.CampusEmail
+  FullName=wyatt.Name
+  GroupInternalEmail=""
+  Phone=wyatt.CampusPhone
+  PreferredEmail=wyatt.CampusEmail
+}

@@ -438,6 +438,27 @@ type LspDepartmentArray = {
   [<XmlElement("NetworkID")>] NetworkID: string
 }
 
+[<CLIMutable>]
+[<Serializable>]
+type LspContact =
+  { [<XmlElement("isLspAdmin")>] IsLSPAdmin: bool
+    [<XmlElement("NetworkID")>] NetworkID: string 
+    [<XmlElement("Email")>] Email: string 
+    [<XmlElement("FullName")>] FullName: string 
+    [<XmlElement("GroupInternalEmail")>] GroupInternalEmail: string 
+    [<XmlElement("PreferredEmail")>] PreferredEmail: string 
+    [<XmlElement("Phone")>] Phone: string }
+
+[<CLIMutable>]
+[<Serializable>]
+[<XmlRoot("ArrayOfLspContact")>]
+type LspContactArray = {
+  [<XmlElement("LspContact")>] 
+  LspContacts: LspContact []
+}
+
+
+
 // DOMAIN MODELS
 
 type MessageResult = {
@@ -598,7 +619,7 @@ type AuthorizationRepository = {
 type LegacyRepository = {
     GetLspList: unit -> Async<Result<LspInfoArray, Error>>
     GetLspDepartments: string -> Async<Result<LspDepartmentArray, Error>>
-    
+    GetDepartmentLsps: string -> Async<Result<LspContactArray, Error>>
 }
 
 type DataRepository = {

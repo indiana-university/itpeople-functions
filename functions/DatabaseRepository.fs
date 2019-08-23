@@ -646,25 +646,24 @@ module DatabaseRepository =
     // one or more departmens. "LA" = "local administrator" = unit leader.
     // Exclude "related" people from result.
     let queryLspListSql = """
-        SELECT 
-        	p.netid as NetworkID, 
-        	MAX(um.Role) = 4 as IsLA    -- unit 'leader' 
+        SELECT p.netid, MAX(um.Role) in (3,4) as is_service_admin 
         FROM people p
-        JOIN unit_members um 
-            ON um.person_id = p.id
-            AND um.role <> 1            -- exclude 'related'
-        WHERE um.unit_id IN
-         (SELECT sr.unit_id from support_relationships sr)
+        JOIN unit_members um ON um.person_id = p.id
+        WHERE um.unit_id IN (SELECT sr.unit_id from support_relationships sr)
+            AND um.role <> 1
         GROUP BY p.netid
         ORDER BY p.netid"""
 
     let mapLspList filter (cn:Cn) = 
         parseQueryAndParam queryLspListSql filter
-        |> cn.QueryAsync<LspInfo>
+        |> cn.QueryAsync<Person>
+
+    let toLspInfo (p:Person) = {NetworkID=p.NetId; IsLA=p.IsServiceAdmin}
 
     let queryLspInfo = 
-        fetchAll<LspInfo> (mapLspList Unfiltered)
-        >=> fun lspInfo -> ok { LspInfos = Seq.toArray lspInfo }
+        fetchAll (mapLspList Unfiltered)
+        >=> fun people -> people |> Seq.map toLspInfo |> ok
+        >=> fun infos -> { LspInfos = Seq.toArray infos } |> ok
 
     let queryLspDepartmentsSql = """
         SELECT d.name
@@ -672,16 +671,43 @@ module DatabaseRepository =
         JOIN support_relationships sr ON sr.department_id = d.id
         JOIN unit_members um on um.unit_id = sr.unit_id
         JOIN people p ON um.person_id = p.id
-        WHERE p.netid ILIKE @NetId
+        WHERE p.netid ILIKE @Query
         and um.role <> 1"""
 
     let mapLspDepartments netid (cn:Cn) = 
-        cn.QueryAsync<string>(queryLspDepartmentsSql, {NetId=netid})
+        cn.QueryAsync<string>(queryLspDepartmentsSql, {Query=netid})
+
 
     let queryLspDepartments connStr netid = 
         fetchAll<string> (mapLspDepartments netid) connStr
         >>= fun depts -> ok { NetworkID=netid; DeptCodeList={Values=Seq.toArray depts } }
 
+    let queryDepartmentLspsSql = """
+        SELECT p.name, p.netid, p.campus_phone, p.campus_email, MAX(um.role) in (3,4) as is_service_admin
+        FROM people p
+        JOIN unit_members um on um.person_id = p.id
+        JOIN support_relationships sr on sr.unit_id = um.unit_id
+        JOIN departments d on sr.department_id = d.id
+        WHERE d.name ILIKE @Query 
+            AND um.role <> 1
+        GROUP BY p.name, p.netid, p.campus_phone, p.campus_email"""
+
+    let mapDepartmentLsps department (cn:Cn) = 
+        cn.QueryAsync<Person>(queryDepartmentLspsSql, {Query=department})
+
+    let toLspContact (p:Person) =
+      { NetworkID=p.NetId
+        FullName=p.Name 
+        IsLSPAdmin=p.IsServiceAdmin 
+        Email=p.CampusEmail 
+        PreferredEmail=p.CampusEmail 
+        GroupInternalEmail=""
+        Phone=p.CampusPhone }
+
+    let queryDepartmentLsps connStr department = 
+        fetchAll (mapDepartmentLsps department) connStr
+        >>= fun people -> people |> Seq.map toLspContact |> ok
+        >>= fun contacts -> { LspContacts = Seq.toArray contacts } |> ok
 
     let People(connStr) = {
         TryGetId = tryQueryPersonByNetId connStr
@@ -771,6 +797,7 @@ module DatabaseRepository =
     let LegacyRepository(connStr) = {
         GetLspList = fun () -> queryLspInfo connStr
         GetLspDepartments = queryLspDepartments connStr
+        GetDepartmentLsps = queryDepartmentLsps connStr
     }
 
     let Repository(connStr) = {
