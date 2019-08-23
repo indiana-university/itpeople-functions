@@ -159,7 +159,7 @@ module Functions =
     [<SwaggerIgnore>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req) =
-        stringContent formatText "Pong!" |> contentResponse req "*" Status.OK
+        "Pong!" |> textContent |> contentResponse req "*" Status.OK
 
     // *****************
     // ** Documentation
@@ -169,8 +169,8 @@ module Functions =
     [<SwaggerIgnore>]
     let openapi
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
-        try  stringContent formatJson openApiSpec.Value |> contentResponse req "*" Status.OK
-        with exn -> stringContent formatText (exn.ToString()) |>  contentResponse req "*" Status.InternalServerError
+        try openApiSpec.Value |> jsonContent |> contentResponse req "*" Status.OK
+        with exn -> exn.ToString() |> textContent |> contentResponse req "*" Status.InternalServerError
 
     [<FunctionName("OpenAPIHtml")>]
     [<SwaggerIgnore>]
@@ -190,7 +190,7 @@ module Functions =
     <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
 </body>
 </html>"""
-        |> stringContent formatHtml
+        |> htmlContent
         |> contentResponse req "*" Status.OK
 
 
@@ -986,8 +986,9 @@ module Functions =
     [<SwaggerIgnore>]
     let legacyLspPrefixes
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspPrefixes/{netid}")>] req, netid) =
-        let dummyResponse = sprintf """<LspPrefixList><NetworkID>%s</NetworkID><PrefixCodeList><a:string/></PrefixCodeList></LspPrefixList>""" netid
-        new StringContent(dummyResponse, Text.Encoding.UTF8, formatXml)
+        netid
+        |> sprintf """<LspPrefixList><NetworkID>%s</NetworkID><PrefixCodeList><a:string/></PrefixCodeList></LspPrefixList>"""
+        |> xmlContent
         |> contentResponse req "*" Status.OK
 
     [<FunctionName("LegacyDepartmentLsps")>]

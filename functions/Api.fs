@@ -115,10 +115,11 @@ let optionsResponse req config  =
     addCORSHeader response origin config.CorsHosts
     response
 
-let formatJson = "application/json"
-let formatXml = "application/xml"
-let formatText = "text/plain"
-let formatHtml = "text/html"
+let stringContent format str  = new StringContent(str, System.Text.Encoding.UTF8, format)
+let jsonContent = stringContent "application/json"
+let xmlContent = stringContent "application/xml"
+let textContent = stringContent "text/plain"
+let htmlContent = stringContent "text/html"
 
 let contentResponse req corsHosts status content  = 
     let response = new HttpResponseMessage(status)
@@ -130,12 +131,9 @@ let contentResponse req corsHosts status content  =
 let serializeJson model = 
     JsonConvert.SerializeObject(model, JsonSettings)
 
-let stringContent format str  = 
-    new StringContent(str, System.Text.Encoding.UTF8, format)
-
 /// Construct an HTTP response with JSON content
 let inline jsonResponse model = 
-    model |> serializeJson |> stringContent formatJson
+    model |> serializeJson |> jsonContent
 
 type Utf8StringWriter()=
     inherit System.IO.StringWriter()
@@ -149,7 +147,7 @@ let serializeXml<'a> (model: 'a) =
 
 /// Construct an HTTP response with JSON content
 let inline xmlResponse<'a> (model:'a) = 
-    model |> serializeXml<'a> |> stringContent formatXml
+    model |> serializeXml<'a> |> xmlContent
 
 let description = """## Description
 IT People is the canonical source of information about people doing IT work at Indiana University, their responsibilities and interests, and the IT units to which they belong.
