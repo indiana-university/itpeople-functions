@@ -441,13 +441,13 @@ type LspDepartmentArray = {
 [<CLIMutable>]
 [<Serializable>]
 type LspContact =
-  { [<XmlElement("isLspAdmin")>] IsLSPAdmin: bool
-    [<XmlElement("NetworkID")>] NetworkID: string 
-    [<XmlElement("Email")>] Email: string 
+  { [<XmlElement("Email")>] Email: string 
     [<XmlElement("FullName")>] FullName: string 
     [<XmlElement("GroupInternalEmail")>] GroupInternalEmail: string 
+    [<XmlElement("NetworkID")>] NetworkID: string 
+    [<XmlElement("Phone")>] Phone: string 
     [<XmlElement("PreferredEmail")>] PreferredEmail: string 
-    [<XmlElement("Phone")>] Phone: string }
+    [<XmlElement("isLspAdmin")>] IsLSPAdmin: bool }
 
 [<CLIMutable>]
 [<Serializable>]
