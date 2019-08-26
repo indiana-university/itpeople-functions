@@ -369,8 +369,8 @@ module DatabaseRepository =
                     )
                     SELECT id FROM parentage))                
                 )
-            ORDER BY p.netid
-            LIMIT 25"""
+            ORDER BY p.netid"""
+            
         fetchAll<Person> (mapPeople(WhereParam(whereClause, param))) connStr
     
     let queryPersonById = fetchOne<Person> mapPerson
