@@ -221,6 +221,27 @@ module ApiErrorTests =
             |> shouldGetContent [wyatt; knope; swanson]
 
         [<Fact>]       
+        member __.``People search: UITS`` () = 
+            requestFor HttpMethod.Get "people?area=uits"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [wyatt; knope; swanson]
+
+        [<Fact>]       
+        member __.``People search: Edge`` () = 
+            requestFor HttpMethod.Get "people?area=edge"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent []
+
+        [<Fact>]       
+        member __.``People search: UITS and Edge`` () = 
+            requestFor HttpMethod.Get "people?area=uits,edge"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [wyatt; knope; swanson]
+
+        [<Fact>]       
         member __.``Donna is not in the directory`` () = 
             requestFor HttpMethod.Get "people?q=donna"
             |> withAuthentication adminJwt

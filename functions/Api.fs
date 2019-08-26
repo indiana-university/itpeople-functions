@@ -5,6 +5,7 @@ module Functions.Api
 
 open Core.Types
 open Core.Json
+open Core.Util
 open Logging
 open Examples
 
@@ -74,7 +75,44 @@ let queryParam paramName (req: HttpRequestMessage) =
     if query.ContainsKey(paramName)
     then query.[paramName].ToString() |> Ok |> async.Return
     else Error (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName)) |> async.Return
-    
+
+let delimiters = [|','; ';'; '+'|]
+let nonzero x = x <> 0
+
+let parseQueryAsString req param =
+    match tryQueryParam' req param with
+    | Some(str) -> str
+    | None -> ""
+
+let parseQueryAsStringArray req param =
+    match tryQueryParam' req param with
+    | Some(str) -> 
+        str.Split delimiters 
+        |> Array.map trim
+    | None -> Array.empty             
+
+let inline parseEnumAsInt parseEnum s = 
+    match parseEnum s with
+    | true, v -> v |> int
+    | _ -> 0
+
+let inline parseQueryAsInt req param parseEnum =
+    let parseEnumAsInt = parseEnumAsInt parseEnum
+    match tryQueryParam' req param with
+    | Some(str) -> 
+        str.Split delimiters 
+        |> Seq.sumBy (trim >> parseEnumAsInt)
+    | None -> 0
+
+let inline parseQueryAsIntArray req param parseEnum = 
+    let parseEnumAsInt = parseEnumAsInt parseEnum
+    match tryQueryParam' req param with
+    | Some(str) -> 
+        str.Split delimiters 
+        |> Seq.map (trim >> parseEnumAsInt) 
+        |> Seq.filter nonzero 
+        |> Seq.toArray
+    | None -> [||]    
 
 /// CORS
 

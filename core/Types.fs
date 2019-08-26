@@ -70,6 +70,12 @@ type UnitPermissions =
     /// This person can modify unit tools
     | ManageTools=4
 
+type Area =
+    /// University Information Technology Services (UITS) IT units are part of IU's central tech and support organization.
+    | Uits=1
+    /// Edge IT units are integrated directly into colleges and academic departments.
+    | Edge=2
+
 /// The unique ID of a record
 type Id = int
 /// The unique ID of a Person record
@@ -473,7 +479,8 @@ type PeopleQuery =
     Interests: array<string>
     Roles: array<int>
     Permissions: array<int>
-    Campuses: array<string> }
+    Campuses: array<string>
+    Area: int }
 
 type PeopleRepository = {
     /// Get a user record for a given net ID (e.g. 'jhoerr')
