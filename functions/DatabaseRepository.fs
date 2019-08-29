@@ -329,7 +329,8 @@ module DatabaseRepository =
             Roles = query.Roles
             Permissions = query.Permissions
             Interests = query.Interests |> Array.map like
-            Campuses = query.Campuses |> Array.map like }
+            Campuses = query.Campuses |> Array.map like
+            Area=query.Area }
         // printfn "Query Param: %A" param
         let whereClause = 
             """(@Query='' OR (p.name ILIKE @Query OR p.netid ILIKE @Query))
@@ -340,8 +341,36 @@ module DatabaseRepository =
             AND (CARDINALITY(@Campuses)=0 OR (p.campus ILIKE ANY (@Campuses)))
             AND (CARDINALITY(@Roles)=0 OR (um.role = ANY (@Roles)))
             AND (CARDINALITY(@Permissions)=0 OR (um.permissions = ANY (@Permissions)))
-            ORDER BY p.netid
-            LIMIT 25"""
+            AND (@Area=0
+                -- Area=1: UITS unit members only
+                OR (@Area=1 AND um.unit_id IN (
+                    WITH RECURSIVE parentage AS (
+                        SELECT id, id as root_id FROM units WHERE parent_id IS NULL
+                    UNION
+                        SELECT u.id, p.root_id as root_id FROM units u INNER JOIN parentage p ON u.parent_id = p.id
+                    )
+                    SELECT id FROM parentage
+                    WHERE root_id = 1))
+                -- Area=2: Edge unit members only
+                OR (@Area=2 AND um.unit_id IN (
+                    WITH RECURSIVE parentage AS (
+                        SELECT id, id as root_id FROM units WHERE parent_id IS NULL
+                    UNION
+                        SELECT u.id, p.root_id as root_id FROM units u INNER JOIN parentage p ON u.parent_id = p.id
+                    )
+                    SELECT id FROM parentage
+                    WHERE root_id <> 1))
+                -- Area=3: UITS+Edge unit members only
+                OR (@Area=3 AND um.unit_id IN (
+                    WITH RECURSIVE parentage AS (
+                        SELECT id, id as root_id FROM units WHERE parent_id IS NULL
+                    UNION
+                        SELECT u.id, p.root_id as root_id FROM units u INNER JOIN parentage p ON u.parent_id = p.id
+                    )
+                    SELECT id FROM parentage))                
+                )
+            ORDER BY p.netid"""
+            
         fetchAll<Person> (mapPeople(WhereParam(whereClause, param))) connStr
     
     let queryPersonById = fetchOne<Person> mapPerson

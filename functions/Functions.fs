@@ -233,6 +233,7 @@ module Functions =
     <li><strong>campus</strong>: filter by primary campus: 'Bloomington','Indianapolis','Columbus','East','Fort Wayne','Kokomo','Northwest','South Bend','Southeast'
     <li><strong>role</strong>: filter by unit role, ex: 'Leader' or 'Leader,Member'
     <li><strong>permission</strong>: filter by unit permissions, ex: 'Owner' or 'Owner,ManageMembers'
+    <li><strong>area</strong>: filter by unit area, e.g. 'uits' or 'edge'
     </ul></br>
     Search results are unioned within a filter and intersected across filters. For example, 'interest=node,lambda' will 
     return people with an interest in either 'node' OR 'lambda', whereas `role=ItLeadership&interest=node` will only return
@@ -244,50 +245,17 @@ module Functions =
     [<OptionalQueryParameter("campus", typeof<seq<string>>)>]
     [<OptionalQueryParameter("role", typeof<seq<Role>>)>]
     [<OptionalQueryParameter("permission", typeof<seq<UnitPermissions>>)>]
+    [<OptionalQueryParameter("area", typeof<seq<Area>>)>]
     let peopleGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people")>] req) =
         let getQueryParams _ =
-            let delimiters = [|','; ';'; '+'|]
-            let nonzero x = x <> 0
-            let query =
-                match tryQueryParam' req "q" with
-                | Some(str) -> str
-                | None -> ""
-            let classes =
-                let parseInt s = 
-                    try Enum.Parse<Responsibilities>(s, true) |> int 
-                    with _ -> 0 
-                match tryQueryParam' req "class" with
-                | Some(str) -> str.Split delimiters |> Seq.sumBy (trim >> parseInt)
-                | None -> 0
-            let interests = 
-                match tryQueryParam' req "interest" with
-                | Some(str) -> str.Split delimiters |> Array.map trim
-                | None -> Array.empty             
-            let campuses = 
-                match tryQueryParam' req "campus" with
-                | Some(str) -> str.Split delimiters |> Array.map trim
-                | None -> Array.empty             
-            let roles = 
-                let parseInt s = 
-                    try Enum.Parse<Role>(s, true) |> int 
-                    with _ -> 0 
-                match tryQueryParam' req "role" with
-                | Some(str) -> str.Split delimiters |> Seq.map (trim >> parseInt) |> Seq.filter nonzero |> Seq.toArray
-                | None -> [||]
-            let permissions = 
-                let parseInt s = 
-                    try Enum.Parse<UnitPermissions>(s, true) |> int 
-                    with _ -> 0 
-                match tryQueryParam' req "permission" with
-                | Some(str) -> str.Split delimiters |> Seq.map (trim >> parseInt) |> Seq.filter nonzero |> Seq.toArray
-                | None -> [||]
-            { Query=query
-              Classes=classes
-              Interests=interests
-              Roles=roles
-              Permissions=permissions
-              Campuses=campuses } |> ok
+            { Query=parseQueryAsString req "q"
+              Classes=parseQueryAsInt req "class" (fun x->Enum.TryParse<Responsibilities>(x,true))
+              Interests=parseQueryAsStringArray req "interest"
+              Roles=parseQueryAsIntArray req "role" (fun x->Enum.TryParse<Role>(x,true))
+              Campuses=parseQueryAsStringArray req "campus"
+              Permissions=parseQueryAsIntArray req "permission" (fun x->Enum.TryParse<UnitPermissions>(x,true))
+              Area=parseQueryAsInt req "area" (fun x->Enum.TryParse<Area>(x,true)) } |> ok
 
         let workflow = 
             authenticate 

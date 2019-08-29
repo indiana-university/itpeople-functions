@@ -55,8 +55,9 @@ module DatabaseTests=
         member __.``Get all top-level units`` () = 
             let actual = repo.Units.GetAll None |> awaitAndUnpack
 
-            actual |> Seq.length |> should equal 1
+            actual |> Seq.length |> should equal 2
             actual |> should contain cityOfPawnee
+            actual |> should contain edgeUnit
 
         [<Fact>]
         member __.``Get one`` () = 
