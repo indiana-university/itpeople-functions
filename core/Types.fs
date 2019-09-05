@@ -70,6 +70,12 @@ type UnitPermissions =
     /// This person can modify unit tools
     | ManageTools=4
 
+type Area =
+    /// University Information Technology Services (UITS) IT units are part of IU's central tech and support organization.
+    | Uits=1
+    /// Edge IT units are integrated directly into colleges and academic departments.
+    | Edge=2
+
 /// The unique ID of a record
 type Id = int
 /// The unique ID of a Person record
@@ -409,6 +415,56 @@ type HistoricalPerson =
     /// The name of the tool to which permissions have been granted 
     [<Column("removed_on")>] RemovedOn: DateTime }
 
+open System.Xml.Serialization
+
+[<CLIMutable>]
+[<Serializable>]
+type LspInfo =
+  { [<XmlElement("IsLA")>] IsLA: bool
+    [<XmlElement("NetworkID")>] NetworkID: string }
+
+[<CLIMutable>]
+[<Serializable>]
+[<XmlRoot("ArrayOfLspInfo")>]
+type LspInfoArray = {
+  [<XmlElement("LspInfo")>] 
+  LspInfos: LspInfo []
+}
+
+[<CLIMutable>]
+[<Serializable>]
+type DeptCodeList =
+  { [<XmlElement("a")>] Values: string[] }
+
+[<CLIMutable>]
+[<Serializable>]
+[<XmlRoot("LspDepartment")>]
+type LspDepartmentArray = {
+  [<XmlElement("DeptCodeList")>] DeptCodeList: DeptCodeList
+  [<XmlElement("NetworkID")>] NetworkID: string
+}
+
+[<CLIMutable>]
+[<Serializable>]
+type LspContact =
+  { [<XmlElement("Email")>] Email: string 
+    [<XmlElement("FullName")>] FullName: string 
+    [<XmlElement("GroupInternalEmail")>] GroupInternalEmail: string 
+    [<XmlElement("NetworkID")>] NetworkID: string 
+    [<XmlElement("Phone")>] Phone: string 
+    [<XmlElement("PreferredEmail")>] PreferredEmail: string 
+    [<XmlElement("isLspAdmin")>] IsLSPAdmin: bool }
+
+[<CLIMutable>]
+[<Serializable>]
+[<XmlRoot("ArrayOfLspContact")>]
+type LspContactArray = {
+  [<XmlElement("LspContact")>] 
+  LspContacts: LspContact []
+}
+
+
+
 // DOMAIN MODELS
 
 type MessageResult = {
@@ -423,7 +479,8 @@ type PeopleQuery =
     Interests: array<string>
     Roles: array<int>
     Permissions: array<int>
-    Campuses: array<string> }
+    Campuses: array<string>
+    Area: int }
 
 type PeopleRepository = {
     /// Get a user record for a given net ID (e.g. 'jhoerr')
@@ -557,7 +614,6 @@ type BuildingRelationshipRepository = {
     Delete : BuildingRelationship -> Async<Result<unit,Error>>
 }
 
-
 type AuthorizationRepository = {
     /// Given an OAuth token_key URL and return the public key.
     UaaPublicKey: string -> Async<Result<string,Error>>
@@ -565,6 +621,12 @@ type AuthorizationRepository = {
     IsUnitManager: NetId -> Id -> Async<Result<bool, Error>>
     IsUnitToolManager: NetId -> Id -> Async<Result<bool, Error>>
     CanModifyPerson: NetId -> Id -> Async<Result<bool,Error>>
+}
+
+type LegacyRepository = {
+    GetLspList: unit -> Async<Result<LspInfoArray, Error>>
+    GetLspDepartments: string -> Async<Result<LspDepartmentArray, Error>>
+    GetDepartmentLsps: string -> Async<Result<LspContactArray, Error>>
 }
 
 type DataRepository = {
@@ -578,6 +640,7 @@ type DataRepository = {
     SupportRelationships: SupportRelationshipRepository
     BuildingRelationships: BuildingRelationshipRepository
     Authorization: AuthorizationRepository
+    Legacy: LegacyRepository
 }
 
 let stub a = a |> Ok |> async.Return

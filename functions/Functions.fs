@@ -110,23 +110,28 @@ module Functions =
         permission req (canModifyUnit (unitId relation)) relation     
 
     /// Execute a workflow for an authenticated user and return a response.
-    let execute (successStatus:Status) (req:HttpRequestMessage) workflow  = 
+    let inline execute (successStatus:Status) (req:HttpRequestMessage) (formatter: 'a -> StringContent) (workflow: HttpRequestMessage -> Async<Result<'a,Error>>)  = 
         async {
             try
                 let workflow = timestamp >=> workflow
-                let! result = workflow(req)
-                return! createResponse req config log successStatus result
+                match! workflow(req) with
+                | Ok body ->
+                    do! logSuccess log req successStatus
+                    return body |> formatter |> contentResponse req config.CorsHosts successStatus
+                | Error (status,msg) -> 
+                    do! logError log req status msg
+                    return msg |> jsonResponse |> contentResponse req config.CorsHosts status
             with exn -> 
                 do! logFatal log req exn
                 raise exn
                 return req.CreateErrorResponse(Status.InternalServerError, exn.Message)
         } |> Async.StartAsTask
 
-    let get req workflow = execute Status.OK req workflow
-    let create req workflow = execute Status.Created req workflow
-    let update req workflow = execute Status.OK req workflow
-    let delete req workflow = execute Status.NoContent req workflow
-
+    let get req workflow = execute Status.OK req jsonResponse workflow
+    let create req workflow = execute Status.Created req jsonResponse workflow
+    let update req workflow = execute Status.OK req jsonResponse workflow
+    let delete req workflow = execute Status.NoContent req jsonResponse workflow
+    let getXml req workflow = execute Status.OK req xmlResponse workflow
 
     let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {
         let! result = getter (identity model)
@@ -139,27 +144,55 @@ module Functions =
 
 
     // FUNCTION WORKFLOWS 
+
+    // *****************
+    // ** Availability
+    // *****************
+
     [<FunctionName("Options")>]
     [<SwaggerIgnore>]
     let options
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "options", Route = "{*url}")>] req) =
         optionsResponse req config
 
-    [<FunctionName("OpenAPI")>]
-    [<SwaggerIgnore>]
-    let openapi
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
-        let (content, status) = 
-            try (new StringContent(openApiSpec.Value), Status.OK)
-            with exn -> (new StringContent(exn.ToString()), Status.InternalServerError)
-        contentResponse req "*" status content
-
     [<FunctionName("PingGet")>]
     [<SwaggerIgnore>]
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req) =
-        new StringContent("Pong!") 
+        "Pong!" |> textContent |> contentResponse req "*" Status.OK
+
+    // *****************
+    // ** Documentation
+    // *****************
+
+    [<FunctionName("OpenAPI")>]
+    [<SwaggerIgnore>]
+    let openapi
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "openapi.json")>] req) =
+        try openApiSpec.Value |> jsonContent |> contentResponse req "*" Status.OK
+        with exn -> exn.ToString() |> textContent |> contentResponse req "*" Status.InternalServerError
+
+    [<FunctionName("OpenAPIHtml")>]
+    [<SwaggerIgnore>]
+    let openapihtml
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "/")>] req) =
+        """<!DOCTYPE html>
+<html>
+<head>
+    <title>IT People API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+    <style> body { margin: 0; padding: 0; }</style>
+</head>
+<body>
+    <redoc spec-url='/openapi.json'></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
+</body>
+</html>"""
+        |> htmlContent
         |> contentResponse req "*" Status.OK
+
 
     // *****************
     // ** Authentication
@@ -200,6 +233,7 @@ module Functions =
     <li><strong>campus</strong>: filter by primary campus: 'Bloomington','Indianapolis','Columbus','East','Fort Wayne','Kokomo','Northwest','South Bend','Southeast'
     <li><strong>role</strong>: filter by unit role, ex: 'Leader' or 'Leader,Member'
     <li><strong>permission</strong>: filter by unit permissions, ex: 'Owner' or 'Owner,ManageMembers'
+    <li><strong>area</strong>: filter by unit area, e.g. 'uits' or 'edge'
     </ul></br>
     Search results are unioned within a filter and intersected across filters. For example, 'interest=node,lambda' will 
     return people with an interest in either 'node' OR 'lambda', whereas `role=ItLeadership&interest=node` will only return
@@ -211,50 +245,17 @@ module Functions =
     [<OptionalQueryParameter("campus", typeof<seq<string>>)>]
     [<OptionalQueryParameter("role", typeof<seq<Role>>)>]
     [<OptionalQueryParameter("permission", typeof<seq<UnitPermissions>>)>]
+    [<OptionalQueryParameter("area", typeof<seq<Area>>)>]
     let peopleGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people")>] req) =
         let getQueryParams _ =
-            let delimiters = [|','; ';'; '+'|]
-            let nonzero x = x <> 0
-            let query =
-                match tryQueryParam' req "q" with
-                | Some(str) -> str
-                | None -> ""
-            let classes =
-                let parseInt s = 
-                    try Enum.Parse<Responsibilities>(s, true) |> int 
-                    with _ -> 0 
-                match tryQueryParam' req "class" with
-                | Some(str) -> str.Split delimiters |> Seq.sumBy (trim >> parseInt)
-                | None -> 0
-            let interests = 
-                match tryQueryParam' req "interest" with
-                | Some(str) -> str.Split delimiters |> Array.map trim
-                | None -> Array.empty             
-            let campuses = 
-                match tryQueryParam' req "campus" with
-                | Some(str) -> str.Split delimiters |> Array.map trim
-                | None -> Array.empty             
-            let roles = 
-                let parseInt s = 
-                    try Enum.Parse<Role>(s, true) |> int 
-                    with _ -> 0 
-                match tryQueryParam' req "role" with
-                | Some(str) -> str.Split delimiters |> Seq.map (trim >> parseInt) |> Seq.filter nonzero |> Seq.toArray
-                | None -> [||]
-            let permissions = 
-                let parseInt s = 
-                    try Enum.Parse<UnitPermissions>(s, true) |> int 
-                    with _ -> 0 
-                match tryQueryParam' req "permission" with
-                | Some(str) -> str.Split delimiters |> Seq.map (trim >> parseInt) |> Seq.filter nonzero |> Seq.toArray
-                | None -> [||]
-            { Query=query
-              Classes=classes
-              Interests=interests
-              Roles=roles
-              Permissions=permissions
-              Campuses=campuses } |> ok
+            { Query=parseQueryAsString req "q"
+              Classes=parseQueryAsInt req "class" (fun x->Enum.TryParse<Responsibilities>(x,true))
+              Interests=parseQueryAsStringArray req "interest"
+              Roles=parseQueryAsIntArray req "role" (fun x->Enum.TryParse<Role>(x,true))
+              Campuses=parseQueryAsStringArray req "campus"
+              Permissions=parseQueryAsIntArray req "permission" (fun x->Enum.TryParse<UnitPermissions>(x,true))
+              Area=parseQueryAsInt req "area" (fun x->Enum.TryParse<Area>(x,true)) } |> ok
 
         let workflow = 
             authenticate 
@@ -930,3 +931,38 @@ module Functions =
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Delete
         delete req workflow
+
+    // *********************************
+    // ** Legacy Endpoints
+    // *********************************
+    
+    [<FunctionName("LegacyLspList")>]
+    [<SwaggerIgnore>]
+    let legacyLspList
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspList")>] req) =
+        let workflow = fun _ -> data.Legacy.GetLspList ()
+        getXml req workflow
+
+    [<FunctionName("LegacyLspDepartments")>]
+    [<SwaggerIgnore>]
+    let legacyLspDepartments
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspDepartments/{netid}")>] req, netid) =
+        let workflow = fun _ -> data.Legacy.GetLspDepartments netid
+        getXml req workflow    
+
+    [<FunctionName("LegacyLspPrefixes")>]
+    [<SwaggerIgnore>]
+    let legacyLspPrefixes
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspPrefixes/{netid}")>] req, netid) =
+        netid
+        |> sprintf """<LspPrefixList><NetworkID>%s</NetworkID><PrefixCodeList><a:string/></PrefixCodeList></LspPrefixList>"""
+        |> xmlContent
+        |> contentResponse req "*" Status.OK
+
+    [<FunctionName("LegacyDepartmentLsps")>]
+    [<SwaggerIgnore>]
+    let legacyDepartmentLsps
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspsInDept/{department}")>] req, department) =
+        let workflow = fun _ -> data.Legacy.GetDepartmentLsps department
+        getXml req workflow   
+

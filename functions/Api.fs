@@ -5,11 +5,14 @@ module Functions.Api
 
 open Core.Types
 open Core.Json
+open Core.Util
 open Logging
 open Examples
 
 open System.Net.Http
 open System.Net.Http.Headers
+open System.Xml
+open System.Xml.Serialization
 open System.Reflection
 open Microsoft.AspNetCore.WebUtilities
 open Microsoft.Extensions.Configuration
@@ -72,7 +75,44 @@ let queryParam paramName (req: HttpRequestMessage) =
     if query.ContainsKey(paramName)
     then query.[paramName].ToString() |> Ok |> async.Return
     else Error (Status.BadRequest,  (sprintf "Query parameter '%s' is required." paramName)) |> async.Return
-    
+
+let delimiters = [|','; ';'; '+'|]
+let nonzero x = x <> 0
+
+let parseQueryAsString req param =
+    match tryQueryParam' req param with
+    | Some(str) -> str
+    | None -> ""
+
+let parseQueryAsStringArray req param =
+    match tryQueryParam' req param with
+    | Some(str) -> 
+        str.Split delimiters 
+        |> Array.map trim
+    | None -> Array.empty             
+
+let inline parseEnumAsInt parseEnum s = 
+    match parseEnum s with
+    | true, v -> v |> int
+    | _ -> 0
+
+let inline parseQueryAsInt req param parseEnum =
+    let parseEnumAsInt = parseEnumAsInt parseEnum
+    match tryQueryParam' req param with
+    | Some(str) -> 
+        str.Split delimiters 
+        |> Seq.sumBy (trim >> parseEnumAsInt)
+    | None -> 0
+
+let inline parseQueryAsIntArray req param parseEnum = 
+    let parseEnumAsInt = parseEnumAsInt parseEnum
+    match tryQueryParam' req param with
+    | Some(str) -> 
+        str.Split delimiters 
+        |> Seq.map (trim >> parseEnumAsInt) 
+        |> Seq.filter nonzero 
+        |> Seq.toArray
+    | None -> [||]    
 
 /// CORS
 
@@ -113,34 +153,39 @@ let optionsResponse req config  =
     addCORSHeader response origin config.CorsHosts
     response
 
-let contentResponse req corsHosts status content = 
+let stringContent format str  = new StringContent(str, System.Text.Encoding.UTF8, format)
+let jsonContent = stringContent "application/json"
+let xmlContent = stringContent "application/xml"
+let textContent = stringContent "text/plain"
+let htmlContent = stringContent "text/html"
+
+let contentResponse req corsHosts status content  = 
     let response = new HttpResponseMessage(status)
     response.Content <- content
-    response.Content.Headers.ContentType <- MediaTypeHeaderValue "application/json"
-    response.Content.Headers.ContentType.CharSet <- "utf-8"
     addCORSHeader response (origin req) corsHosts
     addPermissionsHeader req response
     response
 
-/// Construct an HTTP response with JSON content
-let jsonResponse req corsHosts status model = 
+let serializeJson model = 
     JsonConvert.SerializeObject(model, JsonSettings)
-    |> (fun s -> new StringContent(s))
-    |> contentResponse req corsHosts status
 
-/// Convert an ROP trial into an HTTP response. 
-/// The result of a successful trial will be passed to the provided success function.
-/// The result(s) of a failed trial will be aggregated, logged, and returned as a 
-/// JSON error message with an appropriate status code.
-let createResponse req config log status result = async { 
-    match result with
-    | Ok body ->
-        do! logSuccess log req status
-        return jsonResponse req config.CorsHosts status body
-    | Error (status,msg) -> 
-        do! logError log req status msg
-        return jsonResponse req config.CorsHosts status msg
-}
+/// Construct an HTTP response with JSON content
+let inline jsonResponse model = 
+    model |> serializeJson |> jsonContent
+
+type Utf8StringWriter()=
+    inherit System.IO.StringWriter()
+    override __.Encoding = System.Text.Encoding.UTF8
+
+let serializeXml<'a> (model: 'a) = 
+    let serializer = XmlSerializer(typeof<'a>)
+    use writer = new Utf8StringWriter()
+    serializer.Serialize(writer, model)
+    writer.ToString()
+
+/// Construct an HTTP response with JSON content
+let inline xmlResponse<'a> (model:'a) = 
+    model |> serializeXml<'a> |> xmlContent
 
 let description = """## Description
 IT People is the canonical source of information about people doing IT work at Indiana University, their responsibilities and interests, and the IT units to which they belong.

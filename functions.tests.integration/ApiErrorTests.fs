@@ -36,18 +36,37 @@ module ApiErrorTests =
         response.StatusCode |> should equal expectedStatus
         response
 
-    let parseContent<'T> (response:HttpResponseMessage) = 
+    let readContent (response:HttpResponseMessage) =
         response.Content.ReadAsStringAsync() 
         |> Async.AwaitTask 
         |> Async.RunSynchronously
+
+    let parseContent<'T> (response:HttpResponseMessage) = 
+        response
+        |> readContent
         |> fun str -> JsonConvert.DeserializeObject<'T>(value=str, settings=JsonSettings)
+
+    let toBytes (x : string) = System.Text.Encoding.ASCII.GetBytes x
+    let parseXmlContent<'T> (response:HttpResponseMessage) = 
+        let xml = response |> readContent
+        let serializer = System.Xml.Serialization.XmlSerializer(typeof<'T>)
+        use stream = new System.IO.MemoryStream(toBytes xml)
+        serializer.Deserialize stream :?> 'T
 
     let shouldGetContent<'T> (expectedContent:'T) (response:HttpResponseMessage) =
         response |> parseContent<'T> |> should equal expectedContent
         response
 
+    let shouldGetXmlContent<'T> (expectedContent:'T) (response:HttpResponseMessage) =
+        response |> parseXmlContent<'T> |> should equal expectedContent
+        response
+
     let evaluateContent<'T> (evalFn:'T -> unit) (response:HttpResponseMessage) =
         response |> parseContent<'T> |> evalFn
+        response    
+
+    let evaluateXmlContent<'T> (evalFn:'T -> unit) (response:HttpResponseMessage) =
+        response |> parseXmlContent<'T> |> evalFn
         response    
 
     let personUpdate = 
@@ -197,6 +216,27 @@ module ApiErrorTests =
         [<Fact>]       
         member __.``People search: multiple permission are unioned`` () = 
             requestFor HttpMethod.Get "people?permission=Viewer,Owner"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [wyatt; knope; swanson]
+
+        [<Fact>]       
+        member __.``People search: UITS`` () = 
+            requestFor HttpMethod.Get "people?area=uits"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent [wyatt; knope; swanson]
+
+        [<Fact>]       
+        member __.``People search: Edge`` () = 
+            requestFor HttpMethod.Get "people?area=edge"
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> shouldGetContent []
+
+        [<Fact>]       
+        member __.``People search: UITS and Edge`` () = 
+            requestFor HttpMethod.Get "people?area=uits,edge"
             |> withAuthentication adminJwt
             |> shouldGetResponse HttpStatusCode.OK
             |> shouldGetContent [wyatt; knope; swanson]
@@ -410,6 +450,35 @@ module ApiErrorTests =
                  relationships |> Seq.length |> should equal 1
                  let head = relationships |> Seq.head
                  head.Id |> should equal buildingRelationship.Id)
+        
+        [<Fact>]       
+        member __.``Legacy: LspList`` () = 
+            requestFor HttpMethod.Get "LspdbWebService.svc/LspList"
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateXmlContent<LspInfoArray> (fun arr ->
+                 arr.LspInfos |> Seq.length |> should equal 1
+                 let head = arr.LspInfos |> Seq.head
+                 head |> should equal lspInfo)
+        
+        [<Fact>]       
+        member __.``Legacy: LspDepartments`` () = 
+            requestFor HttpMethod.Get (sprintf "LspdbWebService.svc/LspDepartments/%s" wyatt.NetId)
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateXmlContent<LspDepartmentArray> (fun arr ->
+                 arr.NetworkID |> should equal wyatt.NetId 
+                 arr.DeptCodeList.Values |> should equal [| parksDept.Name |] )
+
+        [<Fact>]       
+        member __.``Legacy: DepartmentLsps`` () = 
+            requestFor HttpMethod.Get (sprintf "LspdbWebService.svc/LspsInDept/%s" parksDept.Name)
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateXmlContent<LspContactArray> (fun arr ->
+                 arr.LspContacts |> Seq.length |> should equal 1
+                 let head = arr.LspContacts |> Seq.head
+                 head |> should equal lspContact )
 
     type ApiErrorTests(output: ITestOutputHelper)=
         inherit HttpTestBase(output)
