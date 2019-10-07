@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Swashbuckle.AspNetCore.Filt
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "tasks", "tasks\tasks.fsproj", "{AA920445-262F-4421-90F2-B15A011F7447}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "core", "core\core.fsproj", "{B71CD6A6-AC67-4A1B-8A64-F89205333728}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -132,6 +134,18 @@ Global
 		{AA920445-262F-4421-90F2-B15A011F7447}.Release|x64.Build.0 = Release|Any CPU
 		{AA920445-262F-4421-90F2-B15A011F7447}.Release|x86.ActiveCfg = Release|Any CPU
 		{AA920445-262F-4421-90F2-B15A011F7447}.Release|x86.Build.0 = Release|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Debug|x64.Build.0 = Debug|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Debug|x86.Build.0 = Debug|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Release|x64.ActiveCfg = Release|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Release|x64.Build.0 = Release|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Release|x86.ActiveCfg = Release|Any CPU
+		{B71CD6A6-AC67-4A1B-8A64-F89205333728}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{0F17977D-EACA-4AEB-94AF-28B76CD5C5F0} = {42F0AB04-DA5E-4E5D-9F0D-42B1DEBF0907}
