@@ -30,6 +30,7 @@ module Types=
 module DataRepository =
     open Types
     open Core.Types
+    open Core.Util
     open Database.Command
     open Dapper
     open System
@@ -37,50 +38,126 @@ module DataRepository =
     open System.Net.Http.Headers
     open Novell.Directory.Ldap
     open Newtonsoft.Json
-    open Oracle.ManagedDataAccess.Client
 
+    type ProfilePage =
+      { totalRecords: int 
+        currentPage: string
+        lastPage: string }
+    type ProfileJob = 
+      { jobStatus: string 
+        jobDepartmentId: string
+        position: string }
+    type ProfileContact =
+      { phoneNumber: string 
+        campusCode: string }
+    type ProfileEmployee =
+      { lastName: string
+        firstName: string
+        username: string
+        email: string
+        jobs: seq<ProfileJob>
+        contacts: seq<ProfileContact> }
+    type ProfileReponse =
+      { page: ProfilePage 
+        employees: seq<ProfileEmployee> }
 
-    type DenodoElement =
-      { name: string
-        netid: string
-        position: string
-        hr_department: string
-        campus: string
-        campus_phone: string
-        campus_email: string }
-        
-    type DenodoList = 
-      { elements: seq<DenodoElement> }    
+    let concatResult s1 r2 = 
+        match r2 with
+        | Ok(s2) -> Seq.append s1 s2 |> Ok
+        | _ -> r2
+
+    let consoleLog msg = 
+        printfn "%s %s" (DateTime.Now.ToLongTimeString()) msg
+
+    let getUaaToken (uaaUrl:string) username password =
+        "Fetching UAA token..." |> consoleLog
+        let content =
+            dict [
+                "grant_type", "client_credentials"
+                "client_id", username
+                "client_secret", password
+            ]
+            |> Collections.Generic.Dictionary
+            |> (fun d-> new FormUrlEncodedContent(d))
+        postAsync<JwtResponse> uaaUrl content
+
+    let getProfilePage hrDataUrl token page = 
+        let uri = sprintf "%s?affiliationType=employee&page=%d&pageSize=7500" hrDataUrl page |> Uri
+        let req = new HttpRequestMessage(HttpMethod.Get, uri)
+        req.Headers.Authorization <- AuthenticationHeaderValue("Bearer", token)
+        sendAsync<ProfileReponse> req
+
+    let getAllEmployees hrDataUrl (jwt:JwtResponse) =
+        // recursively page through all employees
+        let rec getAllEmployeesRec page = async {
+            // get the requested page of employees
+            match! getProfilePage hrDataUrl jwt.access_token page with
+            | Ok(resp) ->
+                sprintf "Fetched page %d from HR source." page |> consoleLog
+                // if this is the last page, return the set to caller
+                sprintf "\n\tcur: %s\n\tlst: %s" resp.page.currentPage resp.page.lastPage |> consoleLog
+                if resp.page.currentPage = resp.page.lastPage
+                then return Ok resp.employees
+                else
+                    // recurse
+                    let! next = getAllEmployeesRec (page+1)
+                    // return the combined sequences, shortcircuiting on error.
+                    return concatResult resp.employees next
+            | Error(msg) -> return Error(msg)
+        }
+        // fetch first page and kick off recursion
+        "Fetching employees from HR source..." |> consoleLog
+        getAllEmployeesRec 0
+
+    let mapEmployeesToDomainRecords (list:seq<ProfileEmployee>) = 
+        printfn "%s Fetched %d people from HR source." (DateTime.Now.ToLongTimeString()) (list |> Seq.length)
+        let toDomainRecord e =
+            let (position, dept) = 
+                match e.jobs |> Seq.tryFind (fun j -> j.jobStatus = "P") with
+                | Some(job) -> (job.position, job.jobDepartmentId)
+                | None -> ("","")
+            let (phone, campus) = 
+                match e.contacts |> Seq.tryHead with
+                | Some(contact) -> (contact.phoneNumber, contact.campusCode)
+                | None -> ("","")                                
+            { Id=0
+              Name=sprintf "%s %s" e.firstName e.lastName
+              NetId=e.username.ToLower()
+              Position=position
+              HrDepartment=dept
+              Campus=campus
+              CampusEmail=e.email
+              CampusPhone=phone }
+        let validRecord (r:HrPerson) = 
+            hasValue r.HrDepartment && hasValue r.CampusEmail 
+        let domain = list |> Seq.map toDomainRecord 
+        let dupes = 
+            domain 
+            |> Seq.countBy(fun r -> r.NetId)
+            |> Seq.filter(fun (_,count) -> count > 1)
+            |> Seq.map (fun (key,_) -> key)
+        sprintf "Found %d duplicate netids: %s" 
+            (dupes |> Seq.length) 
+            (dupes |> String.concat ", ") 
+            |> consoleLog
+        let distinct = domain |> Seq.distinctBy (fun r -> r.NetId)
+        sprintf "Found %d distinct netids." 
+            (distinct |> Seq.length) |> consoleLog
+        let invalid = distinct |> Seq.filter (validRecord >> not)
+        sprintf "Found %d invalid records due to missing email or HR dept: %s" 
+            (invalid |> Seq.length) 
+            (invalid |> Seq.map (fun r -> r.NetId) |> String.concat ", ")
+            |> consoleLog
+        let valid = distinct |> Seq.filter validRecord
+        sprintf "Found %d valid records." 
+            (valid |> Seq.length) |> consoleLog 
+        valid |> ok
 
     // DENODO Stuff
-    let fetchAllHrPeople (hrDataUrl:string) username password =
-
-        let fetchFromHrSource () =
-            printfn "%s Fetch people from HR source..." (DateTime.Now.ToLongTimeString())
-            let auth = 
-                sprintf "%s:%s" username password
-                |> System.Text.ASCIIEncoding.ASCII.GetBytes
-                |> System.Convert.ToBase64String
-                |> fun str -> AuthenticationHeaderValue("Basic", str)
-            let req = new HttpRequestMessage(HttpMethod.Get, hrDataUrl)
-            req.Headers.Authorization <- auth
-            Core.Util.sendAsync<DenodoList> req
-
-        let mapElementsToDomainRecords list = 
-            printfn "%s Fetched %d people from HR source." (DateTime.Now.ToLongTimeString()) (list.elements |> Seq.length)
-            let toDomainRecord e =
-              { Id=0
-                Name=e.name 
-                NetId=e.netid 
-                Position=e.position
-                HrDepartment=e.hr_department
-                Campus=e.campus
-                CampusEmail=e.campus_email
-                CampusPhone=e.campus_phone }
-            list.elements |> Seq.map toDomainRecord |> ok
-
-        fetchFromHrSource
-        >=> mapElementsToDomainRecords
+    let fetchAllHrPeople uaaUrl hrDataUrl username password =
+        fun () -> getUaaToken uaaUrl username password
+        >=> getAllEmployees hrDataUrl
+        >=> mapEmployeesToDomainRecords
 
     // DB Stuff
 
@@ -129,8 +206,7 @@ module DataRepository =
     let updateHrPeople psqlConnStr (hrPeople:seq<HrPerson>) =
         // convert the hr person to a formatting string representing the table row data.
         let toRow (p:HrPerson) = 
-            let names = p.Name.Split([|','|])
-            sprintf "%s %s\t%s\t%s\t%s\t%s\t%s\t%s\n" names.[1] names.[0] p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment 
+            sprintf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" p.Name p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment 
         Database.Command.executeRaw psqlConnStr (fun cn ->
             cn.Open()
             // truncate the existing
@@ -232,7 +308,7 @@ module DataRepository =
         let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
         fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
 
-    let Repository psqlConnStr hrDataUrl adUser adPassword =
+    let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
        FetchLatestHRPerson = fetchLatestHrPerson psqlConnStr
        UpdatePerson = updatePerson psqlConnStr
@@ -242,7 +318,7 @@ module DataRepository =
        UpdateADGroup = updateADGroup adUser adPassword
        GetPersonMemberships = getPersonMemberships psqlConnStr
        InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
-       FetchAllHrPeople = fetchAllHrPeople hrDataUrl adUser adPassword
+       FetchAllHrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
        UpdateHrPeople = updateHrPeople psqlConnStr }
 
 module Functions=
@@ -274,10 +350,13 @@ module Functions=
     let data = 
         let psqlConnectionString = Environment.GetEnvironmentVariable("DbConnectionString")
         let hrDataUrl = Environment.GetEnvironmentVariable("HrDataUrl")
+        let uaaUrl = Environment.GetEnvironmentVariable("UaaUrl")
+        let uaaUser = Environment.GetEnvironmentVariable("UaaUser")
+        let uaaPassword = Environment.GetEnvironmentVariable("UaaPassword")
         let adUser = Environment.GetEnvironmentVariable("AdUser")
         let adPassword = Environment.GetEnvironmentVariable("AdPassword")
         Database.Command.init()
-        DataRepository.Repository psqlConnectionString hrDataUrl adUser adPassword
+        DataRepository.Repository psqlConnectionString uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
@@ -289,7 +368,7 @@ module Functions=
     // canonical HR data.
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
-        ([<TimerTrigger("0 00 14 * * 1-5")>] timer: TimerInfo,
+        ([<TimerTrigger("0 0 7-22 * * *")>] timer: TimerInfo,
          [<Queue("people-update-batch")>] queue: ICollector<string>,
          log: ILogger) = 
 
