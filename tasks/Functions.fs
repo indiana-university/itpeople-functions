@@ -16,14 +16,15 @@ module Types=
 
     type IDataRepository =
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
-        FetchLatestHRPerson: NetId -> Async<Result<HrPerson option, Error>>
+        FetchLatestPersonData: NetId -> Async<Result<Person * HrPerson option, Error>>
         UpdatePerson: HrPerson -> Async<Result<Person, Error>>
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
-        GetPersonMemberships: NetId -> Async<Result<seq<HistoricalPersonUnitMetadata>, Error>>
-        InsertHistoricalPersonAndDeletePerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>>
+        GetPersonMemberships: Person -> Async<Result<Person * seq<HistoricalPersonUnitMetadata>, Error>>
+        InsertHistoricalPersonAndRemoveMemberships: Person * seq<HistoricalPersonUnitMetadata> -> Async<Result<Person, Error>>
+        InsertHistoricalPersonAndDeletePerson: Person *  seq<HistoricalPersonUnitMetadata> -> Async<Result<Person, Error>>
         FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
         UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>> }
 
@@ -165,14 +166,16 @@ module DataRepository =
         let sql = "SELECT netid FROM people;"
         fetch (fun cn -> cn.QueryAsync<NetId>(sql)) connStr
 
-    let fetchLatestHrPerson connStr netid = async {
-        let sql = """SELECT * FROM hr_people WHERE netid=@NetId"""
-        let param = {NetId = netid}
-        let! result = fetch (fun cn -> cn.QueryAsync<HrPerson>(sql, param)) connStr
+    let fetchAll<'T> connStr sql param = fetch (fun cn -> cn.QueryAsync<'T>(sql, param)) connStr
+
+    let fetchLatestPersonData connStr netid = async {
+        let! personSeq = fetchAll<Person> connStr "SELECT * FROM people WHERE netid=@NetId" {NetId = netid} 
+        let! hrPersonSeq = fetchAll<HrPerson> connStr "SELECT * FROM hr_people WHERE netid=@NetId" {NetId = netid}
         return
-            match result with
-            | Ok(people) -> people |> Seq.tryHead |> Ok
-            | Error(msg) -> Error(msg)
+            match (personSeq, hrPersonSeq) with
+            | Error(msg), _ -> Error(msg)
+            | _, Error(msg) -> Error(msg)
+            | Ok(p), Ok(hr) -> Ok (p |> Seq.head, hr |> Seq.tryHead)
     }
 
     let updatePerson connStr (person:HrPerson) = 
@@ -266,7 +269,7 @@ module DataRepository =
                 let msg = sprintf "Group modification failed for %A:\n%A" update exn
                 error(Status.InternalServerError, msg)
 
-    let getPersonMemberships connStr netid =
+    let getPersonMemberships connStr (person:Person) = async {
         let sql = """
             SELECT u.id, u.name as unit, um.title, um.role, um.permissions, '' as notes, d.name as hr_department
             FROM people p
@@ -274,10 +277,46 @@ module DataRepository =
             JOIN unit_members um ON p.id = um.person_id
             JOIN units u ON u.id = um.unit_id
             where p.netid = @NetId"""
-        let param = {NetId=netid}
-        fetch (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param)) connStr
+        let param = {NetId=person.NetId}
+        let! result = fetch (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param)) connStr
+        match result with
+        | Error(msg) -> return Error(msg)
+        | Ok(memberships) -> return Ok (person, memberships)
+    }
 
-    let insertHistoricalPersonAndDeletePerson connStr netid metadata = 
+    let insertHistoricalPersonAndRemoveMemberships connStr (person:Person, metadata:HistoricalPersonUnitMetadata seq) = async {
+        let sql = """
+            -- begin a transaction to log the historical person and 
+            --   delete all person records as an atomic operation
+            BEGIN;
+            -- add a row to the historical_people table
+            INSERT INTO historical_people (netid, metadata, removed_on)
+            VALUES (@NetId, CAST(@Metadata as json), @RemovedOn);
+            -- delete any unit member tool assignments
+            DELETE FROM unit_member_tools
+            WHERE id IN (
+                SELECT umt.id FROM unit_member_tools umt
+                JOIN unit_members um on um.id = umt.membership_id
+                JOIN people p on p.id = um.person_id
+                WHERE p.netid = @NetId);
+            -- delete any unit memberships
+            DELETE FROM unit_members
+            WHERE id IN (
+                SELECT um.id FROM unit_members um 
+                JOIN people p on p.id = um.person_id
+                WHERE p.netid = @NetId);
+            COMMIT;
+            -- return the netid of the deleted person
+            SELECT @NetId;"""
+        let json = JsonConvert.SerializeObject(metadata, Core.Json.JsonSettings)
+        let param = {NetId=person.NetId; Metadata=json; RemovedOn=DateTime.UtcNow}
+        let! result = fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
+        match result with
+        | Error(msg) -> return Error(msg)
+        | Ok(_) -> return Ok person
+    }
+
+    let insertHistoricalPersonAndDeletePerson connStr (person:Person, metadata:HistoricalPersonUnitMetadata seq) = async {
         let sql = """
             -- begin a transaction to log the historical person and 
             --   delete all person records as an atomic operation
@@ -305,18 +344,23 @@ module DataRepository =
             -- return the netid of the deleted person
             SELECT @NetId;"""
         let json = JsonConvert.SerializeObject(metadata, Core.Json.JsonSettings)
-        let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
-        fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
+        let param = {NetId=person.NetId; Metadata=json; RemovedOn=DateTime.UtcNow}
+        let! result = fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
+        match result with
+        | Error(msg) -> return Error(msg)
+        | Ok(_) -> return Ok person
+    }
 
     let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
-       FetchLatestHRPerson = fetchLatestHrPerson psqlConnStr
+       FetchLatestPersonData = fetchLatestPersonData psqlConnStr
        UpdatePerson = updatePerson psqlConnStr
        GetAllTools = fun () -> getAllTools psqlConnStr 
        GetADGroupMembers = getADGroupMembers adUser adPassword 
        GetAllToolUsers = getAllToolUsers psqlConnStr 
        UpdateADGroup = updateADGroup adUser adPassword
        GetPersonMemberships = getPersonMemberships psqlConnStr
+       InsertHistoricalPersonAndRemoveMemberships = insertHistoricalPersonAndRemoveMemberships psqlConnStr
        InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
        FetchAllHrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
        UpdateHrPeople = updateHrPeople psqlConnStr }
@@ -412,30 +456,47 @@ module Functions=
         ([<QueueTrigger("people-update")>] netid: string,
          log: ILogger) =
 
-        let logUpdatedPerson (person:Person) = 
+        let logUpdate (person:Person) = 
             person.NetId
             |> sprintf "Updated HR data for %s."
             |> log.LogInformation
-            ok ()
+            ok person
 
-        let logRemovedPerson netid = 
-            netid
-            |> sprintf "HR data not found for %s. The 'person' record for this netid has been removed. Any unit memberships have been logged to the 'historical_people' table."
+        let logRemovalFromDirectory (person:Person) = 
+            person.NetId
+            |> sprintf "HR data not found for %s. The 'person' record for this netid has been removed. Any existing unit memberships have been logged to the 'historical_people' table."
             |> log.LogInformation
-            ok ()
+            ok person
 
-        let processHRResult result =
-            match result with
-            | Some(person) ->
-                data.UpdatePerson person
-                >>= logUpdatedPerson
+        let logRemovalFromUnits (person:Person) =
+            person.NetId
+            |> sprintf "HR department and/or postion has changed for %s. The unit memberships for this person have been removed. Any existing unit memberships have been logged to the 'historical_people' table."
+            |> log.LogInformation
+            ok person
+
+        let processHRResult (person:Person, hrPersonOpt:HrPerson option) =
+            match hrPersonOpt with
+            // The person has changed jobs or HR Departments
+            | Some(hrPerson) when 
+                hrPerson.HrDepartment <> person.Department.Name
+                || hrPerson.Position <> person.Position ->
+                data.UpdatePerson hrPerson
+                >>= logUpdate
+                >>= data.GetPersonMemberships
+                >>= data.InsertHistoricalPersonAndRemoveMemberships
+                >>= logRemovalFromUnits
+            // The person is still in the same role
+            | Some(hrPerson) ->
+                data.UpdatePerson hrPerson
+                >>= logUpdate
+            // The person is no longer working for IU
             | None ->
-                data.GetPersonMemberships netid
-                >>= data.InsertHistoricalPersonAndDeletePerson netid
-                >>= logRemovedPerson
+                data.GetPersonMemberships person
+                >>= data.InsertHistoricalPersonAndDeletePerson
+                >>= logRemovalFromDirectory
 
         let workflow = 
-            data.FetchLatestHRPerson
+            data.FetchLatestPersonData
             >=> processHRResult
 
         execute workflow netid
