@@ -169,7 +169,14 @@ module DataRepository =
     let fetchAll<'T> connStr sql param = fetch (fun cn -> cn.QueryAsync<'T>(sql, param)) connStr
 
     let fetchLatestPersonData connStr netid = async {
-        let! personSeq = fetchAll<Person> connStr "SELECT * FROM people WHERE netid=@NetId" {NetId = netid} 
+        let queryPersonSql = """
+            SELECT DISTINCT p.*, d.*
+            FROM people p
+            JOIN departments d on d.id = p.department_id
+            WHERE netid=@NetId"""
+        let mapper (p:Person) d = {p with Department=d}
+        let param = {NetId = netid}
+        let! personSeq = fetch (fun cn -> cn.QueryAsync<Person, Department, Person>(queryPersonSql, mapper, param)) connStr
         let! hrPersonSeq = fetchAll<HrPerson> connStr "SELECT * FROM hr_people WHERE netid=@NetId" {NetId = netid}
         return
             match (personSeq, hrPersonSeq) with
