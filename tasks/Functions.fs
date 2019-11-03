@@ -14,16 +14,23 @@ module Types=
     | Add of ADGroupMember
     | Remove of ADGroupMember
 
+    type UnitRemoval =
+      { Name: string
+        NetId: string
+        UnitName: string
+        UnitId: int }
+
     type IDataRepository =
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
         FetchLatestPersonData: NetId -> Async<Result<Person * HrPerson option, Error>>
         UpdatePerson: HrPerson -> Async<Result<Person, Error>>
+        GetAllUnitLeadershipEmails: UnitRemoval -> Async<Result<UnitRemoval * string seq, Error>>
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
         GetPersonMemberships: Person -> Async<Result<Person * seq<HistoricalPersonUnitMetadata>, Error>>
-        InsertHistoricalPersonAndRemoveMemberships: Person * seq<HistoricalPersonUnitMetadata> -> Async<Result<Person, Error>>
+        InsertHistoricalPersonAndRemoveMemberships: Person * seq<HistoricalPersonUnitMetadata> -> Async<Result<Person * seq<HistoricalPersonUnitMetadata>, Error>>
         InsertHistoricalPersonAndDeletePerson: Person *  seq<HistoricalPersonUnitMetadata> -> Async<Result<Person, Error>>
         FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
         UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>> }
@@ -278,7 +285,7 @@ module DataRepository =
 
     let getPersonMemberships connStr (person:Person) = async {
         let sql = """
-            SELECT u.id, u.name as unit, um.title, um.role, um.permissions, '' as notes, d.name as hr_department
+            SELECT u.id, u.name as unit, u.id as unit_id, um.title, um.role, um.permissions, '' as notes, d.name as hr_department
             FROM people p
             JOIN departments d on d.id = p.department_id
             JOIN unit_members um ON p.id = um.person_id
@@ -320,7 +327,7 @@ module DataRepository =
         let! result = fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
         match result with
         | Error(msg) -> return Error(msg)
-        | Ok(_) -> return Ok person
+        | Ok(_) -> return Ok (person, metadata)
     }
 
     let insertHistoricalPersonAndDeletePerson connStr (person:Person, metadata:HistoricalPersonUnitMetadata seq) = async {
@@ -358,10 +365,23 @@ module DataRepository =
         | Ok(_) -> return Ok person
     }
 
+    let getAllUnitLeadershipEmails connStr (unitRemoval:UnitRemoval) = async {
+        let sql = """
+            SELECT DISTINCT p.campus_email FROM people p
+            JOIN unit_members um ON um.person_id = p.id
+            WHERE um.unit_id = @Id"""
+        let param = {Id=unitRemoval.UnitId}
+        let! result = fetch (fun cn -> cn.QueryAsync<string>(sql, param)) connStr
+        match result with
+        | Error(msg) -> return Error(msg)
+        | Ok(emails) -> return Ok (unitRemoval, emails)
+    }
+
     let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
        FetchLatestPersonData = fetchLatestPersonData psqlConnStr
        UpdatePerson = updatePerson psqlConnStr
+       GetAllUnitLeadershipEmails = getAllUnitLeadershipEmails psqlConnStr
        GetAllTools = fun () -> getAllTools psqlConnStr 
        GetADGroupMembers = getADGroupMembers adUser adPassword 
        GetAllToolUsers = getAllToolUsers psqlConnStr 
@@ -383,6 +403,8 @@ module Functions=
     open Microsoft.Azure.WebJobs
     open Microsoft.Azure.WebJobs.Extensions.Http
     open Microsoft.Extensions.Logging
+    open SendGrid.Helpers.Mail
+
 
     open Types
 
@@ -408,6 +430,10 @@ module Functions=
         let adPassword = Environment.GetEnvironmentVariable("AdPassword")
         Database.Command.init()
         DataRepository.Repository psqlConnectionString uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword
+
+    let enqueueAll (queue:ICollector<string>) =
+        Seq.map serialize
+        >> Seq.iter queue.Add
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
@@ -461,6 +487,7 @@ module Functions=
     [<FunctionName("PeopleUpdateWorker")>]
     let peopleUpdateWorker
         ([<QueueTrigger("people-update")>] netid: string,
+         [<Queue("people-update-notification")>] queue: ICollector<string>,
          log: ILogger) =
 
         let logUpdate (person:Person) = 
@@ -475,11 +502,17 @@ module Functions=
             |> log.LogInformation
             ok person
 
-        let logRemovalFromUnits (person:Person) =
+        let logRemovalFromUnits (person:Person, metadata: HistoricalPersonUnitMetadata seq) =
             person.NetId
             |> sprintf "HR department and/or postion has changed for %s. The unit memberships for this person have been removed. Any existing unit memberships have been logged to the 'historical_people' table."
             |> log.LogInformation
-            ok person
+            ok (person, metadata)
+
+        let enqueueNotifications (person:Person, metadata: HistoricalPersonUnitMetadata seq) =
+            metadata
+            |> Seq.map (fun m -> {Name=person.Name; NetId=person.NetId; UnitName=m.Unit; UnitId=m.UnitId})
+            |> enqueueAll queue
+            ok (person)
 
         let processHRResult (person:Person, hrPersonOpt:HrPerson option) =
             match hrPersonOpt with
@@ -492,6 +525,7 @@ module Functions=
                 >>= data.GetPersonMemberships
                 >>= data.InsertHistoricalPersonAndRemoveMemberships
                 >>= logRemovalFromUnits
+                >>= enqueueNotifications
             // The person is still in the same role
             | Some(hrPerson) ->
                 data.UpdatePerson hrPerson
@@ -508,9 +542,46 @@ module Functions=
 
         execute workflow netid
 
-    let enqueueAll (queue:ICollector<string>) =
-        Seq.map serialize
-        >> Seq.iter queue.Add
+
+    // Send a notification to unit leaders/subleads when a person is removed from the directory.
+    [<FunctionName("PeopleUpdateNotification")>]
+    let peopleUpdateNotification
+        ([<QueueTrigger("people-update-notification")>] unitRemoval: string,
+         [<SendGrid(ApiKey = "SendGridApiKey")>] collector: ICollector<SendGridMessage> , 
+         log: ILogger) =
+        
+        let generateEmailMessage (unit:UnitRemoval, leaders:string seq) =
+            let from = "notifier@iu.edu"
+            let toList = leaders |> Seq.map EmailAddress |> ResizeArray<EmailAddress>
+            let subject = sprintf """[IT People] Membership updated for %s.""" unit.UnitName
+            let body = sprintf """This is an automated notification from IT People.
+            
+%s (%s) was automatically removed from the %s unit (http://itpeople.apps.iu.edu/units/%d) due to a change in their position or HR reporting organization. You are receiving this message because you are listed as a leader or subleader of that unit. 
+
+If you believe this removal was in error, or need further assistance, please contact IT Community Partnerships (talk2uits@iu.edu).""" unit.Name unit.NetId unit.UnitName unit.UnitId
+            let msg = SendGridMessage(From=EmailAddress(from), Subject=subject, PlainTextContent=body)
+            msg.AddTos(toList)
+            ok msg
+        
+        let logEmailDelivery (msg:SendGridMessage) =
+            let tos = 
+                msg.Personalizations 
+                |> Seq.collect (fun p -> p.Tos) 
+                |> Seq.map (fun t -> t.Email)
+                |> String.concat "; "
+            sprintf "Sent notification to '%s' with subject '%s'" tos msg.Subject 
+            |> log.LogInformation
+
+        let workflow = 
+            tryDeserializeAsync<UnitRemoval>
+            >=> data.GetAllUnitLeadershipEmails
+            >=> generateEmailMessage
+            >=> tap collector.Add
+            >=> tap logEmailDelivery
+
+        if Environment.GetEnvironmentVariable("SendNotifications") |> bool.Parse            
+        then execute workflow unitRemoval
+        else log.LogInformation("Notification delivery is disabled for this environment")
 
         // Enqueue the tools for which permissions need to be updated.
     [<FunctionName("ToolUpdateBatcher")>]
