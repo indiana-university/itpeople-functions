@@ -590,11 +590,12 @@ If you believe this removal was in error, or need further assistance, please con
          [<Queue("tool-update")>] queue: ICollector<string>,
          log: ILogger) =
 
-         let logEnqueuedTools = 
-            Seq.map (fun t -> sprintf "%s: %s" t.Name t.ADPath)
-            >> String.concat "\n"
-            >> sprintf "Enqueued tool permission updates for: %s"
-            >> log.LogInformation
+         let logEnqueuedTools (tools:Tool seq) = 
+            tools
+            |> Seq.map (fun t -> sprintf "%s: %s" t.Name t.ADPath)
+            |> String.concat "\n"
+            |> sprintf "Enqueued tool permission updates for: %s"
+            |> log.LogInformation
 
          let workfow =
             data.GetAllTools
