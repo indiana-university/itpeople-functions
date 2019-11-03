@@ -14,16 +14,24 @@ module Types=
     | Add of ADGroupMember
     | Remove of ADGroupMember
 
+    type UnitRemoval =
+      { Name: string
+        NetId: string
+        UnitName: string
+        UnitId: int }
+
     type IDataRepository =
       { GetAllNetIds: unit -> Async<Result<seq<NetId>, Error>>
-        FetchLatestHRPerson: NetId -> Async<Result<HrPerson option, Error>>
+        FetchLatestPersonData: NetId -> Async<Result<Person * HrPerson option, Error>>
         UpdatePerson: HrPerson -> Async<Result<Person, Error>>
+        GetAllUnitLeadershipEmails: UnitRemoval -> Async<Result<UnitRemoval * string seq, Error>>
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
-        GetPersonMemberships: NetId -> Async<Result<seq<HistoricalPersonUnitMetadata>, Error>>
-        InsertHistoricalPersonAndDeletePerson: NetId -> seq<HistoricalPersonUnitMetadata> -> Async<Result<NetId, Error>>
+        GetPersonMemberships: Person -> Async<Result<Person * seq<HistoricalPersonUnitMetadata>, Error>>
+        InsertHistoricalPersonAndRemoveMemberships: Person * seq<HistoricalPersonUnitMetadata> -> Async<Result<Person * seq<HistoricalPersonUnitMetadata>, Error>>
+        InsertHistoricalPersonAndDeletePerson: Person *  seq<HistoricalPersonUnitMetadata> -> Async<Result<Person, Error>>
         FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
         UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>> }
 
@@ -165,14 +173,23 @@ module DataRepository =
         let sql = "SELECT netid FROM people;"
         fetch (fun cn -> cn.QueryAsync<NetId>(sql)) connStr
 
-    let fetchLatestHrPerson connStr netid = async {
-        let sql = """SELECT * FROM hr_people WHERE netid=@NetId"""
+    let fetchAll<'T> connStr sql param = fetch (fun cn -> cn.QueryAsync<'T>(sql, param)) connStr
+
+    let fetchLatestPersonData connStr netid = async {
+        let queryPersonSql = """
+            SELECT DISTINCT p.*, d.*
+            FROM people p
+            JOIN departments d on d.id = p.department_id
+            WHERE netid=@NetId"""
+        let mapper (p:Person) d = {p with Department=d}
         let param = {NetId = netid}
-        let! result = fetch (fun cn -> cn.QueryAsync<HrPerson>(sql, param)) connStr
+        let! personSeq = fetch (fun cn -> cn.QueryAsync<Person, Department, Person>(queryPersonSql, mapper, param)) connStr
+        let! hrPersonSeq = fetchAll<HrPerson> connStr "SELECT * FROM hr_people WHERE netid=@NetId" {NetId = netid}
         return
-            match result with
-            | Ok(people) -> people |> Seq.tryHead |> Ok
-            | Error(msg) -> Error(msg)
+            match (personSeq, hrPersonSeq) with
+            | Error(msg), _ -> Error(msg)
+            | _, Error(msg) -> Error(msg)
+            | Ok(p), Ok(hr) -> Ok (p |> Seq.head, hr |> Seq.tryHead)
     }
 
     let updatePerson connStr (person:HrPerson) = 
@@ -266,18 +283,54 @@ module DataRepository =
                 let msg = sprintf "Group modification failed for %A:\n%A" update exn
                 error(Status.InternalServerError, msg)
 
-    let getPersonMemberships connStr netid =
+    let getPersonMemberships connStr (person:Person) = async {
         let sql = """
-            SELECT u.id, u.name as unit, um.title, um.role, um.permissions, '' as notes, d.name as hr_department
+            SELECT u.id, u.name as unit, u.id as unit_id, um.title, um.role, um.permissions, '' as notes, d.name as hr_department
             FROM people p
             JOIN departments d on d.id = p.department_id
             JOIN unit_members um ON p.id = um.person_id
             JOIN units u ON u.id = um.unit_id
             where p.netid = @NetId"""
-        let param = {NetId=netid}
-        fetch (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param)) connStr
+        let param = {NetId=person.NetId}
+        let! result = fetch (fun cn -> cn.QueryAsync<HistoricalPersonUnitMetadata>(sql, param)) connStr
+        match result with
+        | Error(msg) -> return Error(msg)
+        | Ok(memberships) -> return Ok (person, memberships)
+    }
 
-    let insertHistoricalPersonAndDeletePerson connStr netid metadata = 
+    let insertHistoricalPersonAndRemoveMemberships connStr (person:Person, metadata:HistoricalPersonUnitMetadata seq) = async {
+        let sql = """
+            -- begin a transaction to log the historical person and 
+            --   delete all person records as an atomic operation
+            BEGIN;
+            -- add a row to the historical_people table
+            INSERT INTO historical_people (netid, metadata, removed_on)
+            VALUES (@NetId, CAST(@Metadata as json), @RemovedOn);
+            -- delete any unit member tool assignments
+            DELETE FROM unit_member_tools
+            WHERE id IN (
+                SELECT umt.id FROM unit_member_tools umt
+                JOIN unit_members um on um.id = umt.membership_id
+                JOIN people p on p.id = um.person_id
+                WHERE p.netid = @NetId);
+            -- delete any unit memberships
+            DELETE FROM unit_members
+            WHERE id IN (
+                SELECT um.id FROM unit_members um 
+                JOIN people p on p.id = um.person_id
+                WHERE p.netid = @NetId);
+            COMMIT;
+            -- return the netid of the deleted person
+            SELECT @NetId;"""
+        let json = JsonConvert.SerializeObject(metadata, Core.Json.JsonSettings)
+        let param = {NetId=person.NetId; Metadata=json; RemovedOn=DateTime.UtcNow}
+        let! result = fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
+        match result with
+        | Error(msg) -> return Error(msg)
+        | Ok(_) -> return Ok (person, metadata)
+    }
+
+    let insertHistoricalPersonAndDeletePerson connStr (person:Person, metadata:HistoricalPersonUnitMetadata seq) = async {
         let sql = """
             -- begin a transaction to log the historical person and 
             --   delete all person records as an atomic operation
@@ -305,18 +358,36 @@ module DataRepository =
             -- return the netid of the deleted person
             SELECT @NetId;"""
         let json = JsonConvert.SerializeObject(metadata, Core.Json.JsonSettings)
-        let param = {NetId=netid; Metadata=json; RemovedOn=DateTime.UtcNow}
-        fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
+        let param = {NetId=person.NetId; Metadata=json; RemovedOn=DateTime.UtcNow}
+        let! result = fetch (fun cn -> cn.QuerySingleAsync<NetId>(sql, param)) connStr
+        match result with
+        | Error(msg) -> return Error(msg)
+        | Ok(_) -> return Ok person
+    }
+
+    let getAllUnitLeadershipEmails connStr (unitRemoval:UnitRemoval) = async {
+        let sql = """
+            SELECT DISTINCT p.campus_email FROM people p
+            JOIN unit_members um ON um.person_id = p.id
+            WHERE um.unit_id = @Id"""
+        let param = {Id=unitRemoval.UnitId}
+        let! result = fetch (fun cn -> cn.QueryAsync<string>(sql, param)) connStr
+        match result with
+        | Error(msg) -> return Error(msg)
+        | Ok(emails) -> return Ok (unitRemoval, emails)
+    }
 
     let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
-       FetchLatestHRPerson = fetchLatestHrPerson psqlConnStr
+       FetchLatestPersonData = fetchLatestPersonData psqlConnStr
        UpdatePerson = updatePerson psqlConnStr
+       GetAllUnitLeadershipEmails = getAllUnitLeadershipEmails psqlConnStr
        GetAllTools = fun () -> getAllTools psqlConnStr 
        GetADGroupMembers = getADGroupMembers adUser adPassword 
        GetAllToolUsers = getAllToolUsers psqlConnStr 
        UpdateADGroup = updateADGroup adUser adPassword
        GetPersonMemberships = getPersonMemberships psqlConnStr
+       InsertHistoricalPersonAndRemoveMemberships = insertHistoricalPersonAndRemoveMemberships psqlConnStr
        InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
        FetchAllHrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
        UpdateHrPeople = updateHrPeople psqlConnStr }
@@ -332,6 +403,8 @@ module Functions=
     open Microsoft.Azure.WebJobs
     open Microsoft.Azure.WebJobs.Extensions.Http
     open Microsoft.Extensions.Logging
+    open SendGrid.Helpers.Mail
+
 
     open Types
 
@@ -357,6 +430,10 @@ module Functions=
         let adPassword = Environment.GetEnvironmentVariable("AdPassword")
         Database.Command.init()
         DataRepository.Repository psqlConnectionString uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword
+
+    let enqueueAll (queue:ICollector<string>) =
+        Seq.map serialize
+        >> Seq.iter queue.Add
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
@@ -410,39 +487,101 @@ module Functions=
     [<FunctionName("PeopleUpdateWorker")>]
     let peopleUpdateWorker
         ([<QueueTrigger("people-update")>] netid: string,
+         [<Queue("people-update-notification")>] queue: ICollector<string>,
          log: ILogger) =
 
-        let logUpdatedPerson (person:Person) = 
+        let logUpdate (person:Person) = 
             person.NetId
             |> sprintf "Updated HR data for %s."
             |> log.LogInformation
-            ok ()
+            ok person
 
-        let logRemovedPerson netid = 
-            netid
-            |> sprintf "HR data not found for %s. The 'person' record for this netid has been removed. Any unit memberships have been logged to the 'historical_people' table."
+        let logRemovalFromDirectory (person:Person) = 
+            person.NetId
+            |> sprintf "HR data not found for %s. The 'person' record for this netid has been removed. Any existing unit memberships have been logged to the 'historical_people' table."
             |> log.LogInformation
-            ok ()
+            ok person
 
-        let processHRResult result =
-            match result with
-            | Some(person) ->
-                data.UpdatePerson person
-                >>= logUpdatedPerson
+        let logRemovalFromUnits (person:Person, metadata: HistoricalPersonUnitMetadata seq) =
+            person.NetId
+            |> sprintf "HR department and/or postion has changed for %s. The unit memberships for this person have been removed. Any existing unit memberships have been logged to the 'historical_people' table."
+            |> log.LogInformation
+            ok (person, metadata)
+
+        let enqueueNotifications (person:Person, metadata: HistoricalPersonUnitMetadata seq) =
+            metadata
+            |> Seq.map (fun m -> {Name=person.Name; NetId=person.NetId; UnitName=m.Unit; UnitId=m.UnitId})
+            |> enqueueAll queue
+            ok (person)
+
+        let processHRResult (person:Person, hrPersonOpt:HrPerson option) =
+            match hrPersonOpt with
+            // The person has changed jobs or HR Departments
+            | Some(hrPerson) when 
+                hrPerson.HrDepartment <> person.Department.Name
+                || hrPerson.Position <> person.Position ->
+                data.UpdatePerson hrPerson
+                >>= logUpdate
+                >>= data.GetPersonMemberships
+                >>= data.InsertHistoricalPersonAndRemoveMemberships
+                >>= logRemovalFromUnits
+                >>= enqueueNotifications
+            // The person is still in the same role
+            | Some(hrPerson) ->
+                data.UpdatePerson hrPerson
+                >>= logUpdate
+            // The person is no longer working for IU
             | None ->
-                data.GetPersonMemberships netid
-                >>= data.InsertHistoricalPersonAndDeletePerson netid
-                >>= logRemovedPerson
+                data.GetPersonMemberships person
+                >>= data.InsertHistoricalPersonAndDeletePerson
+                >>= logRemovalFromDirectory
 
         let workflow = 
-            data.FetchLatestHRPerson
+            data.FetchLatestPersonData
             >=> processHRResult
 
         execute workflow netid
 
-    let enqueueAll (queue:ICollector<string>) =
-        Seq.map serialize
-        >> Seq.iter queue.Add
+
+    // Send a notification to unit leaders/subleads when a person is removed from the directory.
+    [<FunctionName("PeopleUpdateNotification")>]
+    let peopleUpdateNotification
+        ([<QueueTrigger("people-update-notification")>] unitRemoval: string,
+         [<SendGrid(ApiKey = "SendGridApiKey")>] collector: ICollector<SendGridMessage> , 
+         log: ILogger) =
+        
+        let generateEmailMessage (unit:UnitRemoval, leaders:string seq) =
+            let from = "notifier@iu.edu"
+            let toList = leaders |> Seq.map EmailAddress |> ResizeArray<EmailAddress>
+            let subject = sprintf """[IT People] Membership updated for %s.""" unit.UnitName
+            let body = sprintf """This is an automated notification from IT People.
+            
+%s (%s) was automatically removed from the %s unit (http://itpeople.apps.iu.edu/units/%d) due to a change in their position or HR reporting organization. You are receiving this message because you are listed as a leader or subleader of that unit. 
+
+If you believe this removal was in error, or need further assistance, please contact IT Community Partnerships (talk2uits@iu.edu).""" unit.Name unit.NetId unit.UnitName unit.UnitId
+            let msg = SendGridMessage(From=EmailAddress(from), Subject=subject, PlainTextContent=body)
+            msg.AddTos(toList)
+            ok msg
+        
+        let logEmailDelivery (msg:SendGridMessage) =
+            let tos = 
+                msg.Personalizations 
+                |> Seq.collect (fun p -> p.Tos) 
+                |> Seq.map (fun t -> t.Email)
+                |> String.concat "; "
+            sprintf "Sent notification to '%s' with subject '%s'" tos msg.Subject 
+            |> log.LogInformation
+
+        let workflow = 
+            tryDeserializeAsync<UnitRemoval>
+            >=> data.GetAllUnitLeadershipEmails
+            >=> generateEmailMessage
+            >=> tap collector.Add
+            >=> tap logEmailDelivery
+
+        if Environment.GetEnvironmentVariable("SendNotifications") |> bool.Parse            
+        then execute workflow unitRemoval
+        else log.LogInformation("Notification delivery is disabled for this environment")
 
         // Enqueue the tools for which permissions need to be updated.
     [<FunctionName("ToolUpdateBatcher")>]
@@ -451,11 +590,12 @@ module Functions=
          [<Queue("tool-update")>] queue: ICollector<string>,
          log: ILogger) =
 
-         let logEnqueuedTools = 
-            Seq.map (fun t -> sprintf "%s: %s" t.Name t.ADPath)
-            >> String.concat "\n"
-            >> sprintf "Enqueued tool permission updates for: %s"
-            >> log.LogInformation
+         let logEnqueuedTools (tools:Tool seq) = 
+            tools
+            |> Seq.map (fun t -> sprintf "%s: %s" t.Name t.ADPath)
+            |> String.concat "\n"
+            |> sprintf "Enqueued tool permission updates for: %s"
+            |> log.LogInformation
 
          let workfow =
             data.GetAllTools
