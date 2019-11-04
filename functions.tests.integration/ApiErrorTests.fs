@@ -65,6 +65,10 @@ module ApiErrorTests =
         response |> parseContent<'T> |> evalFn
         response    
 
+    let evaluateRawContent(evalFn:string -> unit) (response:HttpResponseMessage) =
+        response |> readContent |> evalFn
+        response    
+
     let evaluateXmlContent<'T> (evalFn:'T -> unit) (response:HttpResponseMessage) =
         response |> parseXmlContent<'T> |> evalFn
         response    
@@ -450,6 +454,18 @@ module ApiErrorTests =
                  relationships |> Seq.length |> should equal 1
                  let head = relationships |> Seq.head
                  head.Id |> should equal buildingRelationship.Id)
+
+        [<Fact>]       
+        member __.``Building relationships: delete`` () = 
+            requestFor HttpMethod.Delete (sprintf "buildingRelationships/%d" buildingRelationship.Id)
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.NoContent
+
+        [<Fact>]       
+        member __.``Support relationships: delete`` () = 
+            requestFor HttpMethod.Delete (sprintf "supportRelationships/%d" supportRelationship.Id)
+            |> withAuthentication adminJwt
+            |> shouldGetResponse HttpStatusCode.NoContent
         
         [<Fact>]       
         member __.``Legacy: LspList`` () = 
