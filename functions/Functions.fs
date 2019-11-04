@@ -130,7 +130,7 @@ module Functions =
     let get req workflow = execute Status.OK req jsonResponse workflow
     let create req workflow = execute Status.Created req jsonResponse workflow
     let update req workflow = execute Status.OK req jsonResponse workflow
-    let delete req workflow = execute Status.NoContent req jsonResponse workflow
+    let delete req workflow = execute Status.NoContent req emptyResponse workflow
     let getXml req workflow = execute Status.OK req xmlResponse workflow
 
     let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {

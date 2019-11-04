@@ -173,6 +173,9 @@ let serializeJson model =
 let inline jsonResponse model = 
     model |> serializeJson |> jsonContent
 
+let emptyResponse () = 
+    "{}" |> jsonContent
+
 type Utf8StringWriter()=
     inherit System.IO.StringWriter()
     override __.Encoding = System.Text.Encoding.UTF8
