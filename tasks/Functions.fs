@@ -540,6 +540,7 @@ module Functions=
             data.FetchLatestPersonData
             >=> processHRResult
 
+        sprintf "Processing person update for netid %s" netid |> log.LogInformation
         execute workflow netid
 
 
@@ -579,6 +580,7 @@ If you believe this removal was in error, or need further assistance, please con
             >=> tap collector.Add
             >=> tap logEmailDelivery
 
+        sprintf "Processing notification %s" unitRemoval |> log.LogInformation
         if Environment.GetEnvironmentVariable("SendNotifications") |> bool.Parse            
         then execute workflow unitRemoval
         else log.LogInformation("Notification delivery is disabled for this environment")
@@ -645,6 +647,7 @@ If you believe this removal was in error, or need further assistance, please con
             >=> generateADActions
             >=> tap (enqueueAll queue)
 
+         sprintf "Processing tool update %s" item |> log.LogInformation
          execute workflow item
 
     // Pluck a tool-person from the queue. 
@@ -663,4 +666,5 @@ If you believe this removal was in error, or need further assistance, please con
             >=> data.UpdateADGroup
             >=> tap logUpdate
          
+         sprintf "Processing tool person update %s" item |> log.LogInformation
          execute workflow item
