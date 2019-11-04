@@ -159,11 +159,15 @@ let xmlContent = stringContent "application/xml"
 let textContent = stringContent "text/plain"
 let htmlContent = stringContent "text/html"
 
-let contentResponse req corsHosts status content  = 
+let emptyResponse req corsHosts status  = 
     let response = new HttpResponseMessage(status)
-    response.Content <- content
     addCORSHeader response (origin req) corsHosts
     addPermissionsHeader req response
+    response
+
+let contentResponse req corsHosts status content  = 
+    let response = emptyResponse req corsHosts status
+    response.Content <- content
     response
 
 let serializeJson model = 
@@ -172,6 +176,8 @@ let serializeJson model =
 /// Construct an HTTP response with JSON content
 let inline jsonResponse model = 
     model |> serializeJson |> jsonContent
+
+let noContent () = new StringContent("")
 
 type Utf8StringWriter()=
     inherit System.IO.StringWriter()

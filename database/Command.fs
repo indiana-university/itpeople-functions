@@ -157,7 +157,7 @@ module Command =
             use cn = new NpgsqlConnection(connStr)
             let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
             return () |> Ok
-        with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
+        with exn -> return handleDbExn "delete" (typedefof<'T>.Name) exn
     }
 
     let execute connStr sql parameters = async {
