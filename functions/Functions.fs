@@ -118,13 +118,11 @@ module Functions =
                 let workflow = timestamp >=> workflow
                 match! workflow(req) with
                 | Ok body ->
-                    printfn "***** WORKFLOW SUCCEDED WITH BODY: %O *****" body
                     do! logSuccess log req successStatus
                     match formatter with
                     | None -> return emptyResponse req config.CorsHosts successStatus 
                     | Some(fmt) -> return body |> fmt |> contentResponse req config.CorsHosts successStatus
                 | Error (status,msg) -> 
-                    printfn "***** WORKFLOW ERRORED WITH: %s *****" msg
                     do! logError log req status msg
                     return msg |> jsonResponse |> contentResponse req config.CorsHosts status
             with exn -> 
