@@ -174,7 +174,7 @@ let inline jsonResponse model =
     model |> serializeJson |> jsonContent
 
 let emptyResponse () = 
-    "{}" |> jsonContent
+    System.Object () |> jsonResponse
 
 type Utf8StringWriter()=
     inherit System.IO.StringWriter()
