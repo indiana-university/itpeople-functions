@@ -116,9 +116,11 @@ module Functions =
                 let workflow = timestamp >=> workflow
                 match! workflow(req) with
                 | Ok body ->
+                    printfn "***** WORKFLOW SUCCEDED WITH BODY: %O *****" body
                     do! logSuccess log req successStatus
                     return body |> formatter |> contentResponse req config.CorsHosts successStatus
                 | Error (status,msg) -> 
+                    printfn "***** WORKFLOW ERRORED WITH: %s *****" msg
                     do! logError log req status msg
                     return msg |> jsonResponse |> contentResponse req config.CorsHosts status
             with exn -> 
@@ -931,6 +933,31 @@ module Functions =
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Delete
         delete req workflow
+
+    [<FunctionName("BuildingRelationshipsDelete1")>]
+    let buildingRelationshipsDelete1
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships1")>] req:HttpRequestMessage) =
+        req.CreateResponse(Status.NoContent)
+
+    [<FunctionName("BuildingRelationshipsDelete1Async")>]
+    let buildingRelationshipsDelete1Async
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships1Async")>] req:HttpRequestMessage) = 
+        async {
+            return req.CreateResponse(Status.NoContent)
+        } |> Async.StartAsTask
+
+    [<FunctionName("BuildingRelationshipsDelete2")>]
+    let buildingRelationshipsDelete2
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships2")>] req:HttpRequestMessage) =
+        req.CreateResponse(Status.NoContent, Object())
+
+    [<FunctionName("BuildingRelationshipsDelete2Async")>]
+    let buildingRelationshipsDelete2Async
+        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships2Async")>] req:HttpRequestMessage) = 
+        async {
+            return req.CreateResponse(Status.NoContent, Object())
+        } |> Async.StartAsTask
+
 
     // *********************************
     // ** Legacy Endpoints

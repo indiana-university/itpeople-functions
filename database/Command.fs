@@ -153,17 +153,21 @@ module Command =
 
     let inline delete< ^T when ^T: (member Id:Id)> connStr (obj:^T) = async {
         try
+            printfn "***** START DELETE *****"
             let id = (identity obj)
             use cn = new NpgsqlConnection(connStr)
             let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
+            printfn "***** FINISHED DELETE *****"
             return () |> Ok
-        with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
+        with exn -> return handleDbExn "delete" (typedefof<'T>.Name) exn
     }
 
     let execute connStr sql parameters = async {
         try
+            printfn "***** START EXECUTE *****"
             use cn = new NpgsqlConnection(connStr)
             let! _ = cn.ExecuteAsync(sql, parameters) |> Async.AwaitTask
+            printfn "***** FINISHED EXECUTE *****"
             return () |> Ok
         with exn -> return handleDbExn "execute" "" exn
     }
