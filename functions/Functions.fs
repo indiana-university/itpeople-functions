@@ -118,7 +118,9 @@ module Functions =
                 | Ok body ->
                     printfn "***** WORKFLOW SUCCEDED WITH BODY: %O *****" body
                     do! logSuccess log req successStatus
-                    return body |> formatter |> contentResponse req config.CorsHosts successStatus
+                    match successStatus with
+                    | Status.NoContent -> return emptyResponse req config.CorsHosts successStatus 
+                    | _ -> return body |> formatter |> contentResponse req config.CorsHosts successStatus
                 | Error (status,msg) -> 
                     printfn "***** WORKFLOW ERRORED WITH: %s *****" msg
                     do! logError log req status msg
@@ -132,7 +134,7 @@ module Functions =
     let get req workflow = execute Status.OK req jsonResponse workflow
     let create req workflow = execute Status.Created req jsonResponse workflow
     let update req workflow = execute Status.OK req jsonResponse workflow
-    let delete req workflow = execute Status.NoContent req emptyResponse workflow
+    let delete req workflow = execute Status.NoContent req noContent workflow
     let getXml req workflow = execute Status.OK req xmlResponse workflow
 
     let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {
@@ -933,31 +935,6 @@ module Functions =
             >=> authorizeRelationUnitModification req
             >=> data.BuildingRelationships.Delete
         delete req workflow
-
-    [<FunctionName("BuildingRelationshipsDelete1")>]
-    let buildingRelationshipsDelete1
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships1")>] req:HttpRequestMessage) =
-        req.CreateResponse(Status.NoContent)
-
-    [<FunctionName("BuildingRelationshipsDelete1Async")>]
-    let buildingRelationshipsDelete1Async
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships1Async")>] req:HttpRequestMessage) = 
-        async {
-            return req.CreateResponse(Status.NoContent)
-        } |> Async.StartAsTask
-
-    [<FunctionName("BuildingRelationshipsDelete2")>]
-    let buildingRelationshipsDelete2
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships2")>] req:HttpRequestMessage) =
-        req.CreateResponse(Status.NoContent, Object())
-
-    [<FunctionName("BuildingRelationshipsDelete2Async")>]
-    let buildingRelationshipsDelete2Async
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships2Async")>] req:HttpRequestMessage) = 
-        async {
-            return req.CreateResponse(Status.NoContent, Object())
-        } |> Async.StartAsTask
-
 
     // *********************************
     // ** Legacy Endpoints
