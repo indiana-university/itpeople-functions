@@ -460,14 +460,12 @@ module ApiErrorTests =
             requestFor HttpMethod.Delete (sprintf "buildingRelationships/%d" buildingRelationship.Id)
             |> withAuthentication adminJwt
             |> shouldGetResponse HttpStatusCode.NoContent
-            |> evaluateRawContent (fun content -> content |> should equal "")
 
         [<Fact>]       
         member __.``Support relationships: delete`` () = 
             requestFor HttpMethod.Delete (sprintf "supportRelationships/%d" supportRelationship.Id)
             |> withAuthentication adminJwt
             |> shouldGetResponse HttpStatusCode.NoContent
-            |> evaluateRawContent (fun content -> content |> should equal "")
         
         [<Fact>]       
         member __.``Legacy: LspList`` () = 
