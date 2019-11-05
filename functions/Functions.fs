@@ -109,15 +109,19 @@ module Functions =
     let inline permissionRelationUnitModification req relation =
         permission req (canModifyUnit (unitId relation)) relation     
 
+    type Formatter<'a> = 'a -> StringContent
+
     /// Execute a workflow for an authenticated user and return a response.
-    let inline execute (successStatus:Status) (req:HttpRequestMessage) (formatter: 'a -> StringContent) (workflow: HttpRequestMessage -> Async<Result<'a,Error>>)  = 
+    let inline execute (successStatus:Status) (req:HttpRequestMessage) (formatter: Formatter<'a> option) (workflow: HttpRequestMessage -> Async<Result<'a,Error>>)  = 
         async {
             try
                 let workflow = timestamp >=> workflow
                 match! workflow(req) with
                 | Ok body ->
                     do! logSuccess log req successStatus
-                    return body |> formatter |> contentResponse req config.CorsHosts successStatus
+                    match formatter with
+                    | None -> return emptyResponse req config.CorsHosts successStatus 
+                    | Some(fmt) -> return body |> fmt |> contentResponse req config.CorsHosts successStatus
                 | Error (status,msg) -> 
                     do! logError log req status msg
                     return msg |> jsonResponse |> contentResponse req config.CorsHosts status
@@ -127,11 +131,11 @@ module Functions =
                 return req.CreateErrorResponse(Status.InternalServerError, exn.Message)
         } |> Async.StartAsTask
 
-    let get req workflow = execute Status.OK req jsonResponse workflow
-    let create req workflow = execute Status.Created req jsonResponse workflow
-    let update req workflow = execute Status.OK req jsonResponse workflow
-    let delete req workflow = execute Status.NoContent req jsonResponse workflow
-    let getXml req workflow = execute Status.OK req xmlResponse workflow
+    let get req workflow = execute Status.OK req (Some jsonResponse) workflow
+    let create req workflow = execute Status.Created req (Some jsonResponse) workflow
+    let update req workflow = execute Status.OK req (Some jsonResponse) workflow
+    let delete req workflow = execute Status.NoContent req None workflow
+    let getXml req workflow = execute Status.OK req (Some xmlResponse) workflow
 
     let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {
         let! result = getter (identity model)
