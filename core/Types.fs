@@ -156,8 +156,10 @@ type HrPerson =
     [<Column("campus_phone")>] CampusPhone: string
     /// The campus (work) email address of this person.
     [<Column("campus_email")>] CampusEmail: string 
-    /// Administrative notes about this person, visible only to IT Admins.
-    [<Column("hr_department")>] HrDepartment: string }
+    /// The short name of the person's HR department (e.g. UA-VPIT).
+    [<Column("hr_department")>] HrDepartment: string
+    /// The long name / description of the person's HR department.
+    [<Column("hr_department_desc")>] HrDepartmentDescription: string }
 
 /// A person doing or supporting IT work
 [<CLIMutable>]
