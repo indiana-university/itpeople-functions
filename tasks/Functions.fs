@@ -181,7 +181,7 @@ module DataRepository =
         let queryPersonSql = """
             SELECT DISTINCT p.*, d.*
             FROM people p
-            JOIN departments d on d.id = p.department_id
+            LEFT JOIN departments d on d.id = p.department_id
             WHERE netid=@NetId"""
         let mapper (p:Person) d = {p with Department=d}
         let param = {NetId = netid}
@@ -491,9 +491,15 @@ module Functions=
          [<Queue("people-update-notification")>] queue: ICollector<string>,
          log: ILogger) =
 
-        let logUpdate (person:Person) = 
-            person.NetId
-            |> sprintf "Updated HR data for %s."
+        let logUpdateAttempt (person:HrPerson) =
+            person
+            |> sprintf "Updating directory record with HR data %A."
+            |> log.LogInformation
+            ok person
+
+        let logUpdateSuccess (person:Person) = 
+            person
+            |> sprintf "Updated directory record as %A."
             |> log.LogInformation
             ok person
 
@@ -519,18 +525,20 @@ module Functions=
             match hrPersonOpt with
             // The person has changed jobs or HR Departments
             | Some(hrPerson) when 
-                hrPerson.HrDepartment <> person.Department.Name
+                (not(isNull(box(person.Department))) && hrPerson.HrDepartment <> person.Department.Name)
                 || hrPerson.Position <> person.Position ->
-                data.UpdatePerson hrPerson
-                >>= logUpdate
+                logUpdateAttempt hrPerson
+                >>= data.UpdatePerson
+                >>= logUpdateSuccess
                 >>= data.GetPersonMemberships
                 >>= data.InsertHistoricalPersonAndRemoveMemberships
                 >>= logRemovalFromUnits
                 >>= enqueueNotifications
             // The person is still in the same role
             | Some(hrPerson) ->
-                data.UpdatePerson hrPerson
-                >>= logUpdate
+                logUpdateAttempt hrPerson
+                >>= data.UpdatePerson
+                >>= logUpdateSuccess
             // The person is no longer working for IU
             | None ->
                 data.GetPersonMemberships person
