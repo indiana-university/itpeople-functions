@@ -462,7 +462,7 @@ module Functions=
     // canonical HR data.
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
-        ([<TimerTrigger("0 0 * * * *", RunOnStartup=true)>] timer: TimerInfo,
+        ([<TimerTrigger("0 0 * * * *")>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
 
