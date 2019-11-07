@@ -7,7 +7,6 @@ module Types=
     open Core.Types
 
     type ADPath = string
-
     type ADGroupMember = NetId * ADPath
     
     type ToolPersonUpdate =
@@ -33,7 +32,8 @@ module Types=
         InsertHistoricalPersonAndRemoveMemberships: Person * seq<HistoricalPersonUnitMetadata> -> Async<Result<Person * seq<HistoricalPersonUnitMetadata>, Error>>
         InsertHistoricalPersonAndDeletePerson: Person *  seq<HistoricalPersonUnitMetadata> -> Async<Result<Person, Error>>
         FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
-        UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>> }
+        UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>>
+        SyncDepartments: unit -> Async<Result<unit, Error>> }
 
 module DataRepository =
     open Types
@@ -54,6 +54,7 @@ module DataRepository =
     type ProfileJob = 
       { jobStatus: string 
         jobDepartmentId: string
+        jobDepartmentDesc: string
         position: string }
     type ProfileContact =
       { phoneNumber: string 
@@ -120,10 +121,10 @@ module DataRepository =
     let mapEmployeesToDomainRecords (list:seq<ProfileEmployee>) = 
         printfn "%s Fetched %d people from HR source." (DateTime.Now.ToLongTimeString()) (list |> Seq.length)
         let toDomainRecord e =
-            let (position, dept) = 
+            let (position, deptName, deptDesc) = 
                 match e.jobs |> Seq.tryFind (fun j -> j.jobStatus = "P") with
-                | Some(job) -> (job.position, job.jobDepartmentId)
-                | None -> ("","")
+                | Some(job) -> (job.position, job.jobDepartmentId, job.jobDepartmentDesc)
+                | None -> ("","","")
             let (phone, campus) = 
                 match e.contacts |> Seq.tryHead with
                 | Some(contact) -> (contact.phoneNumber, contact.campusCode)
@@ -132,7 +133,8 @@ module DataRepository =
               Name=sprintf "%s %s" e.firstName e.lastName
               NetId=e.username.ToLower()
               Position=position
-              HrDepartment=dept
+              HrDepartment=deptName
+              HrDepartmentDescription=deptDesc
               Campus=campus
               CampusEmail=e.email
               CampusPhone=phone }
@@ -179,7 +181,7 @@ module DataRepository =
         let queryPersonSql = """
             SELECT DISTINCT p.*, d.*
             FROM people p
-            JOIN departments d on d.id = p.department_id
+            LEFT JOIN departments d on d.id = p.department_id
             WHERE netid=@NetId"""
         let mapper (p:Person) d = {p with Department=d}
         let param = {NetId = netid}
@@ -218,18 +220,32 @@ module DataRepository =
         let param = {Id=tool.Id}
         fetch (fun cn -> cn.QueryAsync<NetId>(sql, param)) connStr
 
-    open NpgsqlTypes
+    let syncDepartments connStr =
+        let sql = """
+            -- 1. Add any new hr departments
+            INSERT INTO departments (name, description)
+            SELECT DISTINCT hr_department, hr_department_desc
+	        FROM hr_people
+	        WHERE hr_department IS NOT NULL
+            ON CONFLICT (name)
+            DO NOTHING;
+            -- 2. Update department descriptions 
+            UPDATE departments d
+            SET description = hr_department_desc
+            FROM hr_people hr
+            WHERE d.name = hr.hr_department"""
+        execute connStr sql ()
 
     let updateHrPeople psqlConnStr (hrPeople:seq<HrPerson>) =
         // convert the hr person to a formatting string representing the table row data.
         let toRow (p:HrPerson) = 
-            sprintf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" p.Name p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment 
-        Database.Command.executeRaw psqlConnStr (fun cn ->
+            sprintf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" p.Name p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment p.HrDepartmentDescription
+        executeRaw psqlConnStr (fun cn ->
             cn.Open()
             // truncate the existing
             cn.Execute("DELETE FROM hr_people;") |> ignore
             // bulk insert the new rows
-            use writer = cn.BeginTextImport("COPY hr_people (name, netid, position, campus, campus_phone, campus_email, hr_department) FROM STDIN")
+            use writer = cn.BeginTextImport("COPY hr_people (name, netid, position, campus, campus_phone, campus_email, hr_department, hr_department_desc) FROM STDIN")
             hrPeople |> Seq.map toRow  |> Seq.iter writer.Write
             // flush the writer to finish the bulk insert
             writer.Flush()
@@ -390,7 +406,8 @@ module DataRepository =
        InsertHistoricalPersonAndRemoveMemberships = insertHistoricalPersonAndRemoveMemberships psqlConnStr
        InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
        FetchAllHrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
-       UpdateHrPeople = updateHrPeople psqlConnStr }
+       UpdateHrPeople = updateHrPeople psqlConnStr
+       SyncDepartments = fun () -> syncDepartments psqlConnStr }
 
 module Functions=
 
@@ -445,38 +462,22 @@ module Functions=
     // canonical HR data.
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
-        ([<TimerTrigger("0 0 7-22 * * *")>] timer: TimerInfo,
-         [<Queue("people-update-batch")>] queue: ICollector<string>,
+        ([<TimerTrigger("0 0 * * * *")>] timer: TimerInfo,
+         [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
 
-        let enqueueBatchUpdate () = 
-            queue.Add ("go go gadget update directory people!")
+        let enqueueAllNetIds =
+            Seq.iter queue.Add
+
+        let logEnqueuedNumber netids = 
+            sprintf "Enqueued %d netids for update." (Seq.length netids)
+            |> log.LogInformation
 
         let workflow = 
             data.FetchAllHrPeople
             >=> data.UpdateHrPeople
-            >=> tap enqueueBatchUpdate
-
-        execute workflow ()
-
-    // Enqueue the netids of all the people for whom we need to update
-    // canonical HR data.
-    [<FunctionName("PeopleUpdateBatcher")>]
-    let peopleUpdateBatcher
-        ([<QueueTrigger("people-update-batch")>] msg: string,
-         [<Queue("people-update")>] queue: ICollector<string>,
-         log: ILogger) = 
-        
-        let enqueueAllNetIds =
-            Seq.iter queue.Add
-
-        let logEnqueuedNumber = 
-            Seq.length
-            >> sprintf "Enqueued %d netids for update."
-            >> log.LogInformation
-
-        let workflow = 
-            data.GetAllNetIds
+            >=> data.SyncDepartments
+            >=> data.GetAllNetIds
             >=> tap enqueueAllNetIds
             >=> tap logEnqueuedNumber
 
@@ -490,9 +491,15 @@ module Functions=
          [<Queue("people-update-notification")>] queue: ICollector<string>,
          log: ILogger) =
 
-        let logUpdate (person:Person) = 
-            person.NetId
-            |> sprintf "Updated HR data for %s."
+        let logUpdateAttempt (person:HrPerson) =
+            person
+            |> sprintf "Updating directory record with HR data %A."
+            |> log.LogInformation
+            ok person
+
+        let logUpdateSuccess (person:Person) = 
+            person
+            |> sprintf "Updated directory record as %A."
             |> log.LogInformation
             ok person
 
@@ -518,18 +525,20 @@ module Functions=
             match hrPersonOpt with
             // The person has changed jobs or HR Departments
             | Some(hrPerson) when 
-                hrPerson.HrDepartment <> person.Department.Name
+                (not(isNull(box(person.Department))) && hrPerson.HrDepartment <> person.Department.Name)
                 || hrPerson.Position <> person.Position ->
-                data.UpdatePerson hrPerson
-                >>= logUpdate
+                logUpdateAttempt hrPerson
+                >>= data.UpdatePerson
+                >>= logUpdateSuccess
                 >>= data.GetPersonMemberships
                 >>= data.InsertHistoricalPersonAndRemoveMemberships
                 >>= logRemovalFromUnits
                 >>= enqueueNotifications
             // The person is still in the same role
             | Some(hrPerson) ->
-                data.UpdatePerson hrPerson
-                >>= logUpdate
+                logUpdateAttempt hrPerson
+                >>= data.UpdatePerson
+                >>= logUpdateSuccess
             // The person is no longer working for IU
             | None ->
                 data.GetPersonMemberships person

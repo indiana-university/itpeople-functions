@@ -106,6 +106,7 @@ let donnaHr:HrPerson = {
     CampusPhone=""
     CampusEmail="dmeagle@pawnee.in.us"
     HrDepartment="PA-PARKS"
+    HrDepartmentDescription="PAWNEE PARKS AND REC"
 }
 
 let tool: Tool = 
