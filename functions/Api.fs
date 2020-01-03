@@ -197,7 +197,7 @@ let description = """## Description
 IT People is the canonical source of information about people doing IT work at Indiana University, their responsibilities and interests, and the IT units to which they belong.
 
 ## Need Help?
-If you need help using this API, please contact the [UITS DCD](mailto:dcdreq@iu.edu) team. 
+If you need help using this API, please contact the Content Systems team via email at [ccore@iu.edu](mailto:ccore@iu.edu). 
 The source code for this [API](https://github.com/indiana-university/itpeople-functions) and the [web front end](https://github.com/indiana-university/itpeople-app) are available on GitHub. We welcome pull requests! 
 If you find a bug or would like to request a feature, please [file an issue in GitHub](https://github.com/indiana-university/itpeople-functions/issues).
 
