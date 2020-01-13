@@ -19,7 +19,8 @@ module AdTests =
         try
             use ldap = new LdapConnection()
             let connected = System.DateTime.Now
-            ldap.Connect("ads.iu.edu", 389)
+            ldap.SecureSocketLayer <- true
+            ldap.Connect("ads.iu.edu", 636)
             ldap.Bind(username, password)  
             let started = System.DateTime.Now
             ldap |> fn
@@ -28,6 +29,19 @@ module AdTests =
             printfn "Time from fn: %f ms" ((now - started).TotalMilliseconds)
             ldap.Disconnect()
         with exn -> printfn "PUUUUUKE 🤮 %A" exn
+
+    // [<Fact>]
+    let ``list attributes`` () =
+        let fn (ldap:LdapConnection) = 
+            printfn "Attributes of user jhoerr.."
+            let mutable count = 0
+            let search = ldap.Search(searchBase, 1, "(sAMAccountName=jhoerr)", [|"cn"|], false)          
+            while search.hasMore() do
+                let next = search.next()
+                printfn "  %s" (next.getAttribute("cn").StringValue)
+                count <- count + 1
+            printfn "  Found %d members." count
+        doLdapThing fn        
 
     // [<Fact>]
     let ``list group members`` () =
