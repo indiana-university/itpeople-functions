@@ -954,15 +954,6 @@ module Functions =
         let workflow = fun _ -> data.Legacy.GetLspDepartments netid
         getXml req workflow    
 
-    [<FunctionName("LegacyLspPrefixes")>]
-    [<SwaggerIgnore>]
-    let legacyLspPrefixes
-        ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspPrefixes/{netid}")>] req, netid) =
-        netid
-        |> sprintf """<LspPrefixList><NetworkID>%s</NetworkID><PrefixCodeList><a:string/></PrefixCodeList></LspPrefixList>"""
-        |> xmlContent
-        |> contentResponse req "*" Status.OK
-
     [<FunctionName("LegacyDepartmentLsps")>]
     [<SwaggerIgnore>]
     let legacyDepartmentLsps
