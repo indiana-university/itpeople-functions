@@ -33,7 +33,9 @@ module Types=
         InsertHistoricalPersonAndDeletePerson: Person *  seq<HistoricalPersonUnitMetadata> -> Async<Result<Person, Error>>
         FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
         UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>>
-        SyncDepartments: unit -> Async<Result<unit, Error>> }
+        SyncDepartments: unit -> Async<Result<unit, Error>>
+        FetchAllBuildings: unit -> Async<Result<seq<Building>, Error>>
+        UpdateBuildings: seq<Building> -> Async<Result<unit, Error>> }
 
 module DataRepository =
     open Types
@@ -69,6 +71,19 @@ module DataRepository =
     type ProfileReponse =
       { page: ProfilePage 
         employees: seq<ProfileEmployee> }
+
+    type DenodoResponse<'T> =
+      { name: string
+        elements: seq<'T> }
+    type DenodoBuilding =
+      { building_code: string
+        site_code: string
+        building_name: string
+        building_long_description: string
+        street: string
+        city: string
+        state: string
+        zip: string }
 
     let concatResult s1 r2 = 
         match r2 with
@@ -394,7 +409,51 @@ module DataRepository =
         | Ok(emails) -> return Ok (unitRemoval, emails)
     }
 
-    let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword =
+    let getDenodoResponse url user password = 
+        let req = new HttpRequestMessage(HttpMethod.Get, url|>Uri)
+        let basicauth = 
+            sprintf "%s:%s" user password
+            |> Text.Encoding.GetEncoding("ISO-8859-1").GetBytes
+            |> Convert.ToBase64String            
+        req.Headers.Authorization <- AuthenticationHeaderValue("Basic", basicauth)
+        sendAsync<DenodoResponse<DenodoBuilding>> req        
+
+    let mapToDomainBuilding (denodoBuildings:DenodoResponse<DenodoBuilding>) =
+        let valueOrEmpty str = if isNull str then "" else str
+        
+        denodoBuildings.elements
+        |> Seq.filter (fun e -> not (isNull e.building_name || isNull e.building_code))
+        |> Seq.map (fun e -> 
+            { Id=0
+              Building.Name = e.building_long_description 
+              Code = e.building_code
+              Address = valueOrEmpty e.street
+              City = valueOrEmpty e.site_code
+              State = ""
+              PostCode = ""
+              Country = "" } )
+        |> ok
+
+    let fetchAllBuildings url user password =
+        getDenodoResponse url user password
+        >>= mapToDomainBuilding
+    
+    let updateBuildings connStr (buildings:seq<Building>) = 
+        let sql = 
+            """INSERT INTO buildings (name, code, address, city, state, post_code, country) VALUES
+               (@Name, @Code, @Address, @City, @State, @PostCode, @Country)
+               ON CONFLICT(code) DO UPDATE SET 
+               name = EXCLUDED.name, 
+               address = EXCLUDED.address,
+               city = EXCLUDED.city,
+               state = EXCLUDED.state,
+               post_code = EXCLUDED.post_code,
+               country = EXCLUDED.country;
+               """
+        execute connStr sql buildings
+        
+
+    let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword buildingUrl buildingUser buildingPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
        FetchLatestPersonData = fetchLatestPersonData psqlConnStr
        UpdatePerson = updatePerson psqlConnStr
@@ -408,7 +467,9 @@ module DataRepository =
        InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
        FetchAllHrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
        UpdateHrPeople = updateHrPeople psqlConnStr
-       SyncDepartments = fun () -> syncDepartments psqlConnStr }
+       SyncDepartments = fun () -> syncDepartments psqlConnStr 
+       FetchAllBuildings = fun () -> fetchAllBuildings buildingUrl buildingUser buildingPassword
+       UpdateBuildings = updateBuildings psqlConnStr }
 
 module Functions=
 
@@ -446,8 +507,11 @@ module Functions=
         let uaaPassword = Environment.GetEnvironmentVariable("UaaPassword")
         let adUser = Environment.GetEnvironmentVariable("AdUser")
         let adPassword = Environment.GetEnvironmentVariable("AdPassword")
+        let buildingUrl = Environment.GetEnvironmentVariable("BuildingUrl")
+        let buildingUser = Environment.GetEnvironmentVariable("BuildingUser")
+        let buildingPassword = Environment.GetEnvironmentVariable("BuildingPassword")
         Database.Command.init()
-        DataRepository.Repository psqlConnectionString uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword
+        DataRepository.Repository psqlConnectionString uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword buildingUrl buildingUser buildingPassword
 
     let enqueueAll (queue:ICollector<string>) =
         Seq.map serialize
@@ -458,6 +522,23 @@ module Functions=
     let ping
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req:HttpRequestMessage) =
         req.CreateResponse(HttpStatusCode.OK, "pong!")
+
+        // Enqueue the tools for which permissions need to be updated.
+    [<FunctionName("BuildingsUpdate")>]
+    let buildingsUpdate
+        ([<TimerTrigger("0 */15 * * * *", RunOnStartup=true)>] timer: TimerInfo,
+         log: ILogger) =
+
+        let logBuildingCount buildings = 
+            sprintf "Fetched %d buildings from Denodo." (buildings |> Seq.length)
+            |> log.LogInformation
+
+        let workflow =
+            data.FetchAllBuildings
+            >=> tap logBuildingCount
+            >=> data.UpdateBuildings
+
+        execute workflow ()
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
