@@ -523,7 +523,8 @@ module Functions=
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req:HttpRequestMessage) =
         req.CreateResponse(HttpStatusCode.OK, "pong!")
 
-        // Enqueue the tools for which permissions need to be updated.
+    // Update our buildings table from a canonical data source.
+    // [<Disable>]
     [<FunctionName("BuildingsUpdate")>]
     let buildingsUpdate
         ([<TimerTrigger("0 */15 * * * *", RunOnStartup=true)>] timer: TimerInfo,
@@ -542,6 +543,7 @@ module Functions=
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
+    // [<Disable>]
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
         ([<TimerTrigger("0 0 * * * *")>] timer: TimerInfo,
@@ -567,6 +569,7 @@ module Functions=
 
     // Pluck a netid from the queue, fetch that person's HR data from the API, 
     // and update it in the DB.
+    // [<Disable>]
     [<FunctionName("PeopleUpdateWorker")>]
     let peopleUpdateWorker
         ([<QueueTrigger("people-update")>] netid: string,
@@ -636,6 +639,7 @@ module Functions=
 
 
     // Send a notification to unit leaders/subleads when a person is removed from the directory.
+    // [<Disable>]
     [<FunctionName("PeopleUpdateNotification")>]
     let peopleUpdateNotification
         ([<QueueTrigger("people-update-notification")>] unitRemoval: string,
@@ -677,6 +681,7 @@ If you believe this removal was in error, or need further assistance, please con
         else log.LogInformation("Notification delivery is disabled for this environment")
 
         // Enqueue the tools for which permissions need to be updated.
+    // [<Disable>]
     [<FunctionName("ToolUpdateBatcher")>]
     let toolUpdateBatcher
         ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
@@ -702,6 +707,7 @@ If you believe this removal was in error, or need further assistance, please con
     // all the people currently in the AD group associated with this tool. 
     // Determine which people should be added/removed from that AD group
     // and enqueue and add/remove message for each.
+    // [<Disable>]
     [<FunctionName("ToolUpdateWorker")>]
     let toolUpdateWorker
         ([<QueueTrigger("tool-update")>] item: string,
@@ -743,6 +749,7 @@ If you believe this removal was in error, or need further assistance, please con
 
     // Pluck a tool-person from the queue. 
     // Add/remove the person to/from the specified AD group.
+    // [<Disable>]
     [<FunctionName("ToolUpdatePersonWorker")>]
     let toolUpdatePersonWorker
         ([<QueueTrigger("tool-update-person")>] item: string,
