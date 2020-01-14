@@ -264,7 +264,8 @@ module DataRepository =
     let doLdapAction adUser adsPassword action = 
             let adUser = sprintf """ads\%s""" adUser
             use ldap = new LdapConnection()
-            ldap.Connect("ads.iu.edu", 389)
+            ldap.SecureSocketLayer <- true
+            ldap.Connect("ads.iu.edu", 636)
             ldap.Bind(adUser, adsPassword)  
             ldap |> action |> ok
 
