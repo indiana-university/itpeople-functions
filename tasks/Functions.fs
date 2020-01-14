@@ -484,7 +484,7 @@ module Functions=
     open Microsoft.Extensions.Logging
     open SendGrid.Helpers.Mail
 
-
+    open Core.Util
     open Types
 
     let execute (workflow:'a -> Async<Result<'b,Error>>) (arg:'a)= 
@@ -500,16 +500,16 @@ module Functions=
         } |> Async.RunSynchronously
 
     let data = 
-        let psqlConnectionString = Environment.GetEnvironmentVariable("DbConnectionString")
-        let hrDataUrl = Environment.GetEnvironmentVariable("HrDataUrl")
-        let uaaUrl = Environment.GetEnvironmentVariable("UaaUrl")
-        let uaaUser = Environment.GetEnvironmentVariable("UaaUser")
-        let uaaPassword = Environment.GetEnvironmentVariable("UaaPassword")
-        let adUser = Environment.GetEnvironmentVariable("AdUser")
-        let adPassword = Environment.GetEnvironmentVariable("AdPassword")
-        let buildingUrl = Environment.GetEnvironmentVariable("BuildingUrl")
-        let buildingUser = Environment.GetEnvironmentVariable("BuildingUser")
-        let buildingPassword = Environment.GetEnvironmentVariable("BuildingPassword")
+        let psqlConnectionString = env "DbConnectionString"
+        let hrDataUrl = env "HrDataUrl"
+        let uaaUrl = env "UaaUrl"
+        let uaaUser = env "UaaUser"
+        let uaaPassword = env "UaaPassword"
+        let adUser = env "AdUser"
+        let adPassword = env "AdPassword"
+        let buildingUrl = env "BuildingUrl"
+        let buildingUser = env "BuildingUser"
+        let buildingPassword = env "BuildingPassword"
         Database.Command.init()
         DataRepository.Repository psqlConnectionString uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword buildingUrl buildingUser buildingPassword
 
