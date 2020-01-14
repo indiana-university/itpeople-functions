@@ -527,7 +527,7 @@ module Functions=
     // [<Disable>]
     [<FunctionName("BuildingsUpdate")>]
     let buildingsUpdate
-        ([<TimerTrigger("0 */15 * * * *", RunOnStartup=true)>] timer: TimerInfo,
+        ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
          log: ILogger) =
 
         let logBuildingCount buildings = 
