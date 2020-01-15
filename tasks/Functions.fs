@@ -33,7 +33,9 @@ module Types=
         InsertHistoricalPersonAndDeletePerson: Person *  seq<HistoricalPersonUnitMetadata> -> Async<Result<Person, Error>>
         FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
         UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>>
-        SyncDepartments: unit -> Async<Result<unit, Error>> }
+        SyncDepartments: unit -> Async<Result<unit, Error>>
+        FetchAllBuildings: unit -> Async<Result<seq<Building>, Error>>
+        UpdateBuildings: seq<Building> -> Async<Result<unit, Error>> }
 
 module DataRepository =
     open Types
@@ -69,6 +71,19 @@ module DataRepository =
     type ProfileReponse =
       { page: ProfilePage 
         employees: seq<ProfileEmployee> }
+
+    type DenodoResponse<'T> =
+      { name: string
+        elements: seq<'T> }
+    type DenodoBuilding =
+      { building_code: string
+        site_code: string
+        building_name: string
+        building_long_description: string
+        street: string
+        city: string
+        state: string
+        zip: string }
 
     let concatResult s1 r2 = 
         match r2 with
@@ -394,7 +409,51 @@ module DataRepository =
         | Ok(emails) -> return Ok (unitRemoval, emails)
     }
 
-    let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword =
+    let getDenodoResponse url user password = 
+        let req = new HttpRequestMessage(HttpMethod.Get, url|>Uri)
+        let basicauth = 
+            sprintf "%s:%s" user password
+            |> Text.Encoding.GetEncoding("ISO-8859-1").GetBytes
+            |> Convert.ToBase64String            
+        req.Headers.Authorization <- AuthenticationHeaderValue("Basic", basicauth)
+        sendAsync<DenodoResponse<DenodoBuilding>> req        
+
+    let mapToDomainBuilding (denodoBuildings:DenodoResponse<DenodoBuilding>) =
+        let valueOrEmpty str = if isNull str then "" else str
+        
+        denodoBuildings.elements
+        |> Seq.filter (fun e -> not (isNull e.building_name || isNull e.building_code))
+        |> Seq.map (fun e -> 
+            { Id=0
+              Building.Name = e.building_long_description 
+              Code = e.building_code
+              Address = valueOrEmpty e.street
+              City = valueOrEmpty e.site_code
+              State = ""
+              PostCode = ""
+              Country = "" } )
+        |> ok
+
+    let fetchAllBuildings url user password =
+        getDenodoResponse url user password
+        >>= mapToDomainBuilding
+    
+    let updateBuildings connStr (buildings:seq<Building>) = 
+        let sql = 
+            """INSERT INTO buildings (name, code, address, city, state, post_code, country) VALUES
+               (@Name, @Code, @Address, @City, @State, @PostCode, @Country)
+               ON CONFLICT(code) DO UPDATE SET 
+               name = EXCLUDED.name, 
+               address = EXCLUDED.address,
+               city = EXCLUDED.city,
+               state = EXCLUDED.state,
+               post_code = EXCLUDED.post_code,
+               country = EXCLUDED.country;
+               """
+        execute connStr sql buildings
+        
+
+    let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword buildingUrl buildingUser buildingPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
        FetchLatestPersonData = fetchLatestPersonData psqlConnStr
        UpdatePerson = updatePerson psqlConnStr
@@ -408,7 +467,9 @@ module DataRepository =
        InsertHistoricalPersonAndDeletePerson = insertHistoricalPersonAndDeletePerson psqlConnStr
        FetchAllHrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
        UpdateHrPeople = updateHrPeople psqlConnStr
-       SyncDepartments = fun () -> syncDepartments psqlConnStr }
+       SyncDepartments = fun () -> syncDepartments psqlConnStr 
+       FetchAllBuildings = fun () -> fetchAllBuildings buildingUrl buildingUser buildingPassword
+       UpdateBuildings = updateBuildings psqlConnStr }
 
 module Functions=
 
@@ -423,7 +484,7 @@ module Functions=
     open Microsoft.Extensions.Logging
     open SendGrid.Helpers.Mail
 
-
+    open Core.Util
     open Types
 
     let execute (workflow:'a -> Async<Result<'b,Error>>) (arg:'a)= 
@@ -439,15 +500,18 @@ module Functions=
         } |> Async.RunSynchronously
 
     let data = 
-        let psqlConnectionString = Environment.GetEnvironmentVariable("DbConnectionString")
-        let hrDataUrl = Environment.GetEnvironmentVariable("HrDataUrl")
-        let uaaUrl = Environment.GetEnvironmentVariable("UaaUrl")
-        let uaaUser = Environment.GetEnvironmentVariable("UaaUser")
-        let uaaPassword = Environment.GetEnvironmentVariable("UaaPassword")
-        let adUser = Environment.GetEnvironmentVariable("AdUser")
-        let adPassword = Environment.GetEnvironmentVariable("AdPassword")
+        let psqlConnectionString = env "DbConnectionString"
+        let hrDataUrl = env "HrDataUrl"
+        let uaaUrl = env "UaaUrl"
+        let uaaUser = env "UaaUser"
+        let uaaPassword = env "UaaPassword"
+        let adUser = env "AdUser"
+        let adPassword = env "AdPassword"
+        let buildingUrl = env "BuildingUrl"
+        let buildingUser = env "BuildingUser"
+        let buildingPassword = env "BuildingPassword"
         Database.Command.init()
-        DataRepository.Repository psqlConnectionString uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword
+        DataRepository.Repository psqlConnectionString uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword buildingUrl buildingUser buildingPassword
 
     let enqueueAll (queue:ICollector<string>) =
         Seq.map serialize
@@ -459,8 +523,27 @@ module Functions=
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "ping")>] req:HttpRequestMessage) =
         req.CreateResponse(HttpStatusCode.OK, "pong!")
 
+    // Update our buildings table from a canonical data source.
+    // [<Disable>]
+    [<FunctionName("BuildingsUpdate")>]
+    let buildingsUpdate
+        ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
+         log: ILogger) =
+
+        let logBuildingCount buildings = 
+            sprintf "Fetched %d buildings from Denodo." (buildings |> Seq.length)
+            |> log.LogInformation
+
+        let workflow =
+            data.FetchAllBuildings
+            >=> tap logBuildingCount
+            >=> data.UpdateBuildings
+
+        execute workflow ()
+
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
+    // [<Disable>]
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
         ([<TimerTrigger("0 0 * * * *")>] timer: TimerInfo,
@@ -486,6 +569,7 @@ module Functions=
 
     // Pluck a netid from the queue, fetch that person's HR data from the API, 
     // and update it in the DB.
+    // [<Disable>]
     [<FunctionName("PeopleUpdateWorker")>]
     let peopleUpdateWorker
         ([<QueueTrigger("people-update")>] netid: string,
@@ -555,6 +639,7 @@ module Functions=
 
 
     // Send a notification to unit leaders/subleads when a person is removed from the directory.
+    // [<Disable>]
     [<FunctionName("PeopleUpdateNotification")>]
     let peopleUpdateNotification
         ([<QueueTrigger("people-update-notification")>] unitRemoval: string,
@@ -596,6 +681,7 @@ If you believe this removal was in error, or need further assistance, please con
         else log.LogInformation("Notification delivery is disabled for this environment")
 
         // Enqueue the tools for which permissions need to be updated.
+    // [<Disable>]
     [<FunctionName("ToolUpdateBatcher")>]
     let toolUpdateBatcher
         ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
@@ -621,6 +707,7 @@ If you believe this removal was in error, or need further assistance, please con
     // all the people currently in the AD group associated with this tool. 
     // Determine which people should be added/removed from that AD group
     // and enqueue and add/remove message for each.
+    // [<Disable>]
     [<FunctionName("ToolUpdateWorker")>]
     let toolUpdateWorker
         ([<QueueTrigger("tool-update")>] item: string,
@@ -662,6 +749,7 @@ If you believe this removal was in error, or need further assistance, please con
 
     // Pluck a tool-person from the queue. 
     // Add/remove the person to/from the specified AD group.
+    // [<Disable>]
     [<FunctionName("ToolUpdatePersonWorker")>]
     let toolUpdatePersonWorker
         ([<QueueTrigger("tool-update-person")>] item: string,
