@@ -50,3 +50,11 @@ let (|Int|_|) str =
 
 let IgnoreCase = StringComparison.InvariantCultureIgnoreCase
                
+let env key =
+    let value = System.Environment.GetEnvironmentVariable(key)
+    if (isEmpty value)
+    then 
+        sprintf "Required environment variable '%s' was not found." key 
+        |> ApplicationException 
+        |> raise
+    value
