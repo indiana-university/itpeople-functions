@@ -712,7 +712,7 @@ module DatabaseRepository =
         >>= fun depts -> ok { NetworkID=netid; DeptCodeList={Values=Seq.toArray depts } }
 
     let queryDepartmentLspsSql = """
-        SELECT p.name, p.netid, p.campus_phone, p.campus_email, MAX(um.role) in (3,4) as is_service_admin, COALESCE(u.email,p.campus_email) as notes
+        SELECT p.name, p.netid, p.campus_phone, p.campus_email, MAX(um.role) in (3,4) as is_service_admin, u.email as notes
         FROM people p
         JOIN unit_members um on um.person_id = p.id
         JOIN support_relationships sr on sr.unit_id = um.unit_id
@@ -730,8 +730,8 @@ module DatabaseRepository =
         FullName=p.Name 
         IsLSPAdmin=p.IsServiceAdmin // we override IsServiceAdmin in the query
         Email=p.CampusEmail 
-        PreferredEmail=p.Notes // we override Notes in the query 
-        GroupInternalEmail=p.Notes // we override Notes in the query
+        PreferredEmail= if isEmpty p.Notes then p.CampusEmail else p.Notes // we override Notes in the query 
+        GroupInternalEmail= ""
         Phone=p.CampusPhone }
 
     let queryDepartmentLsps connStr department = 
