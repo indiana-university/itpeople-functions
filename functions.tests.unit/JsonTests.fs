@@ -21,11 +21,13 @@ module JsonTests =
             ParentId= Some(1)
             Parent=None
             Url= "url"
+            Email="email@example.com"
           })
         let actual = tryDeserialize Status.BadRequest """{
           "id": 0,
           "name": "name",
           "url": "url",
+          "email": "email@example.com",
           "parentId": 1,
           "description": "description"
         }"""

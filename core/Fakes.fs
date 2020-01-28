@@ -8,10 +8,10 @@ let swansonJwt = { access_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2Vy
 let knopeJwt = { access_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJsa25vcGUiLCJleHAiOjI5MTYyMzkwMjJ9.OfrJ3jSh91RXhfXGbi8sfZSrSdJH51Wz_46Dae2BlupaRPX6Rwn5JrHeW2dx3a8M5uVHPY7Av6kfFOCPwbHZHWIdGkQOgGMX20Yck5Utz7j8heEOwfXPQUvi5QD8UgC9NZCgxUNbWHkTF1H2awYECeuGCz6bZyHLoh357jGt5sG5yriuaAo2qnghc5vz70ZwHjTZaHrCdlpKkjxYfSCgcWiHYUfQ3gkUTIXJfoVNbcVst0k7t2T81hz5T-t7Iocgl3_daZ8wsiUMup1aypNwrUgdtNElYYqSBn8gbQ-kx6enzMMIgaWgXlct0r2f5MfplM5tIwxOgGbi2DMvgGAcHg" }
 let fakePublicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnzyis1ZjfNB0bBgKFMSv\nvkTtwlvBsaJq7S5wA+kzeVOVpVWwkWdVha4s38XM/pa/yr47av7+z3VTmvDRyAHc\naT92whREFpLv9cj5lTeJSibyr/Mrm/YtjCZVWgaOYIhwrXwKLqPr/11inWsAkfIy\ntvHWTxZYEcXLgAXFuUuaS3uF9gEiNQwzGTU1v0FqkqTBr4B8nW3HCN47XUu0t8Y0\ne+lf4s4OxQawWD79J9/5d3Ry0vbV3Am1FtGJiJvOwRsIfVChDpYStTcHTCMqtvWb\nV6L11BWkpzGXSW4Hv43qa+GSYOD2QU68Mb59oSk2OB+BtOLpJofmbGEGgvmwyCI9\nMwIDAQAB\n-----END PUBLIC KEY-----"
 // Units
-let cityOfPawnee:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url="http://pawneeindiana.com/"; ParentId=None; Parent=None}
-let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url="http://pawneeindiana.com/parks-and-recreation/"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
-let fourthFloor:Unit = {Id=3; Name="Fourth Floor"; Description="City Hall's Fourth Floor"; Url="http://pawneeindiana.com/fourth-floor/"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
-let edgeUnit:Unit = {Id=4; Name="Edge Unit"; Description="Edge Unit"; Url=""; ParentId=None; Parent=None}
+let cityOfPawnee:Unit = {Id=1; Name="City of Pawnee"; Description="City of Pawnee, Indiana"; Url="http://pawneeindiana.com/"; Email="unit@example.com"; ParentId=None; Parent=None}
+let parksAndRec:Unit = {Id=2; Name="Parks and Rec"; Description="Parks and Recreation"; Url="http://pawneeindiana.com/parks-and-recreation/"; Email="unit@example.com"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
+let fourthFloor:Unit = {Id=3; Name="Fourth Floor"; Description="City Hall's Fourth Floor"; Url="http://pawneeindiana.com/fourth-floor/"; Email="unit@example.com"; ParentId=Some(cityOfPawnee.Id); Parent=Some(cityOfPawnee)}
+let edgeUnit:Unit = {Id=4; Name="Edge Unit"; Description="Edge Unit"; Url=""; Email=""; ParentId=None; Parent=None}
 let parksAndRecUnitRequest:UnitRequest = { Name="Parks and Rec"; Description="Parks and Recreation"; Url="http://pawneeindiana.com/parks-and-recreation/"; ParentId=Some(cityOfPawnee.Id) }
 
 // Departments
