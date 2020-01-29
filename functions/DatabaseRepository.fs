@@ -712,14 +712,15 @@ module DatabaseRepository =
         >>= fun depts -> ok { NetworkID=netid; DeptCodeList={Values=Seq.toArray depts } }
 
     let queryDepartmentLspsSql = """
-        SELECT p.name, p.netid, p.campus_phone, p.campus_email, MAX(um.role) in (3,4) as is_service_admin
+        SELECT p.name, p.netid, p.campus_phone, p.campus_email, MAX(um.role) in (3,4) as is_service_admin, u.email as notes
         FROM people p
         JOIN unit_members um on um.person_id = p.id
         JOIN support_relationships sr on sr.unit_id = um.unit_id
         JOIN departments d on sr.department_id = d.id
+        JOIN units u on um.unit_id = u.id
         WHERE d.name ILIKE @Query 
             AND um.role <> 1
-        GROUP BY p.name, p.netid, p.campus_phone, p.campus_email"""
+        GROUP BY p.name, p.netid, p.campus_phone, p.campus_email, u.email"""
 
     let mapDepartmentLsps department (cn:Cn) = 
         cn.QueryAsync<Person>(queryDepartmentLspsSql, {Query=department})
@@ -727,10 +728,10 @@ module DatabaseRepository =
     let toLspContact (p:Person) =
       { NetworkID=p.NetId
         FullName=p.Name 
-        IsLSPAdmin=p.IsServiceAdmin 
+        IsLSPAdmin=p.IsServiceAdmin // we override IsServiceAdmin in the query
         Email=p.CampusEmail 
-        PreferredEmail=p.CampusEmail 
-        GroupInternalEmail=""
+        PreferredEmail= if isEmpty p.Notes then p.CampusEmail else p.Notes // we override Notes in the query 
+        GroupInternalEmail= ""
         Phone=p.CampusPhone }
 
     let queryDepartmentLsps connStr department = 

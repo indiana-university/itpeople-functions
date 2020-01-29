@@ -221,6 +221,9 @@ type Unit =
     /// A URL for the website of this unit.
     [<DefaultValue("")>]
     [<Column("url")>] Url: string
+    /// A contact email for this unit.
+    [<DefaultValue("")>]
+    [<Column("email")>] Email: string
     /// The unique ID of the parent unit of this unit.
     [<DefaultValue(null)>]
     [<Column("parent_id")>][<Editable(true)>] ParentId: Id option 
