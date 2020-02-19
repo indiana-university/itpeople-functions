@@ -58,6 +58,7 @@ let knopeRequest:PersonRequest = {
     Id=2
     Location=""
     Expertise="Canvasing; Waffles"
+    PhotoUrl="https://en.wikipedia.org/wiki/Leslie_Knope#/media/File:Leslie_Knope_(played_by_Amy_Poehler).png"
     Responsibilities = Responsibilities.ItLeadership ||| Responsibilities.ItProjectMgt
 }
 

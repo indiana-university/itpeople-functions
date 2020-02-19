@@ -75,11 +75,12 @@ module ApiErrorTests =
 
     let personUpdate = 
       { PersonRequest.Id=knope.Id
-        Expertise="Pawnee History" 
+        Expertise="Pawnee History"
+        PhotoUrl="https://cdn.britannica.com/35/103135-050-441DB8AA/Don-Rickles.jpg"
         Responsibilities=Responsibilities.UserExperience|||Responsibilities.BizSysAnalysis
         Location="JJ's Diner" }
 
-    let rawPersonUpdate = """{"id":0, "expertise":"Pawnee History", "responsibilities":"UserExperience,BizSysAnalysis", "location":"JJ's Diner"}"""
+    let rawPersonUpdate = """{"id":0, "expertise":"Pawnee History", "responsibilities":"UserExperience,BizSysAnalysis", "location":"JJ's Diner", "photourl":"https://cdn.britannica.com/35/103135-050-441DB8AA/Don-Rickles.jpg"}"""
 
     let evaluatePersonUpdate (p:Person) = 
         p.Id |> should equal personUpdate.Id
