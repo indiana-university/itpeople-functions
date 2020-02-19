@@ -68,9 +68,13 @@ module DataRepository =
         email: string
         jobs: seq<ProfileJob>
         contacts: seq<ProfileContact> }
+        
+    [<CLIMutable>]
     type ProfileReponse =
       { page: ProfilePage 
-        employees: seq<ProfileEmployee> }
+        employees: seq<ProfileEmployee>
+        affiliates: seq<ProfileEmployee>
+        foundations: seq<ProfileEmployee> }
 
     type DenodoResponse<'T> =
       { name: string
@@ -89,6 +93,12 @@ module DataRepository =
         match r2 with
         | Ok(s2) -> Seq.append s1 s2 |> Ok
         | _ -> r2
+    
+    let concatReslts r1 r2 =
+        match (r1, r2) with
+        | (Ok(s1), Ok(s2)) -> Seq.append s1 s2 |> Ok
+        | (Error(e1), _) -> Error e1
+        | (_, Error(e2)) -> Error e2
 
     let consoleLog msg = 
         printfn "%s %s" (DateTime.Now.ToLongTimeString()) msg
@@ -105,33 +115,50 @@ module DataRepository =
             |> (fun d-> new FormUrlEncodedContent(d))
         postAsync<JwtResponse> uaaUrl content
 
-    let getProfilePage hrDataUrl token page = 
-        let uri = sprintf "%s?affiliationType=employee&page=%d&pageSize=7500" hrDataUrl page |> Uri
+    let getProfilePage hrDataUrl affiliationType token page = 
+        let uri = sprintf "%s?affiliationType=%s&page=%d&pageSize=7500" hrDataUrl affiliationType page |> Uri
         let req = new HttpRequestMessage(HttpMethod.Get, uri)
         req.Headers.Authorization <- AuthenticationHeaderValue("Bearer", token)
         sendAsync<ProfileReponse> req
 
-    let getAllEmployees hrDataUrl (jwt:JwtResponse) =
+        
+    let getAllEmployeesOfType hrDataUrl (jwt:JwtResponse) affiliationType =
+        let concatAll (resp:ProfileReponse) =
+            (if isNull resp.affiliates then Seq.empty<ProfileEmployee> else resp.affiliates)
+            |> Seq.append (if isNull resp.employees then Seq.empty<ProfileEmployee> else resp.employees) 
+            |> Seq.append (if isNull resp.foundations then Seq.empty<ProfileEmployee> else resp.foundations)
         // recursively page through all employees
-        let rec getAllEmployeesRec page = async {
+        let rec getAllEmployeesOfType  page = async {
             // get the requested page of employees
-            match! getProfilePage hrDataUrl jwt.access_token page with
+            match! getProfilePage hrDataUrl affiliationType jwt.access_token page with
             | Ok(resp) ->
                 sprintf "Fetched page %d from HR source." page |> consoleLog
                 // if this is the last page, return the set to caller
-                sprintf "\n\tcur: %s\n\tlst: %s" resp.page.currentPage resp.page.lastPage |> consoleLog
+                sprintf "\n\ttot: %d\n\tcur: %s\n\tlst: %s" resp.page.totalRecords resp.page.currentPage resp.page.lastPage |> consoleLog
                 if resp.page.currentPage = resp.page.lastPage
-                then return Ok resp.employees
+                then return resp |> concatAll |> Ok
                 else
                     // recurse
-                    let! next = getAllEmployeesRec (page+1)
+                    let! next = getAllEmployeesOfType (page+1)
                     // return the combined sequences, shortcircuiting on error.
-                    return concatResult resp.employees next
+                    return concatResult (concatAll resp) next
             | Error(msg) -> return Error(msg)
         }
         // fetch first page and kick off recursion
+        getAllEmployeesOfType 0
+
+    let getAllEmployees hrDataUrl (jwt:JwtResponse) = async {
+        "Fetching affiliates from HR source..." |> consoleLog
+        let! affiliates = getAllEmployeesOfType hrDataUrl jwt "affiliate"
+        "Fetching foundation folk from HR source..." |> consoleLog
+        let! foundation = getAllEmployeesOfType hrDataUrl jwt "foundation"
         "Fetching employees from HR source..." |> consoleLog
-        getAllEmployeesRec 0
+        let! employees = getAllEmployeesOfType hrDataUrl jwt "employee"
+        return 
+            employees
+            |> concatReslts affiliates
+            |> concatReslts foundation
+    }
 
     let mapEmployeesToDomainRecords (list:seq<ProfileEmployee>) = 
         printfn "%s Fetched %d people from HR source." (DateTime.Now.ToLongTimeString()) (list |> Seq.length)
@@ -546,7 +573,7 @@ module Functions=
     // [<Disable>]
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
-        ([<TimerTrigger("0 0 * * * *")>] timer: TimerInfo,
+        ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
 
