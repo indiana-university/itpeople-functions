@@ -203,6 +203,8 @@ type PersonRequest =
     [<Column("location")>] Location: string
     /// A collection of IT-related skills, expertise, or interests posessed by this person.
     [<Column("expertise")>] Expertise: string
+    /// A URL for a profile photo or headshot.
+    [<Column("photo_url")>] PhotoUrl: string
     /// A collection of IT-related responsibilites of this person.
     [<Column("responsibilities")>] Responsibilities: Responsibilities }
 

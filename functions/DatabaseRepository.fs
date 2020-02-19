@@ -485,7 +485,8 @@ module DatabaseRepository =
             UPDATE people
             SET location=@Location,
                 responsibilities=@Responsibilities,
-                expertise=@Expertise
+                expertise=@Expertise,
+                photo_url=@PhotoUrl
             WHERE id=@Id;
             SELECT @Id"""
         let updatePersonQuery (cn:Cn) = cn.QuerySingleAsync<Id>(sql, person)
