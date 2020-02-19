@@ -573,7 +573,7 @@ module Functions=
     // [<Disable>]
     [<FunctionName("PeopleUpdateHrTable")>]
     let peopleUpdateHrTable
-        ([<TimerTrigger("0 0 * * * *")>] timer: TimerInfo,
+        ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
          log: ILogger) = 
 
