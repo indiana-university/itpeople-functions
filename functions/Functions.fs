@@ -325,7 +325,7 @@ module Functions =
 
     [<FunctionName("PersonPut")>]
     [<SwaggerOperation(Summary="Update a person's location, expertise, and responsibilities/job classes.", Description="<em>Authorization</em>: The JWT must represent either the person whose record is being modified (i.e., a person can modify their  own record), or someone who has permissions to manage a unit of which this person is a member (i.e., typically that person's manager/supervisor.)  ", Tags=[|"People"|])>]
-    [<SwaggerRequestExample(typeof<UnitRequest>, typeof<PersonRequestExample>)>]
+    [<SwaggerRequestExample(typeof<PersonRequest>, typeof<PersonRequestExample>)>]
     [<SwaggerResponse(200, "A record of the updated person", typeof<Person>)>]
     [<SwaggerResponse(400, "The request body is malformed.", typeof<ErrorModel>)>]
     [<SwaggerResponse(403, "You do not have permission to modify this person.", typeof<ErrorModel>)>]
