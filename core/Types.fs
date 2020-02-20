@@ -196,17 +196,23 @@ type Person =
     /// The department in this relationship.
     [<ReadOnly(true)>] Department: Department }
 
+[<CLIMutable>]
 type PersonRequest =
   { /// The unique ID of this person record.
-    [<Column("id")>] Id: Id
+    [<JsonIgnore>]
+    Id: Id
     /// The physical location (building, room) of this person.
-    [<Column("location")>] Location: string
+    [<DefaultValue("")>]
+    Location: string
     /// A collection of IT-related skills, expertise, or interests posessed by this person.
-    [<Column("expertise")>] Expertise: string
+    [<DefaultValue("")>]
+    Expertise: string
     /// A URL for a profile photo or headshot.
-    [<Column("photo_url")>] PhotoUrl: string
+    [<DefaultValue("")>]
+    PhotoUrl: string
     /// A collection of IT-related responsibilites of this person.
-    [<Column("responsibilities")>] Responsibilities: Responsibilities }
+    [<DefaultValue("None")>]
+    Responsibilities: Responsibilities }
 
 /// An IT unit
 [<CLIMutable>]
