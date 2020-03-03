@@ -291,6 +291,15 @@ module ApiErrorTests =
                 um.Person.Value.NetId  |> should equal donnaHr.NetId)
 
         [<Fact>]       
+        member __.``Update Knope Title`` () = 
+            requestFor HttpMethod.Put (sprintf "memberships/%d" knopeMembership.Id)
+            |> withAuthentication adminJwt
+            |> withBody {knopeMembershipRequest with Title="New Title"}
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateContent<UnitMember> (fun um -> 
+                um.Title |> should equal "New Title")
+
+        [<Fact>]       
         member __.``People: get by id`` () = 
             requestFor HttpMethod.Get (sprintf "people/%d" knope.Id)
             |> withAuthentication adminJwt
