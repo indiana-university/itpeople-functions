@@ -238,6 +238,8 @@ module DataRepository =
         let sql = """
             UPDATE people
             SET name = @Name,
+                name_first = @NameFirst,
+                name_last = @NameLast,
                 position = @Position,
                 campus = @Campus,
                 campus_phone = @CampusPhone,
