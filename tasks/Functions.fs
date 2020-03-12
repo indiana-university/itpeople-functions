@@ -620,9 +620,11 @@ module Functions=
             let removeFromAD = 
                 ad 
                 |> Seq.except db 
-                |> Seq.map (fun a -> Remove(a, tool.ADPath))
-            let result = Seq.append addToAD removeFromAD 
-            result |> ok
+                |> Seq.map (fun a -> Remove(a, tool.ADPath))                
+
+            if ((Seq.length removeFromAD) = (Seq.length ad))
+            then error (Status.InternalServerError, sprintf "All tool grants for %s would be removed!" tool.Name)
+            else ok (Seq.append addToAD removeFromAD)
                    
          let workflow =
             tryDeserializeAsync<Tool>
