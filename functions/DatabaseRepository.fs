@@ -383,6 +383,8 @@ module DatabaseRepository =
         		SELECT
         			COALESCE(p.netid, hr.netid) as netid, 
         			COALESCE(p.name, hr.name) as name, 
+        			COALESCE(p.name_first, hr.name_first) as name_first, 
+        			COALESCE(p.name_last, hr.name_last) as name_last, 
         			COALESCE(p.position, hr.position) as position,
         			COALESCE(p.campus, hr.campus) as campus,
         			COALESCE(p.campus_phone, hr.campus_phone) as campus_phone,
@@ -403,7 +405,9 @@ module DatabaseRepository =
         	(   -- find matching people by name
         		SELECT
         			COALESCE(p.netid, hr.netid) as netid, 
-        			COALESCE(p.name, hr.name) as name, 
+                    COALESCE(p.name, hr.name) as name, 
+        			COALESCE(p.name_first, hr.name_first) as name_first, 
+        			COALESCE(p.name_last, hr.name_last) as name_last, 
         			COALESCE(p.position, hr.position) as position,
         			COALESCE(p.campus, hr.campus) as campus,
         			COALESCE(p.campus_phone, hr.campus_phone) as campus_phone,
@@ -424,7 +428,7 @@ module DatabaseRepository =
         	LIMIT 10
         )
         SELECT DISTINCT -- deduplicate results
-        	netid, name, position, campus, campus_phone, campus_email, 
+        	netid, name, name_first, name_last, position, campus, campus_phone, campus_email, 
         	expertise, responsibilities, is_service_admin, location, photo_url, notes
         FROM cte"""
         let param = {NetId=like netId}
@@ -436,6 +440,8 @@ module DatabaseRepository =
             0 as id,
             hr.netid, 
             hr.name, 
+            hr.name_first,
+            hr.name_last,
             COALESCE(hr.position, '') as position,
             hr.campus, 
             COALESCE(hr.campus_phone, '') as campus_phone,
