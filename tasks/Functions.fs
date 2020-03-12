@@ -169,6 +169,8 @@ module DataRepository =
                 | None -> ("","")                                
             { Id=0
               Name=sprintf "%s %s" e.firstName e.lastName
+              NameFirst=e.firstName
+              NameLast=e.lastName
               NetId=e.username.ToLower()
               Position=position
               HrDepartment=deptName
@@ -236,6 +238,8 @@ module DataRepository =
         let sql = """
             UPDATE people
             SET name = @Name,
+                name_first = @NameFirst,
+                name_last = @NameLast,
                 position = @Position,
                 campus = @Campus,
                 campus_phone = @CampusPhone,
@@ -277,13 +281,13 @@ module DataRepository =
     let updateHrPeople psqlConnStr (hrPeople:seq<HrPerson>) =
         // convert the hr person to a formatting string representing the table row data.
         let toRow (p:HrPerson) = 
-            sprintf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" p.Name p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment p.HrDepartmentDescription
+            sprintf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" p.Name p.NameFirst p.NameLast p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment p.HrDepartmentDescription
         executeRaw psqlConnStr (fun cn ->
             cn.Open()
             // truncate the existing
             cn.Execute("DELETE FROM hr_people;") |> ignore
             // bulk insert the new rows
-            use writer = cn.BeginTextImport("COPY hr_people (name, netid, position, campus, campus_phone, campus_email, hr_department, hr_department_desc) FROM STDIN")
+            use writer = cn.BeginTextImport("COPY hr_people (name, name_first, name_last, netid, position, campus, campus_phone, campus_email, hr_department, hr_department_desc) FROM STDIN")
             hrPeople |> Seq.map toRow  |> Seq.iter writer.Write
             // flush the writer to finish the bulk insert
             writer.Flush()

@@ -148,6 +148,10 @@ type HrPerson =
     [<Column("netid")>] NetId: NetId
     /// The preferred name of this person.
     [<Column("name")>] Name: Name
+    /// The preferred first name of this person.
+    [<Column("name_first")>] NameFirst: string
+    /// The preferred last name of this person.
+    [<Column("name_last")>] NameLast: string
     /// The job position of this person as defined by HR. This may be different than the person's title in relation to an IT unit.
     [<Column("position")>] Position: string
     /// The primary campus with which this person is affiliated.
@@ -171,6 +175,10 @@ type Person =
     [<Column("netid")>] NetId: NetId
     /// The preferred name of this person.
     [<Column("name")>] Name: Name
+    /// The preferred first name of this person.
+    [<Column("name_first")>] NameFirst: string
+    /// The preferred last name of this person.
+    [<Column("name_last")>] NameLast: string
     /// The job position of this person as defined by HR. This may be different than the person's title in relation to an IT unit.
     [<Column("position")>] Position: string
     /// The physical location (building, room) of this person.
