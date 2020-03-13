@@ -623,7 +623,7 @@ module Functions=
                 |> Seq.map (fun a -> Remove(a, tool.ADPath))                
 
             if ((Seq.length removeFromAD) = (Seq.length ad))
-            then error (Status.InternalServerError, sprintf "All tool grants for %s would be removed!" tool.Name)
+            then error (Status.InternalServerError, sprintf "All %d tool grants for %s would be removed!" (Seq.length removeFromAD) tool.Name)
             else ok (Seq.append addToAD removeFromAD)
                    
          let workflow =
