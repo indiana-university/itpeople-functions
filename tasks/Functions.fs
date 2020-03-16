@@ -659,8 +659,9 @@ module Functions=
                 |> Seq.map (fun a -> Remove(a, tool.ADPath, tool.Name))                
 
             let countOfMembers = Seq.length ad
+            let countOfAdded = Seq.length addToAD
             let countOfRemoved = Seq.length removeFromAD
-            if (countOfRemoved <> 0 && countOfRemoved = countOfMembers)
+            if (countOfAdded = 0 && countOfRemoved <> 0 && countOfRemoved = countOfMembers)
             then error (Status.InternalServerError, sprintf "All %d tool grants for %s would be removed!" countOfMembers tool.Name)
             else ok (Seq.append addToAD removeFromAD)
                    
