@@ -131,11 +131,37 @@ module Functions =
                 return req.CreateErrorResponse(Status.InternalServerError, exn.Message)
         } |> Async.StartAsTask
 
+    let inline execute' (successStatus:Status) (req:HttpRequestMessage) (responseFormatter: Formatter<'a> option) (workflow: Async<Result<'a,Error>>)  = 
+        async {
+            try
+                addProperty req WorkflowTimestamp DateTime.UtcNow
+                match! workflow with
+                | Ok body ->
+                    do! logSuccess log req successStatus
+                    match responseFormatter with
+                    | None -> return emptyResponse req config.CorsHosts successStatus 
+                    | Some(fmt) -> return body |> fmt |> contentResponse req config.CorsHosts successStatus
+                | Error (status,msg) -> 
+                    do! logError log req status msg
+                    return msg |> jsonResponse |> contentResponse req config.CorsHosts status
+            with exn -> 
+                do! logFatal log req exn
+                raise exn
+                return req.CreateErrorResponse(Status.InternalServerError, exn.Message)
+        } |> Async.StartAsTask
+
     let get req workflow = execute Status.OK req (Some jsonResponse) workflow
     let create req workflow = execute Status.Created req (Some jsonResponse) workflow
     let update req workflow = execute Status.OK req (Some jsonResponse) workflow
     let delete req workflow = execute Status.NoContent req None workflow
     let getXml req workflow = execute Status.OK req (Some xmlResponse) workflow
+
+    let get' req workflow = execute' Status.OK req (Some jsonResponse) workflow
+    let create' req workflow = execute' Status.Created req (Some jsonResponse) workflow
+    let update' req workflow = execute' Status.OK req (Some jsonResponse) workflow
+    let delete' req workflow = execute' Status.NoContent req None workflow
+    let getXml' req workflow = execute' Status.OK req (Some xmlResponse) workflow
+
 
     let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {
         let! result = getter (identity model)
