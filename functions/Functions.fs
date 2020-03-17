@@ -236,7 +236,6 @@ module Functions =
         // workflow partials
         let createUaaTokenRequest = createUaaTokenRequest config
         let requestTokenFromUaa = postAsync<JwtResponse> config.OAuth2TokenUrl
-        let resolveAppUserId = data.People.TryGetId
         let recordLoginAndReturnJwt req jwt =
             decodeJwt publicKey jwt.access_token
             >>= recordAuthenticatedUser req 
@@ -278,31 +277,34 @@ module Functions =
     [<OptionalQueryParameter("area", typeof<seq<Area>>)>]
     let peopleGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people")>] req) =
-        let getQueryParams _ =
+        let queryParams =
             { Query=parseQueryAsString req "q"
               Classes=parseQueryAsInt req "class" (fun x->Enum.TryParse<Responsibilities>(x,true))
               Interests=parseQueryAsStringArray req "interest"
               Roles=parseQueryAsIntArray req "role" (fun x->Enum.TryParse<Role>(x,true))
               Campuses=parseQueryAsStringArray req "campus"
               Permissions=parseQueryAsIntArray req "permission" (fun x->Enum.TryParse<UnitPermissions>(x,true))
-              Area=parseQueryAsInt req "area" (fun x->Enum.TryParse<Area>(x,true)) } |> ok
+              Area=parseQueryAsInt req "area" (fun x->Enum.TryParse<Area>(x,true)) }
 
-        let workflow = 
-            authenticate 
-            >=> getQueryParams
-            >=> data.People.GetAll
+        let workflow = pipeline { 
+            let! _ = authenticate req
+            return! data.People.GetAll queryParams
+        }
 
-        get req workflow
+        get' req workflow
 
-    let ensurePersonInDirectory =
-        data.People.TryGetId
-        >=> fun (netid, idOption) ->
+    let addPersonToDirectory netid = pipeline {
+        let! hrPerson = data.People.GetHr netid
+        return! data.People.Create hrPerson
+    }
+    let ensurePersonInDirectory netid = pipeline {
+        let! (_,idOption) = data.People.TryGetId netid
+        let! person = 
             match idOption with
-            | Some(id) -> 
-                data.People.GetById id
-            | None ->  
-                data.People.GetHr netid
-                >>= data.People.Create
+            | Some(id) -> data.People.GetById id
+            | None -> addPersonToDirectory netid
+        return person
+    }
 
     [<FunctionName("PeopleLookupAll")>]
     [<SwaggerOperation(Summary="Search all staff", Description="Search for staff, including IT People, by name or username (netid).", Tags=[|"People"|])>]
@@ -310,18 +312,19 @@ module Functions =
     [<OptionalQueryParameter("q", typeof<string>)>]
     let peopleLookupAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people-lookup")>] req) =
-        let workflow = 
-            authenticate 
-            >=> fun _ -> queryParam "q" req
-            >=> data.People.GetAllWithHr
-        get req workflow
+        let workflow = pipeline { 
+            let! _ = authenticate req
+            let! query = queryParam "q" req
+            return! data.People.GetAllWithHr query
+        }
+        get' req workflow
 
     /// Find a person by their record id (int) or a netid (string).
     /// If using a netid, assume that the person may not yet be in the directory.
     let findPerson (personId:string) = 
         match personId with
-        | Int id -> fun _ -> data.People.GetById id
-        | _      -> fun _ -> ensurePersonInDirectory personId
+        | Int id -> data.People.GetById id
+        | _      -> ensurePersonInDirectory personId
 
     [<FunctionName("PeopleGetById")>]
     [<SwaggerOperation(Summary="Find a person by ID", Tags=[|"People"|])>]
@@ -329,11 +332,12 @@ module Functions =
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
-        let workflow = 
-            authenticate
-            >=> findPerson personId
-            >=> fun p -> permission req (canModifyPerson p.Id) p
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! person = findPerson personId
+            return! permission req (canModifyPerson person.Id) person
+        }
+        get' req workflow
 
     [<FunctionName("PeopleGetAllMemberships")>]
     [<SwaggerOperation(Summary="List a person's unit memberships", Description="List all units for which this person does IT work.", Tags=[|"People"|])>]
@@ -341,11 +345,12 @@ module Functions =
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
-        let workflow = 
-            authenticate
-            >=> findPerson personId
-            >=> fun p -> data.People.GetMemberships p.Id
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! person = findPerson personId
+            return! data.People.GetMemberships person.Id
+        }
+        get' req workflow
 
     let setPersonId id (a:PersonRequest) = ok {a with Id=id}
 
@@ -358,13 +363,14 @@ module Functions =
     [<SwaggerResponse(404, "No person was found with the ID provided.", typeof<ErrorModel>)>]
     let personPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "people/{personId}")>] req, personId) =
-        let workflow =
-            deserializeBody<PersonRequest>
-            >=> setPersonId personId
-            >=> ensureEntityExistsForModel data.People.GetById      
-            >=> authorize req (canModifyPerson personId)
-            >=> data.People.Update
-        update req workflow
+        let workflow = pipeline {
+            let! body = deserializeBody<PersonRequest> req
+            let! person = setPersonId personId body
+            let! model = ensureEntityExistsForModel data.People.GetById person
+            let! authdModel = authorize req (canModifyPerson personId) model
+            return! data.People.Update authdModel
+        }
+        update' req workflow
 
 
     // *****************
