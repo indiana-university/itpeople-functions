@@ -482,7 +482,7 @@ module Functions =
             let! relations = relationResolver model
             return! permission req (canModifyUnit unitId) relations
         } 
-        
+
     [<FunctionName("UnitGetAllSupportedDepartments")>]
     [<SwaggerOperation(Summary="List all supported departments", Description="List all departments that receive IT support from this unit.", Tags=[|"Units"|])>]
     [<SwaggerResponse(200, "A collection of unit-department relationship records.", typeof<seq<SupportRelationship>>)>]
@@ -530,10 +530,11 @@ module Functions =
     [<SwaggerResponse(200, "A collection of unit membership records", typeof<seq<UnitMember>>)>]
     let memberGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships")>] req) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> data.Memberships.GetAll ()
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            return! data.Memberships.GetAll ()
+        }
+        get' req workflow
 
     [<FunctionName("MemberGetById")>]
     [<SwaggerOperation(Summary="Find a unit membership by ID", Tags=[|"Unit Memberships"|])>]
@@ -541,21 +542,23 @@ module Functions =
     [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
     let memberGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships/{membershipId}")>] req, membershipId) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> data.Memberships.Get membershipId
-            >=> permissionRelationUnitModification req
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! memberships = data.Memberships.Get membershipId
+            return! permissionRelationUnitModification req memberships
+        }
+        get' req workflow
 
-    let ensureUnitMemberInDirectory (um:UnitMember) =
+    let ensureUnitMemberInDirectory (um:UnitMember) = pipeline {
         match (um.PersonId, um.NetId) with
         | (None, None) 
-        | (Some(0), None) -> Ok um |> ar // This position is a vacancy.
+        | (Some(0), None) -> return um // This position is a vacancy.
         | (None, Some(netid))
         | (Some(0), Some(netid)) -> // We don't have this person in the directory. Add them now.
-            ensurePersonInDirectory netid
-            >>= fun person -> ok { um with PersonId=Some(person.Id)}
-        | (Some(_), _) -> Ok um |> ar // This position is filled by someone in the directory.
+            let! person = ensurePersonInDirectory netid
+            return { um with PersonId=Some(person.Id)}
+        | (Some(_), _) -> return um // This position is filled by someone in the directory.
+    }
 
     [<FunctionName("MemberCreate")>]
     [<SwaggerOperation(Summary="Create a unit membership.", Description="<em>Authorization</em>: Unit memberships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
@@ -567,13 +570,14 @@ module Functions =
     [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "memberships")>] req) =
-        let workflow = 
-            deserializeBody<UnitMember>
-            >=> setMembershipId 0
-            >=> authorizeRelationUnitModification req
-            >=> ensureUnitMemberInDirectory
-            >=> data.Memberships.Create
-        create req workflow
+        let workflow = pipeline {
+            let! body = deserializeBody<UnitMember> req
+            let! safeBody = setMembershipId 0 body
+            let! authdBody = authorizeRelationUnitModification req safeBody
+            let! ``member`` = ensureUnitMemberInDirectory authdBody
+            return! data.Memberships.Create ``member``
+        }
+        create' req workflow
 
     [<FunctionName("MemberUpdate")>]
     [<SwaggerOperation(Summary="Update a unit membership.", Description="<em>Authorization</em>: Unit memberships can be updated by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
@@ -585,14 +589,14 @@ module Functions =
     [<SwaggerResponse(409, "The provided person is already a member of the provided unit.", typeof<ErrorModel>)>]
     let memberUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
-        let workflow = 
-            deserializeBody<UnitMember>
-            >=> setMembershipId membershipId
-            >=> ensureEntityExistsForModel data.Memberships.Get
-            >=> authorizeRelationUnitModification req
-            >=> ensureUnitMemberInDirectory
-            >=> data.Memberships.Update
-        update req workflow
+        let workflow = pipeline {
+            let! body = deserializeBody<UnitMember> req
+            let! safeBody = setMembershipId membershipId body
+            let! _ = ensureEntityExistsForModel data.Memberships.Get safeBody
+            let! authdBody = authorizeRelationUnitModification req safeBody
+            return! data.Memberships.Update authdBody
+        }
+        update' req workflow
   
     [<FunctionName("MemberDelete")>]
     [<SwaggerOperation(Summary="Delete a unit membership.", Description="<em>Authorization</em>: Unit memberships can be deleted by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Memberships"|])>]
@@ -601,11 +605,12 @@ module Functions =
     [<SwaggerResponse(404, "No membership was found with the ID provided.", typeof<ErrorModel>)>]
     let memberDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
-        let workflow =
-            fun _ -> data.Memberships.Get membershipId
-            >=> authorizeRelationUnitModification req
-            >=> data.Memberships.Delete
-        delete req workflow
+        let workflow = pipeline {
+            let! model = data.Memberships.Get membershipId
+            let! authdModel = authorizeRelationUnitModification req model
+            return! data.Memberships.Delete authdModel
+        }
+        delete' req workflow
 
 
     // *******************
