@@ -717,11 +717,12 @@ module Functions =
     [<OptionalQueryParameter("q", typeof<string>)>]
     let departmentGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments")>] req) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> tryQueryParam req "q"
-            >=> data.Departments.GetAll
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! query = tryQueryParam req "q"
+            return! data.Departments.GetAll query
+        }
+        get' req workflow
 
     [<FunctionName("DepartmentGetId")>]
     [<SwaggerOperation(Summary="Find a department by ID.", Tags=[|"Departments"|])>]
@@ -729,10 +730,11 @@ module Functions =
     [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}")>] req, departmentId) =
-        let workflow =
-            authenticate
-            >=> fun _ -> data.Departments.Get departmentId
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            return! data.Departments.Get departmentId
+        }
+        get' req workflow
 
     [<FunctionName("DepartmentGetAllMemberUnits")>]
     [<SwaggerOperation(Summary="List a department's member units.", Description="A member unit contains people that have an HR relationship with the department.", Tags=[|"Departments"|])>]
@@ -740,11 +742,12 @@ module Functions =
     [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetMemberUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/memberUnits")>] req, departmentId) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> data.Departments.Get departmentId
-            >=> data.Departments.GetMemberUnits
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! dept = data.Departments.Get departmentId
+            return! data.Departments.GetMemberUnits dept
+        }
+        get' req workflow
 
     [<FunctionName("DepartmentGetAllSupportingUnits")>]
     [<SwaggerOperation(Summary="List a department's supporting units.", Description="A supporting unit provides IT services for the department.", Tags=[|"Departments"|])>]
@@ -752,11 +755,12 @@ module Functions =
     [<SwaggerResponse(404, "No department was found with the ID provided.", typeof<ErrorModel>)>]
     let departmentGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
-        let workflow =
-            authenticate
-            >=> fun _ -> data.Departments.Get departmentId
-            >=> data.Departments.GetSupportingUnits
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! dept = data.Departments.Get departmentId
+            return! data.Departments.GetSupportingUnits dept
+        }
+        get' req workflow
 
 
     // ************************
