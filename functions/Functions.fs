@@ -112,25 +112,6 @@ module Functions =
     type Formatter<'a> = 'a -> StringContent
 
     /// Execute a workflow for an authenticated user and return a response.
-    let inline execute (successStatus:Status) (req:HttpRequestMessage) (formatter: Formatter<'a> option) (workflow: HttpRequestMessage -> Async<Result<'a,Error>>)  = 
-        async {
-            try
-                let workflow = timestamp >=> workflow
-                match! workflow(req) with
-                | Ok body ->
-                    do! logSuccess log req successStatus
-                    match formatter with
-                    | None -> return emptyResponse req config.CorsHosts successStatus 
-                    | Some(fmt) -> return body |> fmt |> contentResponse req config.CorsHosts successStatus
-                | Error (status,msg) -> 
-                    do! logError log req status msg
-                    return msg |> jsonResponse |> contentResponse req config.CorsHosts status
-            with exn -> 
-                do! logFatal log req exn
-                raise exn
-                return req.CreateErrorResponse(Status.InternalServerError, exn.Message)
-        } |> Async.StartAsTask
-
     let inline execute' (successStatus:Status) (req:HttpRequestMessage) (responseFormatter: Formatter<'a> option) (workflow: Async<Result<'a,Error>>)  = 
         async {
             try
@@ -149,12 +130,6 @@ module Functions =
                 raise exn
                 return req.CreateErrorResponse(Status.InternalServerError, exn.Message)
         } |> Async.StartAsTask
-
-    let get req workflow = execute Status.OK req (Some jsonResponse) workflow
-    let create req workflow = execute Status.Created req (Some jsonResponse) workflow
-    let update req workflow = execute Status.OK req (Some jsonResponse) workflow
-    let delete req workflow = execute Status.NoContent req None workflow
-    let getXml req workflow = execute Status.OK req (Some xmlResponse) workflow
 
     let get' req workflow = execute' Status.OK req (Some jsonResponse) workflow
     let create' req workflow = execute' Status.Created req (Some jsonResponse) workflow
