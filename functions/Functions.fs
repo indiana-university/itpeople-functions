@@ -995,20 +995,20 @@ module Functions =
     [<SwaggerIgnore>]
     let legacyLspList
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspList")>] req) =
-        let workflow = fun _ -> data.Legacy.GetLspList ()
-        getXml req workflow
+        let workflow = pipeline { return! data.Legacy.GetLspList () }
+        getXml' req workflow
 
     [<FunctionName("LegacyLspDepartments")>]
     [<SwaggerIgnore>]
     let legacyLspDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspDepartments/{netid}")>] req, netid) =
-        let workflow = fun _ -> data.Legacy.GetLspDepartments netid
-        getXml req workflow    
+        let workflow = pipeline { return! data.Legacy.GetLspDepartments netid }
+        getXml' req workflow    
 
     [<FunctionName("LegacyDepartmentLsps")>]
     [<SwaggerIgnore>]
     let legacyDepartmentLsps
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspsInDept/{department}")>] req, department) =
-        let workflow = fun _ -> data.Legacy.GetDepartmentLsps department
-        getXml req workflow   
+        let workflow = pipeline { return! data.Legacy.GetDepartmentLsps department }
+        getXml' req workflow   
 
