@@ -538,8 +538,8 @@ type PeopleRepository = {
 }
 
 type UnitMemberRecordFieldOptions = 
-    | MembersWithoutNotes of Unit
-    | MembersWithNotes of Unit
+    | MembersWithoutNotes of Id
+    | MembersWithNotes of Id
 
 type UnitRepository = {
     /// Get a list of all units
@@ -549,17 +549,17 @@ type UnitRepository = {
     /// Get a unit's members by unit ID 
     GetMembers: UnitMemberRecordFieldOptions -> Async<Result<UnitMember seq,Error>>
     /// Get a unit's supported departments by unit ID        
-    GetSupportedDepartments: Unit -> Async<Result<SupportRelationship seq,Error>>
+    GetSupportedDepartments: Id -> Async<Result<SupportRelationship seq,Error>>
     /// Get a unit's supported buildings by unit ID        
-    GetSupportedBuildings: Unit -> Async<Result<BuildingRelationship seq,Error>>
+    GetSupportedBuildings: Id -> Async<Result<BuildingRelationship seq,Error>>
     // Get a unit's child units by parent unit Id
-    GetChildren: Unit -> Async<Result<Unit seq,Error>>
+    GetChildren: Id -> Async<Result<Unit seq,Error>>
     /// Create a unit
     Create: Unit -> Async<Result<Unit,Error>>
     /// Update a unit
     Update: Unit -> Async<Result<Unit,Error>>
     /// Delete a unit
-    Delete: Unit -> Async<Result<unit,Error>>
+    Delete: Id -> Async<Result<unit,Error>>
     /// 
     GetDescendantOfParent: (Id * Id) -> Async<Result<Unit option,Error>>
 }

@@ -174,27 +174,27 @@ module DatabaseRepository =
         DELETE FROM support_relationships WHERE unit_id=@Id;
         DELETE FROM units WHERE id=@Id"""
 
-    let deleteUnit connStr unit =
-        execute connStr deleteUnitSql {Id=(identity unit)}
+    let deleteUnit connStr unitId =
+        execute connStr deleteUnitSql {Id=unitId}
 
-    let queryUnitChildren connStr (unit:Unit) =
-        fetchAll<Unit> (mapUnits(WhereId("u.parent_id", unit.Id))) connStr
+    let queryUnitChildren connStr unitId =
+        fetchAll<Unit> (mapUnits(WhereId("u.parent_id", unitId))) connStr
 
     let queryUnitMembers connStr (options:UnitMemberRecordFieldOptions) =
         match options with
-        | MembersWithoutNotes(unit) ->
-            fetchAll (mapUnitMembers (WhereId("u.id", unit.Id))) connStr
+        | MembersWithoutNotes(unitId) ->
+            fetchAll (mapUnitMembers (WhereId("u.id", unitId))) connStr
             >>= stripNotes
             >>= collectMemberTools
-        | MembersWithNotes(unit) ->
-            fetchAll (mapUnitMembers (WhereId("u.id", unit.Id))) connStr
+        | MembersWithNotes(unitId) ->
+            fetchAll (mapUnitMembers (WhereId("u.id", unitId))) connStr
             >>= collectMemberTools
 
-    let queryUnitSupportedDepartments connStr (unit:Unit) =
-        fetchAll (mapSupportRelationships(WhereId("u.id", unit.Id))) connStr
+    let queryUnitSupportedDepartments connStr unitId =
+        fetchAll (mapSupportRelationships(WhereId("u.id", unitId))) connStr
 
-    let queryUnitSupportedBuildings connStr (unit:Unit) =
-        fetchAll (mapBuildingRelationships(WhereId("u.id", unit.Id))) connStr
+    let queryUnitSupportedBuildings connStr unitId =
+        fetchAll (mapBuildingRelationships(WhereId("u.id", unitId))) connStr
 
     // This query is recursive. (Whoa.)
     // Given some unit id (ChildId) it will recurse to 

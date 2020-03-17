@@ -389,9 +389,9 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units")>] req) =
         let workflow = pipeline {
             do! authenticate req
+            do! setEndpointPermissions req canCreateDeleteUnit
             let! query = tryQueryParam req "q"
-            let! units = data.Units.GetAll query
-            return! permission req canCreateDeleteUnit units
+            return! data.Units.GetAll query
         }
         get req workflow
 
@@ -403,8 +403,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
             do! authenticate req
-            let! ``unit`` = data.Units.Get unitId 
-            return! permission req (canModifyUnit unitId) ``unit``
+            do! setEndpointPermissions req (canModifyUnit unitId)
+            return! data.Units.Get unitId 
         }
         get req workflow
             
@@ -418,11 +418,10 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow = pipeline {
             do! authenticate req
+            do! setEndpointPermissions req canCreateDeleteUnit
+            do! authorizeCreate req
             let! body = deserializeBody<Unit> req
-            let! safeBody = setUnitId 0 body
-            let! _ = authorize req canCreateDeleteUnit safeBody
-            let! _ = assertUnitParentRelationshipIsNotCircular data safeBody
-            return! data.Units.Create safeBody
+            return! data.Units.Create { body with Id=0 }
         }
         create req workflow
 
@@ -437,12 +436,12 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
             do! authenticate req
+            do! setEndpointPermissions req (canModifyUnit unitId)
+            do! ensureExists data.Units.Get unitId
+            do! authorizeUpdate req
             let! body = deserializeBody<Unit> req
-            let! safeBody = setUnitId unitId body
-            let! _ = ensureEntityExistsForModel data.Units.Get safeBody
-            let! _ = authorize req (canModifyUnit unitId) safeBody
-            let! _ = assertUnitParentRelationshipIsNotCircular data safeBody
-            return! data.Units.Update safeBody
+            do! assertUnitParentRelationshipIsNotCircular data unitId body.ParentId
+            return! data.Units.Update { body with Id=unitId }
         }
         update req workflow
 
@@ -456,10 +455,11 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
             do! authenticate req
-            let! model = data.Units.Get unitId
-            let! _ = authorize req canCreateDeleteUnit model
-            let! _ = assertUnitHasNoChildren data model
-            return! data.Units.Delete model
+            do! setEndpointPermissions req canCreateDeleteUnit
+            do! ensureExists data.Units.Get unitId
+            do! authorizeDelete req
+            do! assertUnitHasNoChildren data unitId
+            return! data.Units.Delete unitId
         }
         delete req workflow       
 
@@ -472,21 +472,21 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
         let workflow = pipeline {
             do! authenticate req
-            let! netid = authenticate'' req
-            let! model = data.Units.Get unitId
-            let! canModifyResult = canModifyUnit model.Id data.Authorization netid
-            let options = if canModifyResult then MembersWithNotes(model) else MembersWithoutNotes(model)
-            let! members = data.Units.GetMembers options
-            return! permission req (canModifyUnit unitId) members
+            do! setEndpointPermissions req (canModifyUnit unitId)
+            let netid = authenticatedRequestor req
+            do! ensureExists data.Units.Get unitId
+            let! canModifyResult = canModifyUnit unitId data.Authorization netid
+            let options = if canModifyResult then MembersWithNotes(unitId) else MembersWithoutNotes(unitId)
+            return! data.Units.GetMembers options
         }
         get req workflow
 
     let getUnitRelations req unitId relationResolver = pipeline {
-            do! authenticate req
-            let! model = data.Units.Get unitId
-            let! relations = relationResolver model
-            return! permission req (canModifyUnit unitId) relations
-        } 
+        do! authenticate req
+        do! setEndpointPermissions req (canModifyUnit unitId)
+        do! ensureExists data.Units.Get unitId
+        return! relationResolver unitId
+    } 
 
     [<FunctionName("UnitGetAllSupportedDepartments")>]
     [<SwaggerOperation(Summary="List all supported departments", Description="List all departments that receive IT support from this unit.", Tags=[|"Units"|])>]
