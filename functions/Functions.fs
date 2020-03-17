@@ -916,10 +916,11 @@ module Functions =
     [<SwaggerResponse(200, "A collection of building support relationship records", typeof<SupportRelationship seq>)>]
     let buildingRelationshipsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildingRelationships")>] req) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> data.BuildingRelationships.GetAll ()
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            return! data.BuildingRelationships.GetAll ()
+        }
+        get' req workflow
 
     [<FunctionName("BuildingRelationshipsGetId")>]
     [<SwaggerOperation(Summary="Find a unit-building support relationships by ID", Tags=[|"Building Relationships"|])>]
@@ -927,11 +928,13 @@ module Functions =
     [<SwaggerResponse(404, "No support relationship was found with the ID provided.", typeof<ErrorModel>)>]
     let buildingRelationshipsGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
-        let workflow =
-            authenticate
-            >=> fun _ -> data.BuildingRelationships.Get relationshipId
-            >=> permissionRelationUnitModification req
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! relationship = data.BuildingRelationships.Get relationshipId
+            return! permissionRelationUnitModification req relationship
+        }
+
+        get' req workflow
 
     [<FunctionName("BuildingRelationshipsCreate")>]
     [<SwaggerOperation(Summary="Create a unit-building support relationship.", Description="<em>Authorization</em>: Support relationships can be created by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Building Relationships"|])>]
@@ -943,12 +946,13 @@ module Functions =
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided building.", typeof<ErrorModel>)>]
     let buildingRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "buildingRelationships")>] req) =
-        let workflow = 
-            deserializeBody<BuildingRelationship>
-            >=> setBuildingRelationshipId 0
-            >=> authorizeRelationUnitModification req
-            >=> data.BuildingRelationships.Create          
-        create req workflow
+        let workflow = pipeline {
+            let! body = deserializeBody<BuildingRelationship> req
+            let safeBody = { body with Id=0 }
+            let! authdBody = authorizeRelationUnitModification req safeBody
+            return! data.BuildingRelationships.Create authdBody
+        }
+        create' req workflow
 
     [<FunctionName("BuildingRelationshipsUpdate")>]
     [<SwaggerOperation(Summary="Update a unit-building support relationship.", Description="<em>Authorization</em>: Support relationships can be modified by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Building Relationships"|])>]
@@ -960,13 +964,14 @@ module Functions =
     [<SwaggerResponse(409, "The provided unit already has a support relationship with the provided building.", typeof<ErrorModel>)>]
     let buildingRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
-        let workflow = 
-            deserializeBody<BuildingRelationship>
-            >=> setBuildingRelationshipId relationshipId
-            >=> ensureEntityExistsForModel data.BuildingRelationships.Get
-            >=> authorizeRelationUnitModification req
-            >=> data.BuildingRelationships.Update
-        update req workflow
+        let workflow = pipeline {
+            let! body = deserializeBody<BuildingRelationship> req
+            let safeBody = { body with Id=relationshipId }
+            let! _ = ensureEntityExistsForModel data.BuildingRelationships.Get safeBody
+            let! authdBody = authorizeRelationUnitModification req safeBody
+            return! data.BuildingRelationships.Update authdBody
+        }
+        update' req workflow
 
     [<FunctionName("BuildingRelationshipsDelete")>]
     [<SwaggerOperation(Summary="Delete a unit-building support relationship.", Description="<em>Authorization</em>: Support relationships can be deleted by any unit member that has either the `Owner` or `ManageMembers` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Building Relationships"|])>]
@@ -975,11 +980,12 @@ module Functions =
     [<SwaggerResponse(404, "No building support relationship was found with the ID provided.", typeof<ErrorModel>)>]
     let buildingRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
-        let workflow = 
-            fun _ -> data.BuildingRelationships.Get relationshipId
-            >=> authorizeRelationUnitModification req
-            >=> data.BuildingRelationships.Delete
-        delete req workflow
+        let workflow = pipeline {
+            let! relationship = data.BuildingRelationships.Get relationshipId
+            let! _ = authorizeRelationUnitModification req relationship
+            return! data.BuildingRelationships.Delete relationship
+        }
+        delete' req workflow
 
     // *********************************
     // ** Legacy Endpoints
