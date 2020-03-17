@@ -336,7 +336,8 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! person = findPerson personId
-            return! permission req (canModifyPerson person.Id) person
+            do! setEndpointPermissions req (canModifyPerson person.Id)
+            return person
         }
         get req workflow
 
@@ -353,8 +354,6 @@ module Functions =
         }
         get req workflow
 
-    let setPersonId id (a:PersonRequest) = ok {a with Id=id}
-
     [<FunctionName("PersonPut")>]
     [<SwaggerOperation(Summary="Update a person's location, expertise, and responsibilities/job classes.", Description="<em>Authorization</em>: The JWT must represent either the person whose record is being modified (i.e., a person can modify their  own record), or someone who has permissions to manage a unit of which this person is a member (i.e., typically that person's manager/supervisor.)  ", Tags=[|"People"|])>]
     [<SwaggerRequestExample(typeof<PersonRequest>, typeof<PersonRequestExample>)>]
@@ -366,11 +365,11 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "people/{personId}")>] req, personId) =
         let workflow = pipeline {
             do! authenticate req
+            do! ensureExists data.People.GetById personId
+            do! setEndpointPermissions req (canModifyPerson personId)
+            do! authorizeUpdate req
             let! body = deserializeBody<PersonRequest> req
-            let! person = setPersonId personId body
-            let! model = ensureEntityExistsForModel data.People.GetById person
-            let! authdModel = authorize req (canModifyPerson personId) model
-            return! data.People.Update authdModel
+            return! data.People.Update { body with Id=personId }
         }
         update req workflow
 
