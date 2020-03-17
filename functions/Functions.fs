@@ -873,11 +873,12 @@ module Functions =
     [<OptionalQueryParameter("q", typeof<string>)>]
     let buildingGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings")>] req) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> tryQueryParam req "q"
-            >=> data.Buildings.GetAll
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! query = tryQueryParam req "q"
+            return! data.Buildings.GetAll query
+        }
+        get' req workflow
 
     [<FunctionName("BuildingGetId")>]
     [<SwaggerOperation(Summary="Find a department by ID.", Tags=[|"Buildings"|])>]
@@ -885,10 +886,11 @@ module Functions =
     [<SwaggerResponse(404, "No building was found with the ID provided.", typeof<ErrorModel>)>]
     let BuildingtGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings/{buildingId}")>] req, buildingId) =
-        let workflow =
-            authenticate
-            >=> fun _ -> data.Buildings.Get buildingId
-        get req workflow    
+        let workflow = pipeline {
+            let! _ = authenticate req
+            return! data.Buildings.Get buildingId
+        }
+        get' req workflow    
 
     [<FunctionName("BuildingGetAllSupportingUnits")>]
     [<SwaggerOperation(Summary="List a buildings's supporting units.", Description="A supporting unit provides IT services for the building.", Tags=[|"Buildings"|])>]
@@ -896,11 +898,12 @@ module Functions =
     [<SwaggerResponse(404, "No building was found with the ID provided.", typeof<ErrorModel>)>]
     let buildingGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings/{buildingId}/supportingUnits")>] req, buildingId) =
-        let workflow =
-            authenticate
-            >=> fun _ -> data.Buildings.Get buildingId
-            >=> data.Buildings.GetSupportingUnits
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            let! building = data.Buildings.Get buildingId
+            return! data.Buildings.GetSupportingUnits building
+        }
+        get' req workflow
 
     // *********************************
     // ** Building Support Relationships
