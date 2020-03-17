@@ -78,10 +78,9 @@ module Functions =
     /// Logging: Add a timestamp to the request properties.
     let timestamp req = 
         addProperty req WorkflowTimestamp DateTime.UtcNow
-        Ok req |> async.Return
         
     /// Logging: Add the authenticated user to the request properties
-    let recordAuthenticatedUser req (netid:NetId) =
+    let recordAuthenticatedUser'' req (netid:NetId) =
         addProperty req WorkflowUser netid
         ok netid
 
@@ -89,9 +88,18 @@ module Functions =
         addProperty req WorkflowPermissions perms
         ok model
     
-    let authenticate req = 
+    let authenticate'' req = 
         authenticateRequest publicKey req
-        >>= recordAuthenticatedUser req
+        >>= recordAuthenticatedUser'' req
+
+    let recordAuthenticatedUser req (netid:NetId) =
+        addProperty req WorkflowUser netid
+
+    let authenticate req = pipeline {
+        let! netid = authenticateRequest publicKey req
+        recordAuthenticatedUser req netid
+        return ()
+    }
 
     let permission req authFn model =
         let user = getProperty req WorkflowUser
@@ -99,7 +107,7 @@ module Functions =
         >>= recordUserPermissions req model
 
     let authorize req authFn model =
-        authenticate req
+        authenticate'' req
         >>= permission req authFn
         >>= authorizeRequest data.Authorization model authFn 
 
@@ -115,8 +123,9 @@ module Functions =
     let inline execute (successStatus:Status) (req:HttpRequestMessage) (responseFormatter: Formatter<'a> option) (workflow: Async<Result<'a,Error>>)  = 
         async {
             try
-                addProperty req WorkflowTimestamp DateTime.UtcNow
-                match! workflow with
+                timestamp req
+                let! result = workflow
+                match result with
                 | Ok body ->
                     do! logSuccess log req successStatus
                     match responseFormatter with
@@ -212,7 +221,7 @@ module Functions =
             let! tokenRequest = createUaaTokenRequest config query
             let! jwt = postAsync<JwtResponse> config.OAuth2TokenUrl tokenRequest
             let! netid = decodeJwt publicKey jwt.access_token
-            let! _ = recordAuthenticatedUser req netid
+            recordAuthenticatedUser req netid
             return jwt
         }
 
@@ -255,7 +264,7 @@ module Functions =
               Area=parseQueryAsInt req "area" (fun x->Enum.TryParse<Area>(x,true)) }
 
         let workflow = pipeline { 
-            let! _ = authenticate req
+            do! authenticate req
             return! data.People.GetAll queryParams
         }
 
@@ -281,7 +290,7 @@ module Functions =
     let peopleLookupAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people-lookup")>] req) =
         let workflow = pipeline { 
-            let! _ = authenticate req
+            do! authenticate req
             let! query = queryParam "q" req
             return! data.People.GetAllWithHr query
         }
@@ -301,7 +310,7 @@ module Functions =
     let peopleGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}")>] req, personId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! person = findPerson personId
             return! permission req (canModifyPerson person.Id) person
         }
@@ -314,7 +323,7 @@ module Functions =
     let peopleGetAllMemberships
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "people/{personId}/memberships")>] req, personId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! person = findPerson personId
             return! data.People.GetMemberships person.Id
         }
@@ -332,6 +341,7 @@ module Functions =
     let personPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "people/{personId}")>] req, personId) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<PersonRequest> req
             let! person = setPersonId personId body
             let! model = ensureEntityExistsForModel data.People.GetById person
@@ -355,7 +365,7 @@ module Functions =
     let unitGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units")>] req) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! query = tryQueryParam req "q"
             let! units = data.Units.GetAll query
             return! permission req canCreateDeleteUnit units
@@ -369,7 +379,7 @@ module Functions =
     let unitGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! ``unit`` = data.Units.Get unitId 
             return! permission req (canModifyUnit unitId) ``unit``
         }
@@ -384,6 +394,7 @@ module Functions =
     let unitPost
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<Unit> req
             let! safeBody = setUnitId 0 body
             let! _ = authorize req canCreateDeleteUnit safeBody
@@ -402,6 +413,7 @@ module Functions =
     let unitPut
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<Unit> req
             let! safeBody = setUnitId unitId body
             let! _ = ensureEntityExistsForModel data.Units.Get safeBody
@@ -420,6 +432,7 @@ module Functions =
     let unitDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
+            do! authenticate req
             let! model = data.Units.Get unitId
             let! _ = authorize req canCreateDeleteUnit model
             let! _ = assertUnitHasNoChildren data model
@@ -435,7 +448,8 @@ module Functions =
     let unitGetAllMembers
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
         let workflow = pipeline {
-            let! netid = authenticate req
+            do! authenticate req
+            let! netid = authenticate'' req
             let! model = data.Units.Get unitId
             let! canModifyResult = canModifyUnit model.Id data.Authorization netid
             let options = if canModifyResult then MembersWithNotes(model) else MembersWithoutNotes(model)
@@ -445,7 +459,7 @@ module Functions =
         get req workflow
 
     let getUnitRelations req unitId relationResolver = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! model = data.Units.Get unitId
             let! relations = relationResolver model
             return! permission req (canModifyUnit unitId) relations
@@ -499,7 +513,7 @@ module Functions =
     let memberGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships")>] req) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             return! data.Memberships.GetAll ()
         }
         get req workflow
@@ -511,7 +525,7 @@ module Functions =
     let memberGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! memberships = data.Memberships.Get membershipId
             return! permissionRelationUnitModification req memberships
         }
@@ -539,6 +553,7 @@ module Functions =
     let memberCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "memberships")>] req) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<UnitMember> req
             let! safeBody = setMembershipId 0 body
             let! authdBody = authorizeRelationUnitModification req safeBody
@@ -558,6 +573,7 @@ module Functions =
     let memberUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<UnitMember> req
             let! safeBody = setMembershipId membershipId body
             let! _ = ensureEntityExistsForModel data.Memberships.Get safeBody
@@ -574,6 +590,7 @@ module Functions =
     let memberDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow = pipeline {
+            do! authenticate req
             let! model = data.Memberships.Get membershipId
             let! authdModel = authorizeRelationUnitModification req model
             return! data.Memberships.Delete authdModel
@@ -597,7 +614,7 @@ module Functions =
     let memberToolsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "membertools")>] req) =
         let workflow = pipeline { 
-            let! _ = authenticate req
+            do! authenticate req
             return! data.MemberTools.GetAll ()
         }
         get req workflow
@@ -609,7 +626,7 @@ module Functions =
     let memberToolGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "membertools/{memberToolId}")>] req, memberToolId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             // todo: this is awkward.
             let! tool = data.MemberTools.Get memberToolId
             let! toolMember = data.MemberTools.GetMember tool
@@ -628,6 +645,7 @@ module Functions =
     let memberToolCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "membertools")>] req) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<MemberTool> req
             let! safeBody = setMemberToolId 0 body
             let! mem = data.MemberTools.GetMember safeBody
@@ -647,6 +665,7 @@ module Functions =
     let memberToolUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "membertools/{memberToolId}")>] req, memberToolId) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<MemberTool> req
             let! safeBody = setMemberToolId memberToolId body
             let! _ = ensureEntityExistsForModel data.MemberTools.Get safeBody
@@ -665,6 +684,7 @@ module Functions =
     let memberToolDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "membertools/{memberToolId}")>] req, memberToolId) =
         let workflow = pipeline {
+            do! authenticate req
             let! tool = data.MemberTools.Get memberToolId
             let! toolMember = data.MemberTools.GetMember tool 
             let! authdToolMember = authorizeMemberToolUnitModification req toolMember
@@ -686,7 +706,7 @@ module Functions =
     let departmentGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments")>] req) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! query = tryQueryParam req "q"
             return! data.Departments.GetAll query
         }
@@ -699,7 +719,7 @@ module Functions =
     let departmentGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}")>] req, departmentId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             return! data.Departments.Get departmentId
         }
         get req workflow
@@ -711,7 +731,7 @@ module Functions =
     let departmentGetMemberUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/memberUnits")>] req, departmentId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! dept = data.Departments.Get departmentId
             return! data.Departments.GetMemberUnits dept
         }
@@ -724,7 +744,7 @@ module Functions =
     let departmentGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! dept = data.Departments.Get departmentId
             return! data.Departments.GetSupportingUnits dept
         }
@@ -743,7 +763,7 @@ module Functions =
     let supportRelationshipsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "supportRelationships")>] req) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             return! data.SupportRelationships.GetAll ()
         }
         get req workflow
@@ -755,7 +775,7 @@ module Functions =
     let supportRelationshipsGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! relationship = data.SupportRelationships.Get relationshipId
             return! permissionRelationUnitModification req relationship
         }
@@ -772,6 +792,7 @@ module Functions =
     let supportRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "supportRelationships")>] req) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<SupportRelationship> req
             let safeBody = { body with Id = 0}
             let! authdBody = authorizeRelationUnitModification req safeBody
@@ -790,6 +811,7 @@ module Functions =
     let supportRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<SupportRelationship> req
             let safeBody = { body with Id=relationshipId }
             let! _ = ensureEntityExistsForModel data.SupportRelationships.Get safeBody
@@ -806,6 +828,7 @@ module Functions =
     let supportRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = pipeline {
+            do! authenticate req
             let! model = data.SupportRelationships.Get relationshipId
             let! authdModel = authorizeRelationUnitModification req model
             return! data.SupportRelationships.Delete authdModel
@@ -824,7 +847,7 @@ module Functions =
     let toolPermissionsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "toolPermissions")>] req) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             return! data.Tools.GetAllPermissions ()
         }
         get req workflow
@@ -842,7 +865,7 @@ module Functions =
     let buildingGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings")>] req) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! query = tryQueryParam req "q"
             return! data.Buildings.GetAll query
         }
@@ -855,7 +878,7 @@ module Functions =
     let BuildingtGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings/{buildingId}")>] req, buildingId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             return! data.Buildings.Get buildingId
         }
         get req workflow    
@@ -867,7 +890,7 @@ module Functions =
     let buildingGetSupportingUnits
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildings/{buildingId}/supportingUnits")>] req, buildingId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! building = data.Buildings.Get buildingId
             return! data.Buildings.GetSupportingUnits building
         }
@@ -885,7 +908,7 @@ module Functions =
     let buildingRelationshipsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildingRelationships")>] req) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             return! data.BuildingRelationships.GetAll ()
         }
         get req workflow
@@ -897,7 +920,7 @@ module Functions =
     let buildingRelationshipsGetId
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = pipeline {
-            let! _ = authenticate req
+            do! authenticate req
             let! relationship = data.BuildingRelationships.Get relationshipId
             return! permissionRelationUnitModification req relationship
         }
@@ -915,6 +938,7 @@ module Functions =
     let buildingRelationshipsCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "buildingRelationships")>] req) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<BuildingRelationship> req
             let safeBody = { body with Id=0 }
             let! authdBody = authorizeRelationUnitModification req safeBody
@@ -933,6 +957,7 @@ module Functions =
     let buildingRelationshipsUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = pipeline {
+            do! authenticate req
             let! body = deserializeBody<BuildingRelationship> req
             let safeBody = { body with Id=relationshipId }
             let! _ = ensureEntityExistsForModel data.BuildingRelationships.Get safeBody
@@ -949,6 +974,7 @@ module Functions =
     let buildingRelationshipsDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "buildingRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = pipeline {
+            do! authenticate req
             let! relationship = data.BuildingRelationships.Get relationshipId
             let! _ = authorizeRelationUnitModification req relationship
             return! data.BuildingRelationships.Delete relationship
