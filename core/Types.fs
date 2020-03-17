@@ -36,6 +36,18 @@ type Status = HttpStatusCode
 type Message = string
 type Error = Status * Message
 
+type PipelineBuilder() =
+    member __.Bind  (a : Async<Result<'a, Error>>, f : 'a -> Async<Result<'b, Error>>) = async {
+      let! result = a
+      match result with
+      | Ok value -> return! f value
+      | Error err -> return (Error err)
+    }
+    member __.Return(value) : Async<Result<'b, Error>> = ok value
+    member __.ReturnFrom(value) = value
+
+let pipeline = PipelineBuilder()
+
 type ErrorModel = 
   { errors: array<string> }
 
