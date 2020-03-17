@@ -628,10 +628,11 @@ module Functions =
     [<SwaggerResponse(200, "A collection of unit member tool records", typeof<seq<MemberTool>>)>]
     let memberToolsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "membertools")>] req) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> data.MemberTools.GetAll ()
-        get req workflow
+        let workflow = pipeline { 
+            let! _ = authenticate req
+            return! data.MemberTools.GetAll ()
+        }
+        get' req workflow
 
     [<FunctionName("MemberToolGetById")>]
     [<SwaggerOperation(Summary="Find a unit member tool by ID", Tags=[|"Unit Member Tools"|])>]
@@ -639,12 +640,14 @@ module Functions =
     [<SwaggerResponse(404, "No member tool record was found with the ID provided.", typeof<ErrorModel>)>]
     let memberToolGetById
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "membertools/{memberToolId}")>] req, memberToolId) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> data.MemberTools.Get memberToolId
-            >=> data.MemberTools.GetMember 
-            >=> permissionMemberToolUnitModification req
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            // todo: this is awkward.
+            let! tool = data.MemberTools.Get memberToolId
+            let! toolMember = data.MemberTools.GetMember tool
+            return! permissionMemberToolUnitModification req toolMember
+        }
+        get' req workflow
 
     [<FunctionName("MemberToolCreate")>]
     [<SwaggerOperation(Summary="Create a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be created by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
@@ -656,13 +659,14 @@ module Functions =
     [<SwaggerResponse(409, "The provided member already has access to the provided tool.", typeof<ErrorModel>)>]
     let memberToolCreate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "membertools")>] req) =
-        let workflow =
-            deserializeBody<MemberTool>
-            >=> setMemberToolId 0
-            >=> data.MemberTools.GetMember 
-            >=> authorizeMemberToolUnitModification req
-            >=> data.MemberTools.Create
-        create req workflow
+        let workflow = pipeline {
+            let! body = deserializeBody<MemberTool> req
+            let! safeBody = setMemberToolId 0 body
+            let! mem = data.MemberTools.GetMember safeBody
+            let! authdBody = authorizeMemberToolUnitModification req mem
+            return! data.MemberTools.Create authdBody
+        }
+        create' req workflow
 
     [<FunctionName("MemberToolUpdate")>]
     [<SwaggerOperation(Summary="Update a unit member tool.", Description="<em>Authorization</em>: Unit tool permissions can be updated by any unit member that has either the `Owner` or `ManageTools` permission on their unit membership. See also: [Units - List all unit members](#operation/unitGetAllMembers).", Tags=[|"Unit Member Tools"|])>]
@@ -674,14 +678,15 @@ module Functions =
     [<SwaggerResponse(409, "The provided member already has access to the provided tool.", typeof<ErrorModel>)>]
     let memberToolUpdate
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "membertools/{memberToolId}")>] req, memberToolId) =
-        let workflow = 
-            deserializeBody<MemberTool>
-            >=> setMemberToolId memberToolId
-            >=> ensureEntityExistsForModel data.MemberTools.Get
-            >=> data.MemberTools.GetMember  
-            >=> authorizeMemberToolUnitModification req
-            >=> data.MemberTools.Update
-        update req workflow
+        let workflow = pipeline {
+            let! body = deserializeBody<MemberTool> req
+            let! safeBody = setMemberToolId memberToolId body
+            let! _ = ensureEntityExistsForModel data.MemberTools.Get safeBody
+            let! toolMember = data.MemberTools.GetMember safeBody
+            let! authdBody = authorizeMemberToolUnitModification req toolMember
+            return! data.MemberTools.Update authdBody
+        }
+        update' req workflow
 
 
     [<FunctionName("MemberToolDelete")>]
@@ -691,12 +696,13 @@ module Functions =
     [<SwaggerResponse(404, "No member tool was found with the ID provided.", typeof<ErrorModel>)>]
     let memberToolDelete
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "membertools/{memberToolId}")>] req, memberToolId) =
-        let workflow =
-            fun _ -> data.MemberTools.Get memberToolId
-            >=> data.MemberTools.GetMember  
-            >=> authorizeMemberToolUnitModification req
-            >=> data.MemberTools.Delete
-        delete req workflow
+        let workflow = pipeline {
+            let! tool = data.MemberTools.Get memberToolId
+            let! toolMember = data.MemberTools.GetMember tool 
+            let! authdToolMember = authorizeMemberToolUnitModification req toolMember
+            return! data.MemberTools.Delete authdToolMember
+        }
+        delete' req workflow
 
 
     // *****************
