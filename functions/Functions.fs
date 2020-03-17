@@ -855,10 +855,11 @@ module Functions =
     // [<SwaggerResponse(200, "A collection of tool permission records", typeof<ToolPermission seq>)>]
     let toolPermissionsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "toolPermissions")>] req) =
-        let workflow = 
-            authenticate
-            >=> fun _ -> data.Tools.GetAllPermissions ()
-        get req workflow
+        let workflow = pipeline {
+            let! _ = authenticate req
+            return! data.Tools.GetAllPermissions ()
+        }
+        get' req workflow
 
 
     // *****************
