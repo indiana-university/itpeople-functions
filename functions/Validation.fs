@@ -10,29 +10,21 @@ module Validation =
 
     // Unit Validation
 
-    let assertUnitParentRelationshipIsNotCircular data (u:Unit) = async {
-        let assertLinearDependency (child:Unit option) =    
-            match (child) with
-            | Some(c) -> 
-                let error = sprintf "Whoops! %s is a parent of %s in the unit hierarcy. Adding it as a child would result in a circular relationship. 🙃" u.Name c.Name
-                Error (Status.Conflict, error)
-            | None -> Ok u
-        match u.ParentId with
-        | None -> return (Ok u)
-        | Some(parentId) ->
-            let! result = data.Units.GetDescendantOfParent (u.Id, parentId)
+    let assertUnitParentRelationshipIsNotCircular data unitId parentId = async {
+        match parentId with
+        | None -> return Ok ()
+        | Some(pid) ->
+            let! result = data.Units.GetDescendantOfParent (unitId, pid)
             match result with
-            | Ok child -> return assertLinearDependency child
+            | Ok (Some(_)) -> return Error (Status.Conflict, "Whoops! Adding this unit as a child would result in a circular relationship. 🙃")
+            | Ok (None) -> return Ok ()
             | Error msgs -> return Error msgs
     }
 
-    let assertUnitHasNoChildren data (u:Unit) = async {
-        let! result = data.Units.GetChildren u
-        return 
-            match result with
-            | Ok children -> 
-                match children with
-                | EmptySeq -> Ok u
-                | _ -> Error (Status.Conflict, "This unit has children. They must be reassigned before this unit can be deleted.")
-            | Error(msgs) -> Error msgs
+    let assertUnitHasNoChildren data unitId = async {
+        let! result = data.Units.GetChildren unitId
+        match result with
+        | Ok (EmptySeq) -> return Ok () 
+        | Ok (_) -> return Error (Status.Conflict, "This unit has children. They must be reassigned before this unit can be deleted.")
+        | Error(msgs) -> return Error msgs
     }

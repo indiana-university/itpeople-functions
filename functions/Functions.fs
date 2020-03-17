@@ -80,18 +80,10 @@ module Functions =
         addProperty req WorkflowTimestamp DateTime.UtcNow
         
     /// Logging: Add the authenticated user to the request properties
-    let recordAuthenticatedUser'' req (netid:NetId) =
-        addProperty req WorkflowUser netid
-        ok netid
-
     let recordUserPermissions req model perms =
         addProperty req WorkflowPermissions perms
         ok model
     
-    let authenticate'' req = 
-        authenticateRequest publicKey req
-        >>= recordAuthenticatedUser'' req
-
     let recordAuthenticatedUser req (netid:NetId) =
         addProperty req WorkflowUser netid
 
@@ -101,21 +93,46 @@ module Functions =
         return ()
     }
 
-    let permission req authFn model =
+    let authenticatedRequestor req = 
+        getProperty req WorkflowUser
+
+    let setEndpointPermissions req permissionResolver = pipeline {
+        let netid = getProperty req WorkflowUser
+        let! canModify = permissionResolver data.Authorization netid
+        let permissions = if canModify then [GET; POST; PUT; DELETE] else [GET]
+        addProperty req WorkflowPermissions permissions
+        return ()
+    }
+
+    let authorizeAction (req:HttpRequestMessage) requiredPermission description = 
+        let canDo = 
+            req.Properties.[WorkflowPermissions] 
+            :?> List<UserPermissions>
+            |> Seq.contains requiredPermission
+        if canDo
+        then ok ()
+        else error (Status.Forbidden, sprintf "You are not allowed to %s this resource." description)
+
+    let authorizeUpdate req = authorizeAction req PUT "modify"
+    let authorizeCreate req = authorizeAction req POST "create"
+    let authorizeDelete req = authorizeAction req DELETE "delete"
+
+    let permission'' req authFn model =
         let user = getProperty req WorkflowUser
         determineAuthenticatedUserPermissions data.Authorization authFn user
         >>= recordUserPermissions req model
 
-    let authorize req authFn model =
-        authenticate'' req
-        >>= permission req authFn
-        >>= authorizeRequest data.Authorization model authFn 
+    let authorize req authFn model = pipeline {
+        let netid = getProperty req WorkflowUser
+        let! _ = permission'' req authFn model
+        return! authorizeRequest data.Authorization model authFn netid
+    }
 
     let inline authorizeRelationUnitModification req relation =
         authorize req (canModifyUnit (unitId relation)) relation
     
     let inline permissionRelationUnitModification req relation =
-        permission req (canModifyUnit (unitId relation)) relation     
+        permission'' req (canModifyUnit (unitId relation)) relation     
 
     type Formatter<'a> = 'a -> StringContent
 
@@ -152,7 +169,14 @@ module Functions =
         match result with 
         | Ok _ -> return Ok model
         | Error msg -> return Error msg
-    } 
+    }     
+
+    let inline ensureExists (entityResolver:Id->Async<Result<'a,Error>>) id = async {
+        let! entity = entityResolver id
+        match entity with 
+        | Ok _ -> return Ok ()
+        | Error msg -> return Error msg
+    }     
 
     // VALIDATION 
 
@@ -606,7 +630,7 @@ module Functions =
     let authorizeMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
         authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
     let permissionMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
-        permission req (canModifyUnitMemberTools unitMember.UnitId) tool
+        permission'' req (canModifyUnitMemberTools unitMember.UnitId) tool
 
     [<FunctionName("MemberToolsGetAll")>]
     [<SwaggerOperation(Summary="List all unit member tools", Tags=[|"Unit Member Tools"|])>]
