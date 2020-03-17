@@ -232,23 +232,16 @@ module Functions =
     [<SwaggerIgnore>]
     let authGet
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "auth")>] req) =
+        let workflow = pipeline {  
+            let! query = queryParam "oauth_code" req
+            let! tokenRequest = createUaaTokenRequest config query
+            let! jwt = postAsync<JwtResponse> config.OAuth2TokenUrl tokenRequest
+            let! netid = decodeJwt publicKey jwt.access_token
+            let! _ = recordAuthenticatedUser req netid
+            return jwt
+        }
 
-        // workflow partials
-        let createUaaTokenRequest = createUaaTokenRequest config
-        let requestTokenFromUaa = postAsync<JwtResponse> config.OAuth2TokenUrl
-        let recordLoginAndReturnJwt req jwt =
-            decodeJwt publicKey jwt.access_token
-            >>= recordAuthenticatedUser req 
-            >>= (fun _ -> ok jwt)
-
-        // workflow definition
-        let workflow =  
-            queryParam "oauth_code"
-            >=> createUaaTokenRequest
-            >=> requestTokenFromUaa
-            >=> recordLoginAndReturnJwt req
-
-        get req workflow
+        get' req workflow
 
     // *****************
     // ** People
