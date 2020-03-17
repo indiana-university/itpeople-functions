@@ -549,20 +549,21 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "memberships/{membershipId}")>] req, membershipId) =
         let workflow = pipeline {
             do! authenticate req
-            let! memberships = data.Memberships.Get membershipId
-            return! permissionRelationUnitModification req memberships
+            let! membership = data.Memberships.Get membershipId
+            do! setEndpointPermissions req (canModifyUnit membership.UnitId)
+            return membership
         }
         get req workflow
 
     let ensureUnitMemberInDirectory (um:UnitMember) = pipeline {
         match (um.PersonId, um.NetId) with
         | (None, None) 
-        | (Some(0), None) -> return um // This position is a vacancy.
+        | (Some(0), None) -> return None // This position is a vacancy.
         | (None, Some(netid))
         | (Some(0), Some(netid)) -> // We don't have this person in the directory. Add them now.
             let! person = ensurePersonInDirectory netid
-            return { um with PersonId=Some(person.Id)}
-        | (Some(_), _) -> return um // This position is filled by someone in the directory.
+            return Some(person.Id)
+        | (Some(_), _) -> return um.PersonId // This position is filled by someone in the directory.
     }
 
     [<FunctionName("MemberCreate")>]
@@ -578,10 +579,10 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<UnitMember> req
-            let! safeBody = setMembershipId 0 body
-            let! authdBody = authorizeRelationUnitModification req safeBody
-            let! ``member`` = ensureUnitMemberInDirectory authdBody
-            return! data.Memberships.Create ``member``
+            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! authorizeCreate req
+            let! personId = ensureUnitMemberInDirectory body
+            return! data.Memberships.Create { body with Id=0; PersonId=personId }
         }
         create req workflow
 
@@ -598,10 +599,10 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<UnitMember> req
-            let! safeBody = setMembershipId membershipId body
-            let! _ = ensureEntityExistsForModel data.Memberships.Get safeBody
-            let! authdBody = authorizeRelationUnitModification req safeBody
-            return! data.Memberships.Update authdBody
+            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! ensureExists data.Memberships.Get membershipId
+            do! authorizeUpdate req
+            return! data.Memberships.Update { body with Id=membershipId }
         }
         update req workflow
   
@@ -615,8 +616,9 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! model = data.Memberships.Get membershipId
-            let! authdModel = authorizeRelationUnitModification req model
-            return! data.Memberships.Delete authdModel
+            do! setEndpointPermissions req (canModifyUnit model.UnitId)
+            do! authorizeDelete req
+            return! data.Memberships.Delete membershipId
         }
         delete req workflow
 

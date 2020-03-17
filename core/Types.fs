@@ -585,7 +585,7 @@ type MembershipRepository = {
     /// Update a unit membership
     Update: UnitMember -> Async<Result<UnitMember,Error>>
     /// Delete a unit membership
-    Delete: UnitMember -> Async<Result<unit,Error>>
+    Delete: Id -> Async<Result<unit,Error>>
 }
 
 type ToolsRepository = {

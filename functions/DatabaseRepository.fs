@@ -77,8 +77,8 @@ module DatabaseRepository =
         DELETE FROM unit_member_tools WHERE membership_id=@Id;
         DELETE FROM unit_members WHERE id=@Id;"""
 
-    let deleteMembership connStr unitMember =
-        execute connStr deleteMembershipSql {Id=(identity unitMember)}
+    let deleteMembership connStr id =
+        execute connStr deleteMembershipSql {Id=id}
 
 
     // *********************
