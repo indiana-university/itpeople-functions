@@ -108,7 +108,7 @@ module DatabaseRepository =
 
     let updateSupportRelationship = update<SupportRelationship> mapSupportRelationship
 
-    let deleteSupportRelationship = deleteById<SupportRelationship>
+    let deleteSupportRelationship = delete<SupportRelationship>
    
 
     // *********************
@@ -136,7 +136,7 @@ module DatabaseRepository =
 
     let updateBuildingRelationship = update<BuildingRelationship> mapBuildingRelationship
 
-    let deleteBuildingRelationship = deleteById<BuildingRelationship>
+    let deleteBuildingRelationship = delete<BuildingRelationship>
    
 
     // **********
@@ -556,7 +556,7 @@ module DatabaseRepository =
 
     let updateMemberTool = update<MemberTool> mapMemberTool
 
-    let deleteMemberTool = deleteById<MemberTool>
+    let deleteMemberTool = delete<MemberTool>
 
     let isServiceAdminSql = """
     SELECT EXISTS (

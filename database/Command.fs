@@ -152,16 +152,7 @@ module Command =
         return! fetchOne<'T> writeParams connStr id
     }
 
-    let inline delete< ^T when ^T: (member Id:Id)> connStr (obj:^T) = async {
-        try
-            let id = (identity obj)
-            use cn = new NpgsqlConnection(connStr)
-            let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
-            return () |> Ok
-        with exn -> return handleDbExn "delete" (typedefof<'T>.Name) exn
-    }
-
-    let inline deleteById<'T> connStr (id:int) = async {
+    let inline delete<'T> connStr (id:int) = async {
         try
             use cn = new NpgsqlConnection(connStr)
             let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
