@@ -652,10 +652,10 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "membertools/{memberToolId}")>] req, memberToolId) =
         let workflow = pipeline {
             do! authenticate req
-            // todo: this is awkward.
-            let! tool = data.MemberTools.Get memberToolId
-            let! toolMember = data.MemberTools.GetMember tool
-            return! permissionMemberToolUnitModification req toolMember
+            let! memberTool = data.MemberTools.Get memberToolId
+            let! membership = data.Memberships.Get memberTool.MembershipId
+            do! setEndpointPermissions req (canModifyUnitMemberTools membership.UnitId)
+            return memberTool
         }
         get req workflow
 
@@ -672,10 +672,10 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<MemberTool> req
-            let! safeBody = setMemberToolId 0 body
-            let! mem = data.MemberTools.GetMember safeBody
-            let! authdBody = authorizeMemberToolUnitModification req mem
-            return! data.MemberTools.Create authdBody
+            let! membership = data.Memberships.Get body.MembershipId
+            do! setEndpointPermissions req (canModifyUnitMemberTools membership.UnitId)
+            do! authorizeCreate req
+            return! data.MemberTools.Create { body with Id=0 }
         }
         create req workflow
 
@@ -692,11 +692,11 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<MemberTool> req
-            let! safeBody = setMemberToolId memberToolId body
-            let! _ = ensureEntityExistsForModel data.MemberTools.Get safeBody
-            let! toolMember = data.MemberTools.GetMember safeBody
-            let! authdBody = authorizeMemberToolUnitModification req toolMember
-            return! data.MemberTools.Update authdBody
+            do! ensureExists data.MemberTools.Get memberToolId
+            let! membership = data.Memberships.Get body.MembershipId
+            do! setEndpointPermissions req (canModifyUnitMemberTools membership.UnitId)
+            do! authorizeUpdate req
+            return! data.MemberTools.Update { body with Id=memberToolId }
         }
         update req workflow
 
@@ -710,10 +710,11 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "membertools/{memberToolId}")>] req, memberToolId) =
         let workflow = pipeline {
             do! authenticate req
-            let! tool = data.MemberTools.Get memberToolId
-            let! toolMember = data.MemberTools.GetMember tool 
-            let! authdToolMember = authorizeMemberToolUnitModification req toolMember
-            return! data.MemberTools.Delete authdToolMember
+            let! memberTool = data.MemberTools.Get memberToolId
+            let! membership = data.Memberships.Get memberTool.MembershipId
+            do! setEndpointPermissions req (canModifyUnitMemberTools membership.UnitId)
+            do! authorizeDelete req
+            return! data.MemberTools.Delete memberToolId
         }
         delete req workflow
 

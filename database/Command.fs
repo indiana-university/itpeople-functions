@@ -159,6 +159,14 @@ module Command =
         with exn -> return handleDbExn "delete" (typedefof<'T>.Name) exn
     }
 
+    let inline deleteById<'T> connStr (id:int) = async {
+        try
+            use cn = new NpgsqlConnection(connStr)
+            let! _ = cn.DeleteAsync<'T>(id) |> Async.AwaitTask
+            return () |> Ok
+        with exn -> return handleDbExn "deleteById" (typedefof<'T>.Name) exn
+    }
+
     let execute connStr sql parameters = async {
         try
             use cn = new NpgsqlConnection(connStr)

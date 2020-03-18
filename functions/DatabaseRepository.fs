@@ -557,12 +557,8 @@ module DatabaseRepository =
 
     let updateMemberTool = update<MemberTool> mapMemberTool
 
-    let deleteMemberTool = delete<MemberTool>
+    let deleteMemberTool = deleteById<MemberTool>
 
-    let getMemberToolMember connStr (memberTool:MemberTool) =
-        queryMembership connStr memberTool.MembershipId
-        >>= fun membership -> ok (memberTool, membership)
-   
     let isServiceAdminSql = """
     SELECT EXISTS (
         SELECT id 
@@ -798,7 +794,6 @@ module DatabaseRepository =
         Create = insertMemberTool connStr
         Update = updateMemberTool connStr
         Delete = deleteMemberTool connStr
-        GetMember = getMemberToolMember connStr
     }
 
     let ToolsRepository (connStr) : ToolsRepository = {
