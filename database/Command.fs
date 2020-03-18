@@ -134,9 +134,10 @@ module Command =
         with exn -> return handleDbExn "insert" (typedefof<'T>.Name) exn
     }
 
-    let insert<'T> writeParams connStr  =
-        insertImpl<'T> connStr
-        >=> fetchOne<'T> writeParams connStr
+    let insert<'T> writeParams connStr  (obj:'T)= pipeline {
+        let! id = insertImpl<'T> connStr obj
+        return! fetchOne<'T> writeParams connStr id
+    }
 
     let inline updateImpl< ^T when ^T: (member Id:Id)>  connStr (obj:'T) = async {
         try
@@ -146,9 +147,10 @@ module Command =
         with exn -> return handleDbExn "update" (typedefof<'T>.Name) exn
     }
 
-    let inline update< ^T when ^T: (member Id:Id)> writeParams connStr (obj:^T)  = 
-        updateImpl<'T> connStr obj
-        >>= fetchOne<'T> writeParams connStr
+    let inline update< ^T when ^T: (member Id:Id)> writeParams connStr (obj:^T)  = pipeline {
+        let! id = updateImpl<'T> connStr obj
+        return! fetchOne<'T> writeParams connStr id
+    }
 
     let inline delete< ^T when ^T: (member Id:Id)> connStr (obj:^T) = async {
         try

@@ -65,13 +65,13 @@ module DatabaseRepository =
     }
         
     let insertMembership connStr unitMember = pipeline {
-        let! inserted = insertImpl<UnitMember> connStr unitMember
-        return! inserted |> queryMembership connStr
+        let! id = insertImpl<UnitMember> connStr unitMember
+        return! queryMembership connStr id
     }
 
     let updateMembership connStr unitMember = pipeline {
-        let! updated = updateImpl<UnitMember> connStr unitMember
-        return! updated |> queryMembership connStr
+        let! id = updateImpl<UnitMember> connStr unitMember
+        return! queryMembership connStr id
     }
 
     let deleteMembershipSql = """
