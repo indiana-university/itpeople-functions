@@ -34,7 +34,6 @@ module DatabaseRepository =
     let stripNotes (unitMembers:seq<UnitMember>) =
         unitMembers
         |> Seq.map (fun um -> {um with Notes=""})
-        |> ok
 
     let collectMemberTools (unitMembers:seq<UnitMember>) = 
         unitMembers
@@ -46,32 +45,34 @@ module DatabaseRepository =
         |> Ok
         |> async.Return
 
-    let requireOne seq = 
+    let requireOne description seq  = 
         if Seq.isEmpty seq
-        then Error (Status.NotFound, "No membership was found with that ID") |> async.Return
-        else Ok seq |> async.Return
+        then error (Status.NotFound, sprintf "No %s was found with that ID" description)
+        else ok ()
 
     let head seq = Seq.head seq |> Ok |> async.Return
 
-    let queryMemberships connStr =
-        fetchAll (mapUnitMembers(Unfiltered)) connStr
-        >>= stripNotes
-        >>= collectMemberTools
+    let queryMemberships connStr = pipeline {
+        let! members = fetchAll (mapUnitMembers(Unfiltered)) connStr
+        return! members |> stripNotes |> collectMemberTools
+    }
 
-    let queryMembership connStr id =
-        fetchAll (mapUnitMembers (WhereId("m.id", id))) connStr
-        >>= requireOne
-        >>= stripNotes
-        >>= collectMemberTools
-        >>= head
+    let queryMembership connStr id = pipeline {
+        let! members = fetchAll (mapUnitMembers (WhereId("m.id", id))) connStr
+        do! requireOne "membership" members
+        let! membersWithTools = members |> stripNotes |> collectMemberTools
+        return membersWithTools |> Seq.head
+    }
         
-    let insertMembership connStr unitMember =
-        insertImpl<UnitMember> connStr unitMember
-        >>= queryMembership connStr
+    let insertMembership connStr unitMember = pipeline {
+        let! inserted = insertImpl<UnitMember> connStr unitMember
+        return! inserted |> queryMembership connStr
+    }
 
-    let updateMembership connStr unitMember =
-        updateImpl<UnitMember> connStr unitMember
-        >>= queryMembership connStr
+    let updateMembership connStr unitMember = pipeline {
+        let! updated = updateImpl<UnitMember> connStr unitMember
+        return! updated |> queryMembership connStr
+    }
 
     let deleteMembershipSql = """
         DELETE FROM unit_member_tools WHERE membership_id=@Id;
@@ -180,15 +181,15 @@ module DatabaseRepository =
     let queryUnitChildren connStr unitId =
         fetchAll<Unit> (mapUnits(WhereId("u.parent_id", unitId))) connStr
 
-    let queryUnitMembers connStr (options:UnitMemberRecordFieldOptions) =
+    let queryUnitMembers connStr options = pipeline {
         match options with
         | MembersWithoutNotes(unitId) ->
-            fetchAll (mapUnitMembers (WhereId("u.id", unitId))) connStr
-            >>= stripNotes
-            >>= collectMemberTools
+            let! members = fetchAll (mapUnitMembers (WhereId("u.id", unitId))) connStr
+            return! members |> stripNotes |> collectMemberTools
         | MembersWithNotes(unitId) ->
-            fetchAll (mapUnitMembers (WhereId("u.id", unitId))) connStr
-            >>= collectMemberTools
+            let! members = fetchAll (mapUnitMembers (WhereId("u.id", unitId))) connStr
+            return! collectMemberTools members
+    }
 
     let queryUnitSupportedDepartments connStr unitId =
         fetchAll (mapSupportRelationships(WhereId("u.id", unitId))) connStr
@@ -227,12 +228,12 @@ module DatabaseRepository =
       { ParentId: Id
         ChildId: Id }
 
-    let tryGetFirstResult seq = seq |> Seq.tryHead |> Ok |> async.Return
-
-    let queryUnitGetDescendantOfParent connStr (parentId, childId) =
-        let mapper = fun (cn:Cn) -> cn.QueryAsync<Unit>(queryUnitParentageSql, {ParentId=parentId; ChildId=childId})
-        fetchAll<Unit> mapper connStr
-        >>= tryGetFirstResult
+    let queryUnitGetDescendantOfParent connStr (parentId, childId) = pipeline {
+        let param = {ParentId=parentId; ChildId=childId}
+        let mapper = fun (cn:Cn) -> cn.QueryAsync<Unit>(queryUnitParentageSql, param)
+        let! descendants = fetchAll<Unit> mapper connStr
+        return descendants |> Seq.tryHead
+    }
 
 
     // ***********
@@ -434,7 +435,7 @@ module DatabaseRepository =
         let param = {NetId=like netId}
         fetchAll<Person> (fun cn -> cn.QueryAsync<Person>(sql, param)) connStr
 
-    let queryHrPerson connStr netId =
+    let queryHrPerson connStr netId = pipeline {
         let sql = """
         SELECT 
             0 as id,
@@ -457,15 +458,15 @@ module DatabaseRepository =
         LEFT JOIN departments d on d.name = hr.hr_department
         WHERE netid ILIKE @NetId"""
         let param = {NetId=netId}
-        fetchAll<Person> (fun cn -> cn.QueryAsync<Person>(sql, param)) connStr
-        >>= fun people ->
-            match people with 
-            | EmptySeq -> error(Status.NotFound, "No HR person was found with that netid")
-            | _ -> people |> Seq.head |> ok
+        let! people = fetchAll<Person> (fun cn -> cn.QueryAsync<Person>(sql, param)) connStr        
+        do! requireOne "HR person" people
+        return people |> Seq.head
+    }
 
-    let queryPersonByNetId connStr netid =
-        fetchAll<Person> (mapPeople (WhereParam("p.netid=@NetId", {NetId=netid}))) connStr
-        >>= takeExactlyOne
+    let queryPersonByNetId connStr netid = pipeline {
+        let! people = fetchAll<Person> (mapPeople (WhereParam("p.netid=@NetId", {NetId=netid}))) connStr
+        return! takeExactlyOne people
+    }
 
     let tryQueryPersonByNetId connStr netId = async {
         let! people = fetchAll<Person> (mapPeople(WhereParam("netid = @NetId", {NetId=netId}))) connStr
@@ -481,24 +482,22 @@ module DatabaseRepository =
 
     let insertPerson = insert<Person> mapPerson
 
-    let queryPersonMemberships connStr id =
-        fetchAll (mapUnitMembers(WhereId("p.id", id))) connStr
-        >>= stripNotes
-        >>= collectMemberTools
+    let queryPersonMemberships connStr id = pipeline {
+        let! members = fetchAll (mapUnitMembers(WhereId("p.id", id))) connStr
+        return! members |> stripNotes |> collectMemberTools
+    }
 
-    let updatePerson connStr (person:PersonRequest) = 
+    let updatePerson connStr (person:PersonRequest) = pipeline {
         let sql = """
             UPDATE people
             SET location=@Location,
                 responsibilities=@Responsibilities,
                 expertise=@Expertise,
                 photo_url=@PhotoUrl
-            WHERE id=@Id;
-            SELECT @Id"""
-        let updatePersonQuery (cn:Cn) = cn.QuerySingleAsync<Id>(sql, person)
-        
-        fetch<Id> updatePersonQuery connStr
-        >>= fetchOne<Person> mapPerson connStr
+            WHERE id=@Id;"""
+        do! execute connStr sql person
+        return! fetchOne<Person> mapPerson connStr person.Id
+    }
 
     // ***********
     // Tools
@@ -569,10 +568,11 @@ module DatabaseRepository =
     )"""
 
     type UaaPublicKey = {alg:string; value:string} 
-    let uaaPublicKey (url:string) =
+    let uaaPublicKey (url:string) = pipeline {
         let msg = new HttpRequestMessage(HttpMethod.Get, url)
-        sendAsync<UaaPublicKey> msg
-        >>= fun resp -> ok resp.value
+        let! response = sendAsync<UaaPublicKey> msg
+        return response.value
+    }
 
     let isServiceAdmin connStr netid =
         let query (cn:Cn) = cn.QuerySingleAsync<bool>(isServiceAdminSql, { NetId=netid })
@@ -614,12 +614,12 @@ module DatabaseRepository =
         let query (cn:Cn) = cn.QuerySingleAsync<bool>(hasCascadedUnitPermsSql, param)
         fetch query connStr
 
-    let isServiceAdminOrHasUnitPermissions permissions connStr netid unitId =
-        isServiceAdmin connStr netid
-        >>= fun isServiceAdmin ->
-            if isServiceAdmin
-            then ok true
-            else hasCascadedUnitPerms permissions connStr netid unitId
+    let isServiceAdminOrHasUnitPermissions permissions connStr netid unitId = pipeline {
+        let! is = isServiceAdmin connStr netid    
+        if is
+        then return true
+        else return! hasCascadedUnitPerms permissions connStr netid unitId
+    }
 
     let isUnitManager = 
         isServiceAdminOrHasUnitPermissions [ UnitPermissions.Owner; UnitPermissions.ManageMembers ]
@@ -659,15 +659,15 @@ module DatabaseRepository =
         )"""
 
     type PersonParams = {Id:Id; NetId:NetId}
-    let canModifyPerson connStr netid personId = 
+    let canModifyPerson connStr netid personId = pipeline {
         let param = {Id=personId; NetId=netid}
         let canModifyPersonQuery (cn:Cn) = cn.QuerySingleAsync<bool>(canModifyPersonSql, param) 
 
-        isServiceAdmin connStr netid
-        >>= fun isServiceAdmin ->
-            if isServiceAdmin
-            then ok true
-            else fetch canModifyPersonQuery connStr
+        let! result = isServiceAdmin connStr netid
+        if result
+        then return true
+        else return! fetch canModifyPersonQuery connStr
+    }
 
 
     // *********************
@@ -692,10 +692,11 @@ module DatabaseRepository =
 
     let toLspInfo (p:Person) = {NetworkID=p.NetId; IsLA=p.IsServiceAdmin}
 
-    let queryLspInfo = 
-        fetchAll (mapLspList Unfiltered)
-        >=> fun people -> people |> Seq.map toLspInfo |> ok
-        >=> fun infos -> { LspInfos = Seq.toArray infos } |> ok
+    let queryLspInfo connStr = pipeline {
+        let! lsps = fetchAll (mapLspList Unfiltered) connStr
+        let infos = lsps |> Seq.map toLspInfo |> Seq.toArray
+        return { LspInfos = infos }
+    }
 
     let queryLspDepartmentsSql = """
         SELECT d.name
@@ -710,9 +711,10 @@ module DatabaseRepository =
         cn.QueryAsync<string>(queryLspDepartmentsSql, {Query=netid})
 
 
-    let queryLspDepartments connStr netid = 
-        fetchAll<string> (mapLspDepartments netid) connStr
-        >>= fun depts -> ok { NetworkID=netid; DeptCodeList={Values=Seq.toArray depts } }
+    let queryLspDepartments connStr netid = pipeline {
+        let! depts = fetchAll<string> (mapLspDepartments netid) connStr
+        return { NetworkID=netid; DeptCodeList={ Values=Seq.toArray depts } }
+    }
 
     let queryDepartmentLspsSql = """
         SELECT p.name, p.netid, p.campus_phone, p.campus_email, MAX(um.role) in (3,4) as is_service_admin, u.email as notes
@@ -737,10 +739,11 @@ module DatabaseRepository =
         GroupInternalEmail= ""
         Phone=p.CampusPhone }
 
-    let queryDepartmentLsps connStr department = 
-        fetchAll (mapDepartmentLsps department) connStr
-        >>= fun people -> people |> Seq.map toLspContact |> ok
-        >>= fun contacts -> { LspContacts = Seq.toArray contacts } |> ok
+    let queryDepartmentLsps connStr department = pipeline {
+        let! lsps = fetchAll (mapDepartmentLsps department) connStr
+        let contacts = lsps |> Seq.map toLspContact |> Seq.toArray
+        return { LspContacts = contacts }
+    }
 
     let People(connStr) = {
         TryGetId = tryQueryPersonByNetId connStr
