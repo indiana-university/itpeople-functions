@@ -107,7 +107,7 @@ module DatabaseRepository =
 
     let updateSupportRelationship = update<SupportRelationship> mapSupportRelationship
 
-    let deleteSupportRelationship = delete<SupportRelationship>
+    let deleteSupportRelationship = deleteById<SupportRelationship>
    
 
     // *********************

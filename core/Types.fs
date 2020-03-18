@@ -620,7 +620,7 @@ type SupportRelationshipRepository = {
     /// Update a support relationship
     Update: SupportRelationship -> Async<Result<SupportRelationship,Error>>
     /// Delete a support relationsihps
-    Delete : SupportRelationship -> Async<Result<unit,Error>>
+    Delete : Id -> Async<Result<unit,Error>>
 }
 
 type BuildingRepository = {

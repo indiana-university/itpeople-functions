@@ -627,12 +627,6 @@ module Functions =
     // ** Unit Member Tools
     // *******************
 
-    let setMemberToolId id (a:MemberTool) = Ok { a with Id=id } |> async.Return
-    let authorizeMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
-        authorize req (canModifyUnitMemberTools unitMember.UnitId) tool
-    let permissionMemberToolUnitModification req (tool:MemberTool,unitMember:UnitMember) =
-        permission'' req (canModifyUnitMemberTools unitMember.UnitId) tool
-
     [<FunctionName("MemberToolsGetAll")>]
     [<SwaggerOperation(Summary="List all unit member tools", Tags=[|"Unit Member Tools"|])>]
     [<SwaggerResponse(200, "A collection of unit member tool records", typeof<seq<MemberTool>>)>]
@@ -803,7 +797,8 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! relationship = data.SupportRelationships.Get relationshipId
-            return! permissionRelationUnitModification req relationship
+            do! setEndpointPermissions req (canModifyUnit relationship.UnitId)
+            return relationship
         }
         get req workflow
 
@@ -820,9 +815,9 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<SupportRelationship> req
-            let safeBody = { body with Id = 0}
-            let! authdBody = authorizeRelationUnitModification req safeBody
-            return! data.SupportRelationships.Create authdBody         
+            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! authorizeCreate req
+            return! data.SupportRelationships.Create { body with Id=0 }         
         }
         create req workflow
 
@@ -839,10 +834,10 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<SupportRelationship> req
-            let safeBody = { body with Id=relationshipId }
-            let! _ = ensureEntityExistsForModel data.SupportRelationships.Get safeBody
-            let! authdBody = authorizeRelationUnitModification req safeBody
-            return! data.SupportRelationships.Update authdBody
+            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! ensureExists data.SupportRelationships.Get relationshipId
+            do! authorizeUpdate req
+            return! data.SupportRelationships.Update { body with Id=relationshipId }
         }
         update req workflow
 
@@ -855,9 +850,10 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "supportRelationships/{relationshipId}")>] req, relationshipId) =
         let workflow = pipeline {
             do! authenticate req
-            let! model = data.SupportRelationships.Get relationshipId
-            let! authdModel = authorizeRelationUnitModification req model
-            return! data.SupportRelationships.Delete authdModel
+            let! relationship = data.SupportRelationships.Get relationshipId
+            do! setEndpointPermissions req (canModifyUnit relationship.UnitId)
+            do! authorizeDelete req
+            return! data.SupportRelationships.Delete relationshipId
         }
         delete req workflow
 
