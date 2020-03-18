@@ -6,27 +6,8 @@ open System.Net
 open Dapper
 open Newtonsoft.Json
 
-let bind (f : 'a -> Async<Result<'b, 'error>>) (a : Async<Result<'a, 'error>>)  : Async<Result<'b, 'error>> = async {
-    let! r = a
-    match r with
-    | Ok value -> return! f value
-    | Error err -> return (Error err)
-}
-
-let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) : 'a -> Async<Result<'c, 'e>> =
-    fun x -> bind g (f x)
-
-let (>>=) a f = bind f a
-let (>=>) f g = compose f g
-let ar = async.Return
 let ok x = x |> Ok |> async.Return
 let error(status, msg) = Error(status, msg) |> async.Return  
-let tap f x =
-    f x // invoke f with the argument x
-    ok x // pass x unchanged to the next step in the workflow
-
-let ROLE_ADMIN = "admin"
-let ROLE_USER = "user"
 
 let WorkflowTimestamp = "WORKFLOW_TIMESTAMP"
 let WorkflowUser = "WORKFLOW_USER"
