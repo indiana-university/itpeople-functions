@@ -758,8 +758,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/memberUnits")>] req, departmentId) =
         let workflow = pipeline {
             do! authenticate req
-            let! dept = data.Departments.Get departmentId
-            return! data.Departments.GetMemberUnits dept
+            do! ensureExists data.Departments.Get departmentId
+            return! data.Departments.GetMemberUnits departmentId
         }
         get req workflow
 
@@ -771,8 +771,8 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "departments/{departmentId}/supportingUnits")>] req, departmentId) =
         let workflow = pipeline {
             do! authenticate req
-            let! dept = data.Departments.Get departmentId
-            return! data.Departments.GetSupportingUnits dept
+            do! ensureExists data.Departments.Get departmentId
+            return! data.Departments.GetSupportingUnits departmentId
         }
         get req workflow
 

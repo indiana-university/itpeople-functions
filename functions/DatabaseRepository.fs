@@ -258,8 +258,8 @@ module DatabaseRepository =
 
     let queryDepartment = fetchOne<Department> mapDepartment
 
-    let queryDeptSupportingUnits connStr department = 
-        fetchAll<SupportRelationship> (mapSupportRelationships (WhereId("d.id", (identity department)))) connStr
+    let queryDeptSupportingUnits connStr departmentId = 
+        fetchAll<SupportRelationship> (mapSupportRelationships (WhereId("d.id", departmentId))) connStr
 
     let queryDeptMemberUnitsSql = """
         SELECT DISTINCT ON (u.id) u.*, pu.* FROM units u
@@ -267,9 +267,9 @@ module DatabaseRepository =
         JOIN unit_members m ON m.unit_id = u.id
         JOIN people p on p.id = m.person_id"""
 
-    let queryDeptMemberUnits connStr department =
+    let queryDeptMemberUnits connStr departmentId =
         let mapDeptMemberUnits = mapUnits' queryDeptMemberUnitsSql
-        fetchAll<Unit> (mapDeptMemberUnits(WhereId("p.department_id", (identity department)))) connStr
+        fetchAll<Unit> (mapDeptMemberUnits(WhereId("p.department_id", departmentId))) connStr
 
     // ***********
     // Buildings

@@ -570,9 +570,9 @@ type DepartmentRepository = {
     /// Get a single department by ID
     Get: DepartmentId -> Async<Result<Department,Error>>
     /// Get a list of a department's member units
-    GetMemberUnits: Department -> Async<Result<Unit seq,Error>>
+    GetMemberUnits: Id -> Async<Result<Unit seq,Error>>
     /// Get a list of a department's supporting units        
-    GetSupportingUnits: Department -> Async<Result<SupportRelationship seq,Error>>
+    GetSupportingUnits: Id -> Async<Result<SupportRelationship seq,Error>>
 }
 
 type MembershipRepository = {
