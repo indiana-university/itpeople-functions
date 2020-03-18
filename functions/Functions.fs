@@ -80,10 +80,7 @@ module Functions =
         addProperty req WorkflowTimestamp DateTime.UtcNow
         
     /// Logging: Add the authenticated user to the request properties
-    let recordUserPermissions req model perms =
-        addProperty req WorkflowPermissions perms
-        ok model
-    
+
     let recordAuthenticatedUser req (netid:NetId) =
         addProperty req WorkflowUser netid
 
@@ -117,23 +114,6 @@ module Functions =
     let authorizeCreate req = authorizeAction req POST "create"
     let authorizeDelete req = authorizeAction req DELETE "delete"
 
-    let permission'' req authFn model =
-        let user = getProperty req WorkflowUser
-        determineAuthenticatedUserPermissions data.Authorization authFn user
-        >>= recordUserPermissions req model
-
-    let authorize req authFn model = pipeline {
-        let netid = getProperty req WorkflowUser
-        let! _ = permission'' req authFn model
-        return! authorizeRequest data.Authorization model authFn netid
-    }
-
-    let inline authorizeRelationUnitModification req relation =
-        authorize req (canModifyUnit (unitId relation)) relation
-    
-    let inline permissionRelationUnitModification req relation =
-        permission'' req (canModifyUnit (unitId relation)) relation     
-
     type Formatter<'a> = 'a -> StringContent
 
     /// Execute a workflow for an authenticated user and return a response.
@@ -163,23 +143,12 @@ module Functions =
     let delete req workflow = execute Status.NoContent req None workflow
     let getXml req workflow = execute Status.OK req (Some xmlResponse) workflow
 
-
-    let inline ensureEntityExistsForModel (getter:Id->Async<Result<'a,Error>>) model : Async<Result<'b,Error>> = async {
-        let! result = getter (identity model)
-        match result with 
-        | Ok _ -> return Ok model
-        | Error msg -> return Error msg
-    }     
-
     let inline ensureExists (entityResolver:Id->Async<Result<'a,Error>>) id = async {
         let! entity = entityResolver id
         match entity with 
         | Ok _ -> return Ok ()
         | Error msg -> return Error msg
     }     
-
-    // VALIDATION 
-
 
     // FUNCTION WORKFLOWS 
 
@@ -378,8 +347,6 @@ module Functions =
     // ** Units
     // *****************
 
-    let setUnitId id (a:Unit) = ok { a with Id=id }
-
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all IT units.", Description="""Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by unit name/description, ex: 'Parks'</ul></br>""" , Tags=[|"Units"|])>]
@@ -527,8 +494,6 @@ module Functions =
     // *******************
     // ** Unit Memberships
     // *******************
-
-    let setMembershipId id (a:UnitMember) = Ok { a with Id=id } |> async.Return
 
     [<FunctionName("MemberGetAll")>]
     [<SwaggerOperation(Summary="List all unit memberships", Tags=[|"Unit Memberships"|])>]
@@ -717,7 +682,6 @@ module Functions =
     // ** Departments
     // *****************
 
-
     [<FunctionName("DepartmentGetAll")>]
     [<SwaggerOperation(Summary="List all departments.", Description="""Get a list of university departments. Available filters include:<br/>
     <ul><li><strong>q</strong>: filter by department name/code, ex: 'Parks' or 'PA-PARK'</ul></br>""", Tags=[|"Departments"|])>]
@@ -774,8 +738,6 @@ module Functions =
     // ************************
     // ** Department Support Relationships
     // ************************
-
-    let setRelationshipId id (a:SupportRelationship) = Ok { a with Id=id } |> async.Return
 
     [<FunctionName("SupportRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-department support relationships.", Tags=[|"Support Relationships"|])>]
@@ -864,8 +826,8 @@ module Functions =
 
     [<FunctionName("ToolPermissionsGetAll")>]
     [<SwaggerIgnore>]
-    // [<SwaggerOperation(Summary="List all person-tool-department relationships.", Tags=[|"Tool Permissions"|])>]
-    // [<SwaggerResponse(200, "A collection of tool permission records", typeof<ToolPermission seq>)>]
+    [<SwaggerOperation(Summary="List all person-tool-department relationships.", Tags=[|"Tool Permissions"|])>]
+    [<SwaggerResponse(200, "A collection of tool permission records", typeof<ToolPermission seq>)>]
     let toolPermissionsGetAll
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "toolPermissions")>] req) =
         let workflow = pipeline {
@@ -921,8 +883,6 @@ module Functions =
     // *********************************
     // ** Building Support Relationships
     // *********************************
-
-    let setBuildingRelationshipId id (a:BuildingRelationship) = Ok { a with Id=id } |> async.Return
 
     [<FunctionName("BuildingRelationshipsGetAll")>]
     [<SwaggerOperation(Summary="List all unit-building support relationships.", Tags=[|"Building Relationships"|])>]
@@ -1012,20 +972,26 @@ module Functions =
     [<SwaggerIgnore>]
     let legacyLspList
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspList")>] req) =
-        let workflow = pipeline { return! data.Legacy.GetLspList () }
+        let workflow = pipeline { 
+            return! data.Legacy.GetLspList () 
+        }
         getXml req workflow
 
     [<FunctionName("LegacyLspDepartments")>]
     [<SwaggerIgnore>]
     let legacyLspDepartments
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspDepartments/{netid}")>] req, netid) =
-        let workflow = pipeline { return! data.Legacy.GetLspDepartments netid }
+        let workflow = pipeline { 
+            return! data.Legacy.GetLspDepartments netid 
+        }
         getXml req workflow    
 
     [<FunctionName("LegacyDepartmentLsps")>]
     [<SwaggerIgnore>]
     let legacyDepartmentLsps
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "LspdbWebService.svc/LspsInDept/{department}")>] req, department) =
-        let workflow = pipeline { return! data.Legacy.GetDepartmentLsps department }
+        let workflow = pipeline { 
+            return! data.Legacy.GetDepartmentLsps department 
+        }
         getXml req workflow   
 
