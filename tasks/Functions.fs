@@ -7,7 +7,8 @@ module Types=
     open Core.Types
 
     type ADPath = string
-    type ADGroupMember = NetId * ADPath
+    type ToolName = string
+    type ADGroupMember = NetId * ADPath * ToolName
     
     type ToolPersonUpdate =
     | Add of ADGroupMember
@@ -26,6 +27,7 @@ module Types=
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
+        LogADGroupUpdate: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
         UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
         FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
         UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>>
@@ -169,6 +171,8 @@ module DataRepository =
                 | None -> ("","")                                
             { Id=0
               Name=sprintf "%s %s" e.firstName e.lastName
+              NameFirst=e.firstName
+              NameLast=e.lastName
               NetId=e.username.ToLower()
               Position=position
               HrDepartment=deptName
@@ -236,6 +240,8 @@ module DataRepository =
         let sql = """
             UPDATE people
             SET name = @Name,
+                name_first = @NameFirst,
+                name_last = @NameLast,
                 position = @Position,
                 campus = @Campus,
                 campus_phone = @CampusPhone,
@@ -277,13 +283,13 @@ module DataRepository =
     let updateHrPeople psqlConnStr (hrPeople:seq<HrPerson>) =
         // convert the hr person to a formatting string representing the table row data.
         let toRow (p:HrPerson) = 
-            sprintf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" p.Name p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment p.HrDepartmentDescription
+            sprintf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" p.Name p.NameFirst p.NameLast p.NetId p.Position p.Campus p.CampusPhone p.CampusEmail p.HrDepartment p.HrDepartmentDescription
         executeRaw psqlConnStr (fun cn ->
             cn.Open()
             // truncate the existing
             cn.Execute("DELETE FROM hr_people;") |> ignore
             // bulk insert the new rows
-            use writer = cn.BeginTextImport("COPY hr_people (name, netid, position, campus, campus_phone, campus_email, hr_department, hr_department_desc) FROM STDIN")
+            use writer = cn.BeginTextImport("COPY hr_people (name, name_first, name_last, netid, position, campus, campus_phone, campus_email, hr_department, hr_department_desc) FROM STDIN")
             hrPeople |> Seq.map toRow  |> Seq.iter writer.Write
             // flush the writer to finish the bulk insert
             writer.Flush()
@@ -325,8 +331,8 @@ module DataRepository =
         let updateADGroup' (ldap:LdapConnection) =
             let (dn, modification) = 
                 match update with
-                | Add(netid, dn) -> dn, LdapModification(LdapModification.ADD, memberAttribute netid)
-                | Remove(netid, dn) -> dn, LdapModification(LdapModification.DELETE, memberAttribute netid)
+                | Add(netid, dn, _) -> dn, LdapModification(LdapModification.ADD, memberAttribute netid)
+                | Remove(netid, dn, _) -> dn, LdapModification(LdapModification.DELETE, memberAttribute netid)
             ldap.Modify(dn, modification)
             update
         try
@@ -380,7 +386,42 @@ module DataRepository =
                country = EXCLUDED.country;
                """
         execute connStr sql buildings
-        
+    
+    type ToolPersonUpdateRow = 
+      { ChangeType: string; 
+        NetId: string;
+        ToolName: string;
+        ToolPath: string; }
+
+    let logADGroupUpdate connStr toolPersonUpdate =
+        let sql = 
+            """with cte (unit_id, unit_name) as
+                ( 
+                	select u.id, u.name
+                	from units u
+                	join unit_members um on u.id = um.unit_id
+                	join unit_member_tools umt on um.id = umt.membership_id
+                	join tools t on t.id = umt.tool_id
+                	join people p on p.id = um.person_id
+                	where p.netid = @NetId
+                	and t.name = @ToolName
+                )
+                INSERT INTO automationlog_tools (change_type, netid, tool_name, tool_path, unit_id, unit_name)
+                SELECT 
+                    @ChangeType,
+                    @NetId,
+                    @ToolName,
+                    @ToolPath,
+                	string_agg(unit_id, '; '), 
+                	string_agg(unit_name, '; ')
+                FROM cte
+                """
+        let param = 
+            match toolPersonUpdate with
+            | Add(netid, path, name)    -> { NetId=netid; ToolPath=path; ToolName=name; ChangeType="add"; }
+            | Remove(netid, path, name) -> { NetId=netid; ToolPath=path; ToolName=name; ChangeType="remove"; }
+        execute connStr sql param
+        >>= fun () -> ok toolPersonUpdate
 
     let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword buildingUrl buildingUser buildingPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
@@ -389,6 +430,7 @@ module DataRepository =
        GetAllTools = fun () -> getAllTools psqlConnStr 
        GetADGroupMembers = getADGroupMembers adUser adPassword 
        GetAllToolUsers = getAllToolUsers psqlConnStr 
+       LogADGroupUpdate = logADGroupUpdate psqlConnStr
        UpdateADGroup = updateADGroup adUser adPassword
        FetchAllHrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
        UpdateHrPeople = updateHrPeople psqlConnStr
@@ -401,14 +443,12 @@ module Functions=
     open Core.Types
     open Core.Json
 
-    open System
     open System.Net
     open System.Net.Http
     open Microsoft.Azure.WebJobs
     open Microsoft.Azure.WebJobs.Extensions.Http
     open Microsoft.Extensions.Logging
-    open SendGrid.Helpers.Mail
-
+    
     open Core.Util
     open Types
 
@@ -566,7 +606,7 @@ module Functions=
     // [<Disable>]
     [<FunctionName("ToolUpdateBatcher")>]
     let toolUpdateBatcher
-        ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
+        ([<TimerTrigger("0 */5 * * * *")>] timer: TimerInfo,
          [<Queue("tool-update")>] queue: ICollector<string>,
          log: ILogger) =
 
@@ -612,13 +652,18 @@ module Functions=
             let addToAD = 
                 db 
                 |> Seq.except ad 
-                |> Seq.map (fun a -> Add(a, tool.ADPath))
+                |> Seq.map (fun a -> Add(a, tool.ADPath, tool.Name))
             let removeFromAD = 
                 ad 
                 |> Seq.except db 
-                |> Seq.map (fun a -> Remove(a, tool.ADPath))
-            let result = Seq.append addToAD removeFromAD 
-            result |> ok
+                |> Seq.map (fun a -> Remove(a, tool.ADPath, tool.Name))                
+
+            let countOfMembers = Seq.length ad
+            let countOfAdded = Seq.length addToAD
+            let countOfRemoved = Seq.length removeFromAD
+            if (countOfAdded = 0 && countOfRemoved <> 0 && countOfRemoved = countOfMembers)
+            then error (Status.InternalServerError, sprintf "All %d tool grants for %s would be removed!" countOfMembers tool.Name)
+            else ok (Seq.append addToAD removeFromAD)
                    
          let workflow =
             tryDeserializeAsync<Tool>
@@ -643,6 +688,7 @@ module Functions=
          
          let workflow =  
             tryDeserializeAsync<ToolPersonUpdate>
+            >=> data.LogADGroupUpdate
             >=> data.UpdateADGroup
             >=> tap logUpdate
          
