@@ -643,7 +643,7 @@ type BuildingRelationshipRepository = {
     /// Update a support relationship
     Update: BuildingRelationship -> Async<Result<BuildingRelationship,Error>>
     /// Delete a support relationsihps
-    Delete : BuildingRelationship -> Async<Result<unit,Error>>
+    Delete : Id -> Async<Result<unit,Error>>
 }
 
 type AuthorizationRepository = {

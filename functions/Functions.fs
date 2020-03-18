@@ -944,7 +944,8 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! relationship = data.BuildingRelationships.Get relationshipId
-            return! permissionRelationUnitModification req relationship
+            do! setEndpointPermissions req (canModifyUnit relationship.UnitId)
+            return relationship
         }
 
         get req workflow
@@ -962,9 +963,9 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<BuildingRelationship> req
-            let safeBody = { body with Id=0 }
-            let! authdBody = authorizeRelationUnitModification req safeBody
-            return! data.BuildingRelationships.Create authdBody
+            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! authorizeCreate req
+            return! data.BuildingRelationships.Create { body with Id=0 }
         }
         create req workflow
 
@@ -981,10 +982,9 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<BuildingRelationship> req
-            let safeBody = { body with Id=relationshipId }
-            let! _ = ensureEntityExistsForModel data.BuildingRelationships.Get safeBody
-            let! authdBody = authorizeRelationUnitModification req safeBody
-            return! data.BuildingRelationships.Update authdBody
+            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! authorizeUpdate req
+            return! data.BuildingRelationships.Update { body with Id=relationshipId }
         }
         update req workflow
 
@@ -998,8 +998,9 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! relationship = data.BuildingRelationships.Get relationshipId
-            let! _ = authorizeRelationUnitModification req relationship
-            return! data.BuildingRelationships.Delete relationship
+            do! setEndpointPermissions req (canModifyUnit relationship.UnitId)
+            do! authorizeDelete req
+            return! data.BuildingRelationships.Delete relationshipId
         }
         delete req workflow
 

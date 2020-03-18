@@ -135,7 +135,7 @@ module DatabaseRepository =
 
     let updateBuildingRelationship = update<BuildingRelationship> mapBuildingRelationship
 
-    let deleteBuildingRelationship = delete<BuildingRelationship>
+    let deleteBuildingRelationship = deleteById<BuildingRelationship>
    
 
     // **********
