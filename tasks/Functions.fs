@@ -27,8 +27,8 @@ module Types=
         GetAllTools: unit -> Async<Result<seq<Tool>, Error>>
         GetADGroupMembers: ADPath -> Async<Result<seq<NetId>, Error>>
         GetAllToolUsers: Tool -> Async<Result<seq<NetId>, Error>>
-        LogADGroupUpdate: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
-        UpdateADGroup: ToolPersonUpdate -> Async<Result<ToolPersonUpdate, Error>>
+        LogADGroupUpdate: ToolPersonUpdate -> Async<Result<unit, Error>>
+        UpdateADGroup: ToolPersonUpdate -> Async<Result<unit, Error>>
         FetchAllHrPeople: unit -> Async<Result<seq<HrPerson>, Error>>
         UpdateHrPeople: seq<HrPerson> -> Async<Result<unit, Error>>
         SyncDepartments: unit -> Async<Result<unit, Error>>
@@ -206,10 +206,11 @@ module DataRepository =
         valid |> ok
 
     // DENODO Stuff
-    let fetchAllHrPeople uaaUrl hrDataUrl username password =
-        fun () -> getUaaToken uaaUrl username password
-        >=> getAllEmployees hrDataUrl
-        >=> mapEmployeesToDomainRecords
+    let fetchAllHrPeople uaaUrl hrDataUrl username password = pipeline {
+        let! uaaToken = getUaaToken uaaUrl username password
+        let! employees = getAllEmployees hrDataUrl uaaToken
+        return! mapEmployeesToDomainRecords employees
+    }
 
     // DB Stuff
 
@@ -336,10 +337,11 @@ module DataRepository =
             ldap.Modify(dn, modification)
             update
         try
-            updateADGroup' |> doLdapAction adUser adPassword         
+            updateADGroup' |> doLdapAction adUser adPassword |> ignore
+            ok ()       
         with exn -> 
             if exn.Message = "No Such Object"
-            then ok update // This user isn't in AD. There's nothing we can do about it. Squelch
+            then ok () // This user isn't in AD. There's nothing we can do about it. Squelch
             else 
                 let msg = sprintf "Group modification failed for %A:\n%A" update exn
                 error(Status.InternalServerError, msg)
@@ -369,9 +371,10 @@ module DataRepository =
               Country = "" } )
         |> ok
 
-    let fetchAllBuildings url user password =
-        getDenodoResponse url user password
-        >>= mapToDomainBuilding
+    let fetchAllBuildings url user password = pipeline {
+        let! denodoBuildings = getDenodoResponse url user password
+        return! denodoBuildings |> mapToDomainBuilding 
+    }
     
     let updateBuildings connStr (buildings:seq<Building>) = 
         let sql = 
@@ -421,7 +424,6 @@ module DataRepository =
             | Add(netid, path, name)    -> { NetId=netid; ToolPath=path; ToolName=name; ChangeType="add"; }
             | Remove(netid, path, name) -> { NetId=netid; ToolPath=path; ToolName=name; ChangeType="remove"; }
         execute connStr sql param
-        >>= fun () -> ok toolPersonUpdate
 
     let Repository psqlConnStr uaaUrl hrDataUrl adUser adPassword uaaUser uaaPassword buildingUrl buildingUser buildingPassword =
      { GetAllNetIds = fun () -> getAllNetIds psqlConnStr
@@ -432,7 +434,7 @@ module DataRepository =
        GetAllToolUsers = getAllToolUsers psqlConnStr 
        LogADGroupUpdate = logADGroupUpdate psqlConnStr
        UpdateADGroup = updateADGroup adUser adPassword
-       FetchAllHrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
+       FetchAllHrPeople = fun () -> fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
        UpdateHrPeople = updateHrPeople psqlConnStr
        SyncDepartments = fun () -> syncDepartments psqlConnStr 
        FetchAllBuildings = fun () -> fetchAllBuildings buildingUrl buildingUser buildingPassword
@@ -452,9 +454,9 @@ module Functions=
     open Core.Util
     open Types
 
-    let execute (workflow:'a -> Async<Result<'b,Error>>) (arg:'a)= 
+    let execute (workflow:Async<Result<'b,Error>>) (arg:'a)= 
         async {
-            let! result = workflow arg
+            let! result = workflow
             match result with
             | Ok(_) -> ()
             | Error(msg) -> 
@@ -499,10 +501,11 @@ module Functions=
             sprintf "Fetched %d buildings from Denodo." (buildings |> Seq.length)
             |> log.LogInformation
 
-        let workflow =
-            data.FetchAllBuildings
-            >=> tap logBuildingCount
-            >=> data.UpdateBuildings
+        let workflow = pipeline {
+            let! buildings = data.FetchAllBuildings ()
+            logBuildingCount buildings
+            return! data.UpdateBuildings buildings
+        }
 
         execute workflow ()
 
@@ -522,13 +525,15 @@ module Functions=
             sprintf "Enqueued %d netids for update." (Seq.length netids)
             |> log.LogInformation
 
-        let workflow = 
-            data.FetchAllHrPeople
-            >=> data.UpdateHrPeople
-            >=> data.SyncDepartments
-            >=> data.GetAllNetIds
-            >=> tap enqueueAllNetIds
-            >=> tap logEnqueuedNumber
+        let workflow = pipeline {
+            let! hrPeople = data.FetchAllHrPeople ()
+            do! data.UpdateHrPeople hrPeople 
+            do! data.SyncDepartments ()
+            let! netids = data.GetAllNetIds ()
+            enqueueAllNetIds netids
+            logEnqueuedNumber netids
+            return netids
+        }
 
         execute workflow ()
 
@@ -541,23 +546,24 @@ module Functions=
          [<Queue("people-update-notification")>] queue: ICollector<string>,
          log: ILogger) =
 
+        let logStart () =
+            sprintf "Processing person update for netid %s" netid 
+            |> log.LogInformation
+
         let logUpdateAttempt (person:HrPerson) =
             person
             |> sprintf "Updating directory record with HR data %A."
             |> log.LogInformation
-            ok person
 
         let logUpdateSuccess (person:Person) = 
             person
             |> sprintf "Updated directory record as %A."
             |> log.LogInformation
-            ok person
 
         let logHrDataNotFound (person:Person) = 
             person.NetId
             |> sprintf "HR data not found for %s. The directory record for this netid should be removed."
             |> log.LogInformation
-            ok person
 
         let logDepartmentChange (person:Person) (hrPerson:HrPerson)=
             sprintf "HR department has changed for %s. Directory record is %A. HR Record is %A. The unit memberships and tool assignments for this person should be revoked." person.NetId person hrPerson
@@ -574,10 +580,12 @@ module Functions=
         let positionHasChanged (person:Person) (hrPerson:HrPerson) =
             hrPerson.Position <> person.Position         
 
-        let updateDirectoryRecord hrPerson =
+        let updateDirectoryRecord hrPerson = pipeline {
             logUpdateAttempt hrPerson
-            >>= data.UpdatePerson
-            >>= logUpdateSuccess
+            let! person = data.UpdatePerson hrPerson
+            logUpdateSuccess person
+            return ()
+        }
 
         let processHRResult (person:Person, hrPersonOpt:HrPerson option) =
             match hrPersonOpt with
@@ -593,14 +601,19 @@ module Functions=
             | Some(hrPerson) ->
                 updateDirectoryRecord hrPerson
             // The person is no longer in the HR data eed
-            | None -> logHrDataNotFound person
+            | None -> 
+                logHrDataNotFound person
+                ok ()
 
-        let workflow = 
-            data.FetchLatestPersonData
-            >=> processHRResult
+        let workflow = pipeline {
+            logStart ()
+            let! person = data.FetchLatestPersonData netid
+            do! processHRResult person
+            return ()
+        }
 
-        sprintf "Processing person update for netid %s" netid |> log.LogInformation
-        execute workflow netid
+        
+        execute workflow ()
 
         // Enqueue the tools for which permissions need to be updated.
     // [<Disable>]
@@ -617,10 +630,12 @@ module Functions=
             |> sprintf "Enqueued tool permission updates for: %s"
             |> log.LogInformation
 
-         let workfow =
-            data.GetAllTools
-            >=> tap (enqueueAll queue)
-            >=> tap logEnqueuedTools
+         let workfow = pipeline {
+            let! tools = data.GetAllTools ()
+            enqueueAll queue tools
+            logEnqueuedTools tools
+            return ()
+         }
          
          execute workfow ()
 
@@ -665,11 +680,13 @@ module Functions=
             then error (Status.InternalServerError, sprintf "All %d tool grants for %s would be removed!" countOfMembers tool.Name)
             else ok (Seq.append addToAD removeFromAD)
                    
-         let workflow =
-            tryDeserializeAsync<Tool>
-            >=> fetchNetids
-            >=> generateADActions
-            >=> tap (enqueueAll queue)
+         let workflow = pipeline {
+             let! tool = tryDeserializeAsync<Tool> item
+             let! netids = fetchNetids tool
+             let! actions = generateADActions netids
+             enqueueAll queue actions
+             return ()
+         }
 
          sprintf "Processing tool update %s" item |> log.LogInformation
          execute workflow item
@@ -686,11 +703,13 @@ module Functions=
             sprintf "Updated Tool AD Group: %A"
             >> log.LogInformation
          
-         let workflow =  
-            tryDeserializeAsync<ToolPersonUpdate>
-            >=> data.LogADGroupUpdate
-            >=> data.UpdateADGroup
-            >=> tap logUpdate
+         let workflow = pipeline {
+             let! update = tryDeserializeAsync<ToolPersonUpdate> item
+             do! data.LogADGroupUpdate update
+             do! data.UpdateADGroup update
+             logUpdate update
+             return ()
+         }
          
          sprintf "Processing tool person update %s" item |> log.LogInformation
          execute workflow item

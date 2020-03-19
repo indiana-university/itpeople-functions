@@ -30,9 +30,6 @@ module Jwt =
         |> Ok
         |> async.Return
 
-    let ExpClaim = "exp"
-    let UserIdClaim = "user_id"
-    let UserNameClaim = "user_name"
     let epoch = DateTime(1970,1,1,0,0,0,0,System.DateTimeKind.Utc)
 
     type UaaJwt = {
@@ -106,12 +103,14 @@ module Jwt =
         else ok uaa.user_name
 
     /// Decode a JWT issued by the Api.Auth.get function.
-    let decodeJwt uaaPublicKey =
-        validateSignature uaaPublicKey
-        >=> ensureJwtNotExpired
+    let decodeJwt uaaPublicKey jwt = pipeline {
+        let! validatedJwt = validateSignature uaaPublicKey jwt
+        return! ensureJwtNotExpired validatedJwt
+    }
                
     /// Attempt to decode the app JWT claims
-    let authenticateRequest uaaPublicKey = 
-        extractAuthHeader 
-        >=> extractJwt
-        >=> decodeJwt uaaPublicKey
+    let authenticateRequest uaaPublicKey req = pipeline { 
+        let! authHeader = extractAuthHeader req
+        let! jwt = extractJwt authHeader
+        return! decodeJwt uaaPublicKey jwt
+    }
