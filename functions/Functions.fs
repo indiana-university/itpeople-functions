@@ -10,7 +10,6 @@ open Core.Json
 open Api
 open Jwt
 open Logging
-open Validation
 open Examples
 
 open System
@@ -326,6 +325,25 @@ module Functions =
     // *****************
     // ** Units
     // *****************
+
+    let assertUnitParentRelationshipIsNotCircular data unitId parentId = async {
+        match parentId with
+        | None -> return Ok ()
+        | Some(pid) ->
+            let! result = data.Units.GetDescendantOfParent (unitId, pid)
+            match result with
+            | Ok (Some(_)) -> return Error (Status.Conflict, "Whoops! Adding this unit as a child would result in a circular relationship. 🙃")
+            | Ok (None) -> return Ok ()
+            | Error msgs -> return Error msgs
+    }
+
+    let assertUnitHasNoChildren data unitId = async {
+        let! result = data.Units.GetChildren unitId
+        match result with
+        | Ok (EmptySeq) -> return Ok () 
+        | Ok (_) -> return Error (Status.Conflict, "This unit has children. They must be reassigned before this unit can be deleted.")
+        | Error(msgs) -> return Error msgs
+    }
 
     [<FunctionName("UnitGetAll")>]
     [<SwaggerOperation(Summary="List all IT units.", Description="""Search for IT units by name and/or description. If no search term is provided, lists all top-level IT units. Available filters include:<br/>
