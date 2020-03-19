@@ -9,7 +9,6 @@ open Core.Json
 
 open Api
 open Jwt
-open Authorization
 open Logging
 open Validation
 open Examples
@@ -90,29 +89,28 @@ module Functions =
         return ()
     }
 
-    let authenticatedRequestor req = 
-        getProperty req WorkflowUser
-
     let setEndpointPermissions req permissionResolver = pipeline {
-        let netid = getProperty req WorkflowUser
-        let! canModify = permissionResolver data.Authorization netid
+        let netid : NetId = getProperty req WorkflowUser
+        let! canModify = permissionResolver netid
         let permissions = if canModify then [GET; POST; PUT; DELETE] else [GET]
         addProperty req WorkflowPermissions permissions
         return ()
     }
 
-    let authorizeAction (req:HttpRequestMessage) requiredPermission description = 
-        let canDo = 
-            req.Properties.[WorkflowPermissions] 
-            :?> List<UserPermissions>
-            |> Seq.contains requiredPermission
-        if canDo
+    let hasPermission (req:HttpRequestMessage) requiredPermission = 
+        req.Properties.[WorkflowPermissions] 
+        :?> List<UserPermissions>
+        |> Seq.contains requiredPermission
+
+    let authorizeAction req requiredPermission description = 
+        if hasPermission req requiredPermission
         then ok ()
         else error (Status.Forbidden, sprintf "You are not allowed to %s this resource." description)
 
     let authorizeUpdate req = authorizeAction req PUT "modify"
     let authorizeCreate req = authorizeAction req POST "create"
     let authorizeDelete req = authorizeAction req DELETE "delete"
+    let hasWritePermissions req = hasPermission req PUT 
 
     type Formatter<'a> = 'a -> StringContent
 
@@ -305,7 +303,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! person = findPerson personId
-            do! setEndpointPermissions req (canModifyPerson person.Id)
+            do! setEndpointPermissions req (data.Authorization.CanModifyPerson person.Id)
             return person
         }
         get req workflow
@@ -335,7 +333,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             do! ensureExists data.People.GetById personId
-            do! setEndpointPermissions req (canModifyPerson personId)
+            do! setEndpointPermissions req (data.Authorization.CanModifyPerson personId)
             do! authorizeUpdate req
             let! body = deserializeBody<PersonRequest> req
             return! data.People.Update { body with Id=personId }
@@ -356,7 +354,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units")>] req) =
         let workflow = pipeline {
             do! authenticate req
-            do! setEndpointPermissions req canCreateDeleteUnit
+            do! setEndpointPermissions req data.Authorization.IsServiceAdmin
             let! query = tryQueryParam req "q"
             return! data.Units.GetAll query
         }
@@ -370,7 +368,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
             do! authenticate req
-            do! setEndpointPermissions req (canModifyUnit unitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager unitId)
             return! data.Units.Get unitId 
         }
         get req workflow
@@ -385,7 +383,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "units")>] req) =
         let workflow = pipeline {
             do! authenticate req
-            do! setEndpointPermissions req canCreateDeleteUnit
+            do! setEndpointPermissions req data.Authorization.IsServiceAdmin
             do! authorizeCreate req
             let! body = deserializeBody<Unit> req
             return! data.Units.Create { body with Id=0 }
@@ -403,7 +401,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
             do! authenticate req
-            do! setEndpointPermissions req (canModifyUnit unitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager unitId)
             do! ensureExists data.Units.Get unitId
             do! authorizeUpdate req
             let! body = deserializeBody<Unit> req
@@ -422,7 +420,7 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "units/{unitId}")>] req, unitId) =
         let workflow = pipeline {
             do! authenticate req
-            do! setEndpointPermissions req canCreateDeleteUnit
+            do! setEndpointPermissions req data.Authorization.IsServiceAdmin
             do! ensureExists data.Units.Get unitId
             do! authorizeDelete req
             do! assertUnitHasNoChildren data unitId
@@ -439,18 +437,19 @@ module Functions =
         ([<HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "units/{unitId}/members")>] req, unitId) =
         let workflow = pipeline {
             do! authenticate req
-            do! setEndpointPermissions req (canModifyUnit unitId)
-            let netid = authenticatedRequestor req
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager unitId)
             do! ensureExists data.Units.Get unitId
-            let! canModifyResult = canModifyUnit unitId data.Authorization netid
-            let options = if canModifyResult then MembersWithNotes(unitId) else MembersWithoutNotes(unitId)
+            let options = 
+                if hasWritePermissions req 
+                then MembersWithNotes(unitId) 
+                else MembersWithoutNotes(unitId)
             return! data.Units.GetMembers options
         }
         get req workflow
 
     let getUnitRelations req unitId relationResolver = pipeline {
         do! authenticate req
-        do! setEndpointPermissions req (canModifyUnit unitId)
+        do! setEndpointPermissions req (data.Authorization.IsUnitManager unitId)
         do! ensureExists data.Units.Get unitId
         return! relationResolver unitId
     } 
@@ -515,7 +514,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! membership = data.Memberships.Get membershipId
-            do! setEndpointPermissions req (canModifyUnit membership.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager membership.UnitId)
             return membership
         }
         get req workflow
@@ -544,7 +543,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<UnitMember> req
-            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager body.UnitId)
             do! authorizeCreate req
             let! personId = ensureUnitMemberInDirectory body
             return! data.Memberships.Create { body with Id=0; PersonId=personId }
@@ -564,7 +563,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<UnitMember> req
-            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager body.UnitId)
             do! ensureExists data.Memberships.Get membershipId
             do! authorizeUpdate req
             return! data.Memberships.Update { body with Id=membershipId }
@@ -581,7 +580,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! model = data.Memberships.Get membershipId
-            do! setEndpointPermissions req (canModifyUnit model.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager model.UnitId)
             do! authorizeDelete req
             return! data.Memberships.Delete membershipId
         }
@@ -613,7 +612,7 @@ module Functions =
             do! authenticate req
             let! memberTool = data.MemberTools.Get memberToolId
             let! membership = data.Memberships.Get memberTool.MembershipId
-            do! setEndpointPermissions req (canModifyUnitMemberTools membership.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitToolManager membership.UnitId)
             return memberTool
         }
         get req workflow
@@ -632,7 +631,7 @@ module Functions =
             do! authenticate req
             let! body = deserializeBody<MemberTool> req
             let! membership = data.Memberships.Get body.MembershipId
-            do! setEndpointPermissions req (canModifyUnitMemberTools membership.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitToolManager membership.UnitId)
             do! authorizeCreate req
             return! data.MemberTools.Create { body with Id=0 }
         }
@@ -653,7 +652,7 @@ module Functions =
             let! body = deserializeBody<MemberTool> req
             do! ensureExists data.MemberTools.Get memberToolId
             let! membership = data.Memberships.Get body.MembershipId
-            do! setEndpointPermissions req (canModifyUnitMemberTools membership.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitToolManager membership.UnitId)
             do! authorizeUpdate req
             return! data.MemberTools.Update { body with Id=memberToolId }
         }
@@ -671,7 +670,7 @@ module Functions =
             do! authenticate req
             let! memberTool = data.MemberTools.Get memberToolId
             let! membership = data.Memberships.Get memberTool.MembershipId
-            do! setEndpointPermissions req (canModifyUnitMemberTools membership.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitToolManager membership.UnitId)
             do! authorizeDelete req
             return! data.MemberTools.Delete memberToolId
         }
@@ -759,7 +758,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! relationship = data.SupportRelationships.Get relationshipId
-            do! setEndpointPermissions req (canModifyUnit relationship.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager relationship.UnitId)
             return relationship
         }
         get req workflow
@@ -777,7 +776,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<SupportRelationship> req
-            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager body.UnitId)
             do! authorizeCreate req
             return! data.SupportRelationships.Create { body with Id=0 }         
         }
@@ -796,7 +795,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<SupportRelationship> req
-            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager body.UnitId)
             do! ensureExists data.SupportRelationships.Get relationshipId
             do! authorizeUpdate req
             return! data.SupportRelationships.Update { body with Id=relationshipId }
@@ -813,7 +812,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! relationship = data.SupportRelationships.Get relationshipId
-            do! setEndpointPermissions req (canModifyUnit relationship.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager relationship.UnitId)
             do! authorizeDelete req
             return! data.SupportRelationships.Delete relationshipId
         }
@@ -904,7 +903,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! relationship = data.BuildingRelationships.Get relationshipId
-            do! setEndpointPermissions req (canModifyUnit relationship.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager relationship.UnitId)
             return relationship
         }
 
@@ -923,7 +922,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<BuildingRelationship> req
-            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager body.UnitId)
             do! authorizeCreate req
             return! data.BuildingRelationships.Create { body with Id=0 }
         }
@@ -942,7 +941,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! body = deserializeBody<BuildingRelationship> req
-            do! setEndpointPermissions req (canModifyUnit body.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager body.UnitId)
             do! authorizeUpdate req
             return! data.BuildingRelationships.Update { body with Id=relationshipId }
         }
@@ -958,7 +957,7 @@ module Functions =
         let workflow = pipeline {
             do! authenticate req
             let! relationship = data.BuildingRelationships.Get relationshipId
-            do! setEndpointPermissions req (canModifyUnit relationship.UnitId)
+            do! setEndpointPermissions req (data.Authorization.IsUnitManager relationship.UnitId)
             do! authorizeDelete req
             return! data.BuildingRelationships.Delete relationshipId
         }

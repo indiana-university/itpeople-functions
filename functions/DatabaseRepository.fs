@@ -606,7 +606,7 @@ module DatabaseRepository =
 
     type AuthParams = {UnitId: Id; NetId: NetId; UnitPermissions: int[]}
 
-    let hasCascadedUnitPerms permissions connStr netid unitId  =
+    let hasCascadedUnitPerms permissions connStr unitId netid =
         let param = 
           { UnitId=unitId
             NetId=netid 
@@ -614,11 +614,11 @@ module DatabaseRepository =
         let query (cn:Cn) = cn.QuerySingleAsync<bool>(hasCascadedUnitPermsSql, param)
         fetch query connStr
 
-    let isServiceAdminOrHasUnitPermissions permissions connStr netid unitId = pipeline {
+    let isServiceAdminOrHasUnitPermissions permissions connStr unitId netid  = pipeline {
         let! is = isServiceAdmin connStr netid    
         if is
         then return true
-        else return! hasCascadedUnitPerms permissions connStr netid unitId
+        else return! hasCascadedUnitPerms permissions connStr unitId netid
     }
 
     let isUnitManager = 
@@ -659,7 +659,7 @@ module DatabaseRepository =
         )"""
 
     type PersonParams = {Id:Id; NetId:NetId}
-    let canModifyPerson connStr netid personId = pipeline {
+    let canModifyPerson connStr personId netid = pipeline {
         let param = {Id=personId; NetId=netid}
         let canModifyPersonQuery (cn:Cn) = cn.QuerySingleAsync<bool>(canModifyPersonSql, param) 
 

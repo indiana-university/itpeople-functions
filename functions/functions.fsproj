@@ -14,7 +14,6 @@
     <Compile Include="Api.fs" />
     <Compile Include="DatabaseRepository.fs" />
     <Compile Include="FakesRepository.fs" />
-    <Compile Include="Authorization.fs" />
     <Compile Include="Validation.fs" />
     <Compile Include="Functions.fs" />
     <None Include="host.json">

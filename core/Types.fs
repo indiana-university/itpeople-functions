@@ -631,9 +631,9 @@ type AuthorizationRepository = {
     /// Given an OAuth token_key URL and return the public key.
     UaaPublicKey: string -> Async<Result<string,Error>>
     IsServiceAdmin: NetId -> Async<Result<bool, Error>>
-    IsUnitManager: NetId -> Id -> Async<Result<bool, Error>>
-    IsUnitToolManager: NetId -> Id -> Async<Result<bool, Error>>
-    CanModifyPerson: NetId -> Id -> Async<Result<bool,Error>>
+    IsUnitManager: Id -> NetId -> Async<Result<bool, Error>>
+    IsUnitToolManager: Id -> NetId -> Async<Result<bool, Error>>
+    CanModifyPerson: Id -> NetId -> Async<Result<bool,Error>>
 }
 
 type LegacyRepository = {
