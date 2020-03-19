@@ -568,10 +568,22 @@ module DatabaseRepository =
     )"""
 
     type UaaPublicKey = {alg:string; value:string} 
-    let uaaPublicKey (url:string) = pipeline {
+    let private fetchUaaPublicKey (oauth2TokenUrl:string) = async {
+        let url = sprintf "%s_key" oauth2TokenUrl            
         let msg = new HttpRequestMessage(HttpMethod.Get, url)
         let! response = sendAsync<UaaPublicKey> msg
-        return response.value
+        match response with
+        | Ok(publicKey) -> return Ok publicKey.value
+        | Error(code, msg) ->
+            let err = sprintf "Failed to fetch UAA Public Key. Function app cannot start. Reason: %A" msg
+            return Error(code, err)
+    }
+
+    let getUaaPublicKey oauth2TokenUrl = pipeline {
+        let envKey = System.Environment.GetEnvironmentVariable("OAuthPublicKey")
+        if isNull envKey
+        then return! fetchUaaPublicKey oauth2TokenUrl
+        else return envKey
     }
 
     let isServiceAdmin connStr netid =
@@ -822,7 +834,7 @@ module DatabaseRepository =
     }
 
     let AuthorizationRepository(connStr) = {
-        UaaPublicKey = uaaPublicKey
+        UaaPublicKey = getUaaPublicKey
         IsServiceAdmin = isServiceAdmin connStr
         IsUnitManager = isUnitManager connStr
         IsUnitToolManager = isUnitToolManager connStr
