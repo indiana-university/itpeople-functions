@@ -8,7 +8,7 @@ module Buildings =
     open Core.Types
     open Core.Util
     open Database.Command
-    open Microsoft.Extensions.Logging
+    open Logging
 
     type DenodoResponse<'T> =
       { name: string
@@ -66,9 +66,9 @@ module Buildings =
                country = EXCLUDED.country;
                """
         execute connStr sql buildings
-    let updateBuildings (log:ILogger) connStr buildingUrl buildingUser buildingPassword = pipeline {
+    let updateBuildings connStr buildingUrl buildingUser buildingPassword (log:Serilog.ILogger) = pipeline {
+        log |> logInfo "Fetching buildings from Denodo." None
         let! buildings = fetchAllBuildings buildingUrl buildingUser buildingPassword
-        sprintf "Fetched %d buildings from Denodo." (buildings |> Seq.length)
-        |> log.LogInformation
+        log |> logInfo (sprintf "Fetched %d buildings from Denodo." (buildings |> Seq.length)) None
         return! updateBuildingRecords connStr buildings
     }

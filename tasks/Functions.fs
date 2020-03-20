@@ -77,9 +77,9 @@ module Functions=
     // [<Disable>]
     [<FunctionName("BuildingsUpdate")>]
     let buildingsUpdate
-        ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
-         log: ILogger) =
-        Buildings.updateBuildings log connStr buildingUrl buildingUser buildingPassword |> execute
+        ([<TimerTrigger("0 */15 * * * *", RunOnStartup=true)>] timer: TimerInfo,
+         ctx: ExecutionContext) =
+        Buildings.updateBuildings connStr buildingUrl buildingUser buildingPassword |> execute' ctx
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
