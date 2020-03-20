@@ -5,15 +5,31 @@ namespace Tasks
 
 module Functions=
 
+    open Logging
+
     open Core.Types
+    open Core.Util
+
+    open Serilog
 
     open System.Net
     open System.Net.Http
     open Microsoft.Azure.WebJobs
     open Microsoft.Azure.WebJobs.Extensions.Http
     open Microsoft.Extensions.Logging
-    
-    open Core.Util
+
+    let connStr = env "DbConnectionString"
+    let hrDataUrl = env "HrDataUrl"
+    let uaaUrl = env "UaaUrl"
+    let uaaUser = env "UaaUser"
+    let uaaPassword = env "UaaPassword"
+    let adUser = env "AdUser"
+    let adPassword = env "AdPassword"
+    let buildingUrl = env "BuildingUrl"
+    let buildingUser = env "BuildingUser"
+    let buildingPassword = env "BuildingPassword"
+
+    let logger = createLogger connStr
 
     let execute (workflow:Async<Result<'b,Error>>)= 
         async {
@@ -27,16 +43,29 @@ module Functions=
                 |> raise
         } |> Async.RunSynchronously
 
-    let connStr = env "DbConnectionString"
-    let hrDataUrl = env "HrDataUrl"
-    let uaaUrl = env "UaaUrl"
-    let uaaUser = env "UaaUser"
-    let uaaPassword = env "UaaPassword"
-    let adUser = env "AdUser"
-    let adPassword = env "AdPassword"
-    let buildingUrl = env "BuildingUrl"
-    let buildingUser = env "BuildingUser"
-    let buildingPassword = env "BuildingPassword"
+    let execute' (ctx:ExecutionContext) (workflow:Serilog.ILogger -> Async<Result<unit,Error>>)= 
+        async {
+            let log =
+                logger
+                    .ForContext("InvocationId", ctx.InvocationId)
+                    .ForContext("FunctionName", ctx.FunctionName)
+            try
+                log |> logInfo "Pipeline started." None
+                let! result = workflow log
+                match result with
+                | Ok(_) -> 
+                    log |> logInfo "Pipeline succeeded." None
+                    ()
+                | Error(msg) -> 
+                    let err = sprintf "Pipeline failed with error: %A" msg
+                    log |> logError err None
+                    failwith err // we must throw so the functions runtime knows to retry.
+            with                
+            | exn -> 
+                log |> logFatal exn
+                raise exn // we must throw so the functions runtime knows to retry.
+        } |> Async.RunSynchronously
+
 
     /// This module defines the bindings and triggers for all functions in the project
     [<FunctionName("PingGet")>]
