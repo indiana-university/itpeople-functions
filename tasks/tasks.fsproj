@@ -4,6 +4,7 @@
     <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="People.fs" />
     <Compile Include="Functions.fs" />
     <None Include="host.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
