@@ -29,6 +29,8 @@ module Functions=
     let buildingUser = env "BuildingUser"
     let buildingPassword = env "BuildingPassword"
 
+    Database.Command.init()
+
     let logger = createLogger connStr
 
     let execute (workflow:Async<Result<'b,Error>>)= 
