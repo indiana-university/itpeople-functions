@@ -37,21 +37,27 @@ module Logging =
     let inline toJson properties = 
         match properties with 
         | Some(m) -> m |> serialize
-        | None -> null
+        | None -> ""
+    
+    let logDebug (message:string) properties (log:ILogger) =
+        match properties with
+        | None -> log.Debug("{Message}",message)
+        | Some(p) -> log.ForContext("Properties", p|>serialize).Debug("{Message}",message)
 
-    let logDebug message properties (log:ILogger) =
-        log.Debug("{Message} {Properties}",message, properties |> toJson)
+    let logInfo (message:string) properties (log:ILogger) =
+        match properties with
+        | None -> log.Information("{Message}",message)
+        | Some(p) -> log.ForContext("Properties", p|>serialize).Information("{Message}",message)
 
-    let logInfo message properties (log:ILogger) =
-        log.Information("{Message} {Properties}",message, properties |> toJson)
-
-    let logWarn message properties (log:ILogger) =
-        log.Warning("{Message} {Properties}",message, properties |> toJson)
+    let logWarn (message:string) properties (log:ILogger) =
+        match properties with
+        | None -> log.Warning("{Message}",message)
+        | Some(p) -> log.ForContext("Properties", p|>serialize).Warning("{Message}",message)
 
     let logError (status:Status) (message:string) (log:ILogger) =
-        let msg = "Pipeline failed with error result. See properties for details."
-        log.Error("{Message} {Properties}", msg, Some((status, message)) |> toJson)
+        let msg = "Pipeline failed with error result:"
+        log.Error("{Message} {Properties}", msg, (status, message) |> serialize)
 
     let logFatal (exn:Exception) (log:ILogger) =
-        let msg = "Pipeline failed with exception. See properties for details."
-        log.Error("{Message} {Properties}", msg, Some(error) |> toJson)
+        let msg = sprintf "Pipeline failed with exception: '%s' See properties for details." exn.Message
+        log.Fatal(exn, "{Message}", msg)
