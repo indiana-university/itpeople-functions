@@ -33,19 +33,7 @@ module Functions=
 
     let logger = createLogger connStr
 
-    let execute (workflow:Async<Result<'b,Error>>)= 
-        async {
-            let! result = workflow
-            match result with
-            | Ok(_) -> ()
-            | Error(msg) -> 
-                msg
-                |> sprintf "Workflow failed with error: %A"
-                |> System.Exception
-                |> raise
-        } |> Async.RunSynchronously
-
-    let execute' (ctx:ExecutionContext) (workflow:Serilog.ILogger -> Async<Result<unit,Error>>)= 
+    let execute (ctx:ExecutionContext) (workflow:Serilog.ILogger -> Async<Result<unit,Error>>)= 
         async {
             let log =
                 logger
@@ -79,9 +67,9 @@ module Functions=
     // [<Disable>]
     [<FunctionName("BuildingsUpdate")>]
     let buildingsUpdate
-        ([<TimerTrigger("0 */15 * * * *", RunOnStartup=true)>] timer: TimerInfo,
+        ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
          ctx: ExecutionContext) =
-        Buildings.updateBuildings connStr buildingUrl buildingUser buildingPassword |> execute' ctx
+        Buildings.updateBuildings connStr buildingUrl buildingUser buildingPassword |> execute ctx
 
     // Enqueue the netids of all the people for whom we need to update
     // canonical HR data.
@@ -91,7 +79,7 @@ module Functions=
         ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
          ctx: ExecutionContext) = 
-        People.updateHrTable queue connStr hrDataUrl uaaUrl uaaUser uaaPassword |> execute' ctx
+        People.updateHrTable queue connStr hrDataUrl uaaUrl uaaUser uaaPassword |> execute ctx
 
     // Pluck a netid from the queue, fetch that person's HR data from the API, 
     // and update it in the DB.
@@ -100,16 +88,16 @@ module Functions=
     let peopleUpdateWorker
         ([<QueueTrigger("people-update")>] netid: string,
          ctx: ExecutionContext) =
-        People.updatePerson netid connStr |> execute' ctx
+        People.updatePerson netid connStr |> execute ctx
 
-        // Enqueue the tools for which permissions need to be updated.
+    // Enqueue the tools for which permissions need to be updated.
     // [<Disable>]
     [<FunctionName("ToolUpdateBatcher")>]
     let toolUpdateBatcher
         ([<TimerTrigger("0 */5 * * * *")>] timer: TimerInfo,
          [<Queue("tool-update")>] queue: ICollector<string>,
          ctx:ExecutionContext) =
-         Tools.enqueueTools queue connStr |> execute' ctx         
+         Tools.enqueueTools queue connStr |> execute ctx         
 
     // Pluck a tool from the queue. 
     // Fetch all the people that should have access to this tool, then fetch 
@@ -122,7 +110,7 @@ module Functions=
         ([<QueueTrigger("tool-update")>] item: string,
          [<Queue("tool-update-person")>] queue: ICollector<string>,
          ctx:ExecutionContext) =
-        Tools.enqueueAccessUpdates queue item connStr adUser adPassword |> execute' ctx
+        Tools.enqueueAccessUpdates queue item connStr adUser adPassword |> execute ctx
 
     // Pluck a tool-person from the queue. 
     // Add/remove the person to/from the specified AD group.
@@ -131,4 +119,4 @@ module Functions=
     let toolUpdatePersonWorker
         ([<QueueTrigger("tool-update-person")>] item: string,
          ctx:ExecutionContext) = 
-         Tools.updatePersonAccess item connStr adUser adPassword |> execute' ctx
+         Tools.updatePersonAccess item connStr adUser adPassword |> execute ctx
