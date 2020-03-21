@@ -82,12 +82,6 @@ module Tools =
                 let msg = sprintf "Group modification failed for %A:\n%A" update exn
                 error(Status.InternalServerError, msg)
 
-    type ToolPersonUpdateRow = 
-      { ChangeType: string; 
-        NetId: string;
-        ToolName: string;
-        ToolPath: string; }
-
     let enqueueTools (queue:ICollector<string>) connStr (log:Serilog.ILogger) = pipeline {
         let! tools = getAllTools connStr        
         log |> logInfo (sprintf "Enqueueing updates for %d tools." (Seq.length tools)) None
