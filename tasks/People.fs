@@ -114,7 +114,7 @@ module People =
             | None -> ("","","")
         let (phone, campus) = 
             match e.contacts |> Seq.tryHead with
-            | Some(contact) -> (strOrNah contact.phoneNumber, strOrNah contact.phoneNumber)
+            | Some(contact) -> (strOrNah contact.phoneNumber, strOrNah contact.campusCode)
             | None -> ("","")                                        
         { Id=0
           Name=sprintf "%s %s" e.firstName e.lastName
