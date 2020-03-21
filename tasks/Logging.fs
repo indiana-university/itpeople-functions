@@ -27,22 +27,25 @@ module Logging =
         LoggerConfiguration()
             .Enrich.WithExceptionDetails()
             .Enrich.FromLogContext()
+            .MinimumLevel.Debug()
             .WriteTo.Console()
             .WriteTo.PostgreSQL(dbConnectionString, "logs_automation", (dict loggingColumns))
             .WriteTo.ApplicationInsightsEvents(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 
-    let toJson properties = 
+    let inline toJson properties = 
         match properties with 
-        | Some(m) -> 
-            match box m with 
-            | :? string -> m
-            | :? int -> m
-            | _ -> m |> serialize
+        | Some(m) -> m |> serialize
         | None -> null
+
+    let logDebug message properties (log:ILogger) =
+        log.Debug("{Message} {Properties}",message, properties |> toJson)
 
     let logInfo message properties (log:ILogger) =
         log.Information("{Message} {Properties}",message, properties |> toJson)
+
+    let logWarn message properties (log:ILogger) =
+        log.Warning("{Message} {Properties}",message, properties |> toJson)
 
     let logError message properties (log:ILogger) =
         log.Error("{Message} {Properties}",message, properties |> toJson)

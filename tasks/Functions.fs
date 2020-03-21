@@ -88,8 +88,8 @@ module Functions=
     let peopleUpdateHrTable
         ([<TimerTrigger("0 */15 * * * *")>] timer: TimerInfo,
          [<Queue("people-update")>] queue: ICollector<string>,
-         log: ILogger) = 
-        People.updateHrTable log queue connStr hrDataUrl uaaUrl uaaUser uaaPassword |> execute
+         ctx: ExecutionContext) = 
+        People.updateHrTable queue connStr hrDataUrl uaaUrl uaaUser uaaPassword |> execute' ctx
 
     // Pluck a netid from the queue, fetch that person's HR data from the API, 
     // and update it in the DB.
@@ -97,8 +97,8 @@ module Functions=
     [<FunctionName("PeopleUpdateWorker")>]
     let peopleUpdateWorker
         ([<QueueTrigger("people-update")>] netid: string,
-         log: ILogger) =
-        People.updatePerson log netid connStr |> execute
+         ctx: ExecutionContext) =
+        People.updatePerson netid connStr |> execute' ctx
 
         // Enqueue the tools for which permissions need to be updated.
     // [<Disable>]

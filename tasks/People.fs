@@ -12,6 +12,8 @@ module People =
     open Microsoft.Azure.WebJobs
     open Microsoft.Extensions.Logging
 
+    open Logging
+
     type ProfilePage =
       { totalRecords: int 
         currentPage: string
@@ -47,17 +49,11 @@ module People =
         | Ok(s2) -> Seq.append s1 s2 |> Ok
         | _ -> r2
     
-    let concatReslts r1 r2 =
-        match (r1, r2) with
-        | (Ok(s1), Ok(s2)) -> Seq.append s1 s2 |> Ok
-        | (Error(e1), _) -> Error e1
-        | (_, Error(e2)) -> Error e2
-
     let consoleLog msg = 
         printfn "%s %s" (DateTime.Now.ToLongTimeString()) msg
 
-    let private getUaaToken (uaaUrl:string) username password =
-        "Fetching UAA token..." |> consoleLog
+    let private getUaaToken (log:Serilog.ILogger) (uaaUrl:string) username password =
+        log |> logInfo (sprintf "Fetching UAA token from %s for client id %s" uaaUrl username) None
         let content =
             dict [
                 "grant_type", "client_credentials"
@@ -68,14 +64,14 @@ module People =
             |> (fun d-> new FormUrlEncodedContent(d))
         postAsync<JwtResponse> uaaUrl content
 
-    let private getProfilePage hrDataUrl affiliationType token page = 
-        let uri = sprintf "%s?affiliationType=%s&page=%d&pageSize=7500" hrDataUrl affiliationType page |> Uri
-        let req = new HttpRequestMessage(HttpMethod.Get, uri)
+    let private getProfilePage (log:Serilog.ILogger) hrDataUrl affiliationType token page = 
+        let uri = sprintf "%s?affiliationType=%s&page=%d&pageSize=7500" hrDataUrl affiliationType page
+        log |> logDebug (sprintf "Fetching data from %O..." uri) None
+        let req = new HttpRequestMessage(HttpMethod.Get, Uri(uri))
         req.Headers.Authorization <- AuthenticationHeaderValue("Bearer", token)
         sendAsync<ProfileReponse> req
-
         
-    let private getAllEmployeesOfType hrDataUrl (jwt:JwtResponse) affiliationType =
+    let private getAllEmployeesOfType log hrDataUrl (jwt:JwtResponse) affiliationType =
         let concatAll (resp:ProfileReponse) =
             (if isNull resp.affiliates then Seq.empty<ProfileEmployee> else resp.affiliates)
             |> Seq.append (if isNull resp.employees then Seq.empty<ProfileEmployee> else resp.employees) 
@@ -83,11 +79,8 @@ module People =
         // recursively page through all employees
         let rec getAllEmployeesOfType  page = async {
             // get the requested page of employees
-            match! getProfilePage hrDataUrl affiliationType jwt.access_token page with
+            match! getProfilePage log hrDataUrl affiliationType jwt.access_token page with
             | Ok(resp) ->
-                sprintf "Fetched page %d from HR source." page |> consoleLog
-                // if this is the last page, return the set to caller
-                sprintf "\n\ttot: %d\n\tcur: %s\n\tlst: %s" resp.page.totalRecords resp.page.currentPage resp.page.lastPage |> consoleLog
                 if resp.page.currentPage = resp.page.lastPage
                 then return resp |> concatAll |> Ok
                 else
@@ -100,41 +93,42 @@ module People =
         // fetch first page and kick off recursion
         getAllEmployeesOfType 0
 
-    let private getAllEmployees hrDataUrl (jwt:JwtResponse) = async {
-        "Fetching affiliates from HR source..." |> consoleLog
-        let! affiliates = getAllEmployeesOfType hrDataUrl jwt "affiliate"
-        "Fetching foundation folk from HR source..." |> consoleLog
-        let! foundation = getAllEmployeesOfType hrDataUrl jwt "foundation"
-        "Fetching employees from HR source..." |> consoleLog
-        let! employees = getAllEmployeesOfType hrDataUrl jwt "employee"
-        return 
-            employees
-            |> concatReslts affiliates
-            |> concatReslts foundation
+    let private getAllEmployees (log:Serilog.ILogger) hrDataUrl (jwt:JwtResponse) = pipeline {
+        log |> logDebug "Fetching IU employees..." None
+        let! employees = getAllEmployeesOfType log hrDataUrl jwt "employee"
+        log |> logDebug (sprintf "Fetched %d employees." (Seq.length employees)) None
+        log |> logDebug "Fetching affiliates..." None
+        let! affiliates = getAllEmployeesOfType log hrDataUrl jwt "affiliate"
+        log |> logDebug (sprintf "Fetched %d affiliates." (Seq.length affiliates)) None
+        log |> logDebug "Fetching Foundation employees..." None
+        let! foundation = getAllEmployeesOfType log hrDataUrl jwt "foundation"
+        log |> logDebug (sprintf "Fetched %d Foundation employees." (Seq.length foundation)) None
+        return employees |> Seq.append affiliates |> Seq.append foundation
     }
 
-    let private mapEmployeesToDomainRecords (list:seq<ProfileEmployee>) = 
-        printfn "%s Fetched %d people from HR source." (DateTime.Now.ToLongTimeString()) (list |> Seq.length)
-        let toDomainRecord e =
-            let (position, deptName, deptDesc) = 
-                match e.jobs |> Seq.tryFind (fun j -> j.jobStatus = "P") with
-                | Some(job) -> (job.position, job.jobDepartmentId, job.jobDepartmentDesc)
-                | None -> ("","","")
-            let (phone, campus) = 
-                match e.contacts |> Seq.tryHead with
-                | Some(contact) -> (contact.phoneNumber, contact.campusCode)
-                | None -> ("","")                                
-            { Id=0
-              Name=sprintf "%s %s" e.firstName e.lastName
-              NameFirst=e.firstName
-              NameLast=e.lastName
-              NetId=e.username.ToLower()
-              Position=position
-              HrDepartment=deptName
-              HrDepartmentDescription=deptDesc
-              Campus=campus
-              CampusEmail=e.email
-              CampusPhone=phone }
+    let toDomainRecord e =
+        let (position, deptName, deptDesc) = 
+            match e.jobs |> Seq.tryFind (fun j -> j.jobStatus = "P") with
+            | Some(job) -> (job.position, job.jobDepartmentId, job.jobDepartmentDesc)
+            | None -> ("","","")
+        let (phone, campus) = 
+            match e.contacts |> Seq.tryHead with
+            | Some(contact) -> (contact.phoneNumber, contact.campusCode)
+            | None -> ("","")                                
+        { Id=0
+          Name=sprintf "%s %s" e.firstName e.lastName
+          NameFirst=e.firstName
+          NameLast=e.lastName
+          NetId=e.username.ToLower()
+          Position=position
+          HrDepartment=deptName
+          HrDepartmentDescription=deptDesc
+          Campus=campus
+          CampusEmail=e.email
+          CampusPhone=phone }
+
+    let private mapEmployeesToDomainRecords (log:Serilog.ILogger) (list:seq<ProfileEmployee>) = 
+        log |> logInfo (sprintf "Fetched %d records from HR source." (Seq.length list)) None
         let validRecord (r:HrPerson) = 
             hasValue r.HrDepartment && hasValue r.CampusEmail 
         let domain = list |> Seq.map toDomainRecord 
@@ -143,28 +137,20 @@ module People =
             |> Seq.countBy(fun r -> r.NetId)
             |> Seq.filter(fun (_,count) -> count > 1)
             |> Seq.map (fun (key,_) -> key)
-        sprintf "Found %d duplicate netids: %s" 
-            (dupes |> Seq.length) 
-            (dupes |> String.concat ", ") 
-            |> consoleLog
+        log |> logDebug (sprintf "Found %d duplicate netids." (Seq.length dupes)) (Some(dupes))
         let distinct = domain |> Seq.distinctBy (fun r -> r.NetId)
-        sprintf "Found %d distinct netids." 
-            (distinct |> Seq.length) |> consoleLog
-        let invalid = distinct |> Seq.filter (validRecord >> not)
-        sprintf "Found %d invalid records due to missing email or HR dept: %s" 
-            (invalid |> Seq.length) 
-            (invalid |> Seq.map (fun r -> r.NetId) |> String.concat ", ")
-            |> consoleLog
+        log |> logDebug (sprintf "Found %d distinct netids." (Seq.length distinct)) None
+        let invalid = distinct |> Seq.filter (validRecord >> not) |> Seq.map (fun r -> r.NetId) |> Seq.sort
+        log |> logDebug (sprintf "Found %d invalid records due to missing email or HR dept." (Seq.length invalid)) (Some(invalid))
         let valid = distinct |> Seq.filter validRecord
-        sprintf "Found %d valid records." 
-            (valid |> Seq.length) |> consoleLog 
+        log |> logInfo (sprintf "Found %d valid records." (Seq.length valid)) None   
         valid |> ok
 
     // DENODO Stuff
-    let private fetchAllHrPeople uaaUrl hrDataUrl uaaUsername uaaPassword = pipeline {
-        let! uaaToken = getUaaToken uaaUrl uaaUsername uaaPassword
-        let! employees = getAllEmployees hrDataUrl uaaToken
-        return! mapEmployeesToDomainRecords employees
+    let private fetchAllHrPeople (log:Serilog.ILogger) uaaUrl hrDataUrl uaaUsername uaaPassword = pipeline {
+        let! uaaToken = getUaaToken log uaaUrl uaaUsername uaaPassword
+        let! employees = getAllEmployees log hrDataUrl uaaToken
+        return! mapEmployeesToDomainRecords log employees
     }
 
     let private syncDepartments connStr =
@@ -197,27 +183,28 @@ module People =
             // flush the writer to finish the bulk insert
             writer.Flush()
         )
+
     let private getAllNetIds connStr =
         let sql = "SELECT netid FROM people;"
         fetch (fun cn -> cn.QueryAsync<NetId>(sql)) connStr
 
-    let private fetchLatestPersonData connStr netid = async {
+    let fetchLatestDirectoryPerson connStr netid = pipeline {
         let queryPersonSql = """
             SELECT DISTINCT p.*, d.*
             FROM people p
             LEFT JOIN departments d on d.id = p.department_id
             WHERE netid=@NetId"""
-        let queryHrPersonSql = """
-            SELECT * FROM hr_people WHERE netid=@NetId"""        
         let mapper (p:Person) d = {p with Department=d}
         let param = {NetId = netid}
-        let! personSeq = fetch (fun cn -> cn.QueryAsync<Person, Department, Person>(queryPersonSql, mapper, param)) connStr
-        let! hrPersonSeq = fetch (fun cn -> cn.QueryAsync<HrPerson>(queryHrPersonSql, param)) connStr
-        return
-            match (personSeq, hrPersonSeq) with
-            | Error(msg), _ -> Error(msg)
-            | _, Error(msg) -> Error(msg)
-            | Ok(p), Ok(hr) -> Ok (p |> Seq.head, hr |> Seq.tryHead)
+        let! results = fetch (fun cn -> cn.QueryAsync<Person, Department, Person>(queryPersonSql, mapper, param)) connStr
+        return results |> Seq.head
+    }
+
+    let private fetchLatestHrPerson connStr netid = pipeline {
+        let queryHrPersonSql = "SELECT * FROM hr_people WHERE netid=@NetId"
+        let param = {NetId = netid}
+        let! results = fetch (fun cn -> cn.QueryAsync<HrPerson>(queryHrPersonSql, param)) connStr        
+        return results |> Seq.tryHead
     }
 
     let private updatePersonRecord connStr (person:HrPerson) = 
@@ -231,48 +218,43 @@ module People =
                 campus_phone = @CampusPhone,
                 campus_email = @CampusEmail,
                 department_id = (SELECT id FROM departments WHERE name=@HrDepartment)
-            WHERE netid = @NetId
-            RETURNING *;"""
-        fetch (fun cn -> cn.QuerySingleAsync<Person>(sql, person)) connStr
+            WHERE netid = @NetId"""
+        execute connStr sql person
 
-    let updateHrTable (log:ILogger) (queue:ICollector<string>) connStr hrDataUrl uaaUrl uaaUser uaaPassword = pipeline {
-        let! hrPeople = fetchAllHrPeople uaaUrl hrDataUrl uaaUser uaaPassword
+    let updateHrTable (queue:ICollector<string>) connStr hrDataUrl uaaUrl uaaUser uaaPassword (log:Serilog.ILogger)= pipeline {
+        let! hrPeople = fetchAllHrPeople log uaaUrl hrDataUrl uaaUser uaaPassword        
+        log |> logInfo "Replacing hr_people data with latest records." None
         do! updateHrPeople connStr hrPeople 
+        log |> logInfo "Syncing departments from hr_people records." None
         do! syncDepartments connStr
         let! netids = getAllNetIds connStr
+        log |> logDebug (sprintf "Found %d netids in directory." (Seq.length netids)) None
         netids |> Seq.iter queue.Add
-        sprintf "Enqueued %d netids for update." (Seq.length netids) |> log.LogInformation
+        log |> logInfo (sprintf "Enqueued %d netids for update." (Seq.length netids)) None
         return ()
     }
   
-    let updatePerson (log:ILogger) netid connStr = pipeline {
+    let updatePerson netid connStr (log:Serilog.ILogger) = pipeline {
 
-        let logStart () =
-            sprintf "Processing person update for netid %s" netid 
-            |> log.LogInformation
-
-        let logUpdateAttempt (person:HrPerson) =
-            person
-            |> sprintf "Updating directory record with HR data %A."
-            |> log.LogInformation
+        let logStart () = 
+            let msg = sprintf "Processing person update for %s." netid
+            log |> logInfo msg None
 
         let logUpdateSuccess (person:Person) = 
-            person
-            |> sprintf "Updated directory record as %A."
-            |> log.LogInformation
+            let msg = sprintf "Updated directory record for %s." netid
+            log |> logInfo msg (Some(person))
 
-        let logHrDataNotFound (person:Person) = 
-            person.NetId
-            |> sprintf "HR data not found for %s. The directory record for this netid should be removed."
-            |> log.LogInformation
+        let logHrDataNotFound () =  
+            let msg = sprintf "HR data not found for %s. They should be removed from the directory." netid
+            log |> logWarn msg None
 
-        let logDepartmentChange (person:Person) (hrPerson:HrPerson)=
-            sprintf "HR department has changed for %s. Directory record is %A. HR Record is %A. The unit memberships and tool assignments for this person should be revoked." person.NetId person hrPerson
-            |> log.LogInformation
+        let logDepartmentChange () =
+            let msg = sprintf "HR department has changed for %s. Unit memberships and tool assignments should be revoked." netid
+            log |> logWarn msg None
 
-        let logPositionChange (person:Person) (hrPerson:HrPerson)=
-            sprintf "Postion has changed for %s. Directory record is %A. HR Record is %A. The unit memberships and tool assignments for this person should be revoked." person.NetId person hrPerson
-            |> log.LogInformation
+        let logPositionChange ()  =
+            let msg = sprintf "Postion has changed for %s. Unit memberships and tool assignments should be revoked." netid
+            log |> logWarn msg None
 
         let departmentHasChanged (person:Person) (hrPerson:HrPerson) =
             (not(isNull(box(person.Department))) 
@@ -282,31 +264,26 @@ module People =
             hrPerson.Position <> person.Position         
 
         let updateDirectoryRecord hrPerson = pipeline {
-            logUpdateAttempt hrPerson
-            let! person = updatePersonRecord connStr hrPerson
+            do! updatePersonRecord connStr hrPerson
+            let! person = fetchLatestDirectoryPerson connStr netid
             logUpdateSuccess person
             return ()
         }
 
-        let noOp = pipeline { return () }
-
         logStart ()
-        let! (person, hrPersonOpt) = fetchLatestPersonData connStr netid
+
+        let! dirPerson = fetchLatestDirectoryPerson connStr netid
+        let! hrPersonOpt = fetchLatestHrPerson connStr netid
+
+        do match hrPersonOpt with
+            | Some(hrPerson) when departmentHasChanged dirPerson hrPerson -> logDepartmentChange ()
+            | Some(hrPerson) when positionHasChanged dirPerson hrPerson -> logPositionChange ()
+            | None -> logHrDataNotFound ()
+            | _ -> () // no meaningful changes
+
         do! match hrPersonOpt with
-            // The person has changed HR Departments
-            | Some(hrPerson) when departmentHasChanged person hrPerson ->
-                logDepartmentChange person hrPerson
-                updateDirectoryRecord hrPerson
-            // The person has changed positions
-            | Some(hrPerson) when positionHasChanged person hrPerson ->
-                logPositionChange person hrPerson
-                updateDirectoryRecord hrPerson
-            // The person is still in the same role
-            | Some(hrPerson) ->
-                updateDirectoryRecord hrPerson
-            // The person is no longer in the HR data eed
-            | None -> 
-                logHrDataNotFound person
-                noOp                
+            | Some(hrPerson) -> updateDirectoryRecord hrPerson
+            | None -> ok () // no hr data; nothing to do.                
+
         return ()    
     }
