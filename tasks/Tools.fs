@@ -172,7 +172,7 @@ module Tools =
     let updatePersonAccess updateJson connStr adUser adPassword (log:Serilog.ILogger) = pipeline {
         let! update = tryDeserializeAsync<ToolPersonUpdate> updateJson
         log |> logInfo "Processing AD group update" (Some(update))
-        do! logADGroupUpdate connStr update
+        // do! logADGroupUpdate connStr update
         do! updateADGroup adUser adPassword update
         return ()         
     }
