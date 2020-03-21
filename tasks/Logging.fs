@@ -6,6 +6,7 @@ namespace Tasks
 module Logging =
 
     open Core.Json
+    open Core.Types
 
     open System
 
@@ -47,8 +48,10 @@ module Logging =
     let logWarn message properties (log:ILogger) =
         log.Warning("{Message} {Properties}",message, properties |> toJson)
 
-    let logError message properties (log:ILogger) =
-        log.Error("{Message} {Properties}",message, properties |> toJson)
+    let logError (status:Status) (message:string) (log:ILogger) =
+        let msg = "Pipeline failed with error result. See properties for details."
+        log.Error("{Message} {Properties}", msg, Some((status, message)) |> toJson)
 
     let logFatal (exn:Exception) (log:ILogger) =
-        log.Fatal("{Message} {Properties}", exn.Message, exn |> serialize)
+        let msg = "Pipeline failed with exception. See properties for details."
+        log.Error("{Message} {Properties}", msg, Some(error) |> toJson)

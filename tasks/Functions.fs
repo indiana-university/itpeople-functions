@@ -33,27 +33,41 @@ module Functions=
 
     let logger = createLogger connStr
 
+    type WorkflowResult = 
+        | Success 
+        | HandledError of status:Status * msg:string
+        | UnhandledError of exn:System.Exception
+        
+    let processResult (log:Serilog.ILogger) workflowResult =
+        match workflowResult with
+        | Success -> 
+            log |> logInfo "Pipeline succeeded" None
+        | HandledError(status, msg) -> 
+            log |> logError status msg
+            sprintf "Pipeline failed with handled error: (%A) %s" status msg |> failwith
+        | UnhandledError(exn) ->
+            log |> logFatal exn
+            sprintf "Pipeline failed with unhandled error: %s" exn.Message |> failwith
+
     let execute (ctx:ExecutionContext) (workflow:Serilog.ILogger -> Async<Result<unit,Error>>)= 
         async {
             let log =
                 logger
                     .ForContext("InvocationId", ctx.InvocationId)
                     .ForContext("FunctionName", ctx.FunctionName)
+            
+            let mutable workflowResult = Success
             try
                 log |> logInfo "Pipeline started." None
                 let! result = workflow log
                 match result with
-                | Ok(_) -> 
-                    log |> logInfo "Pipeline succeeded." None
-                    ()
-                | Error(msg) -> 
-                    let err = sprintf "Pipeline failed with error: %A" msg
-                    log |> logError err None
-                    failwith err // we must throw so the functions runtime knows to retry.
+                | Ok(_) -> workflowResult <- Success
+                | Error(status, msg) -> workflowResult <- HandledError(status, msg)
             with                
-            | exn -> 
-                log |> logFatal exn
-                raise exn // we must throw so the functions runtime knows to retry.
+            | exn -> workflowResult <- UnhandledError(exn)
+            
+            processResult log workflowResult    
+            return ()
         } |> Async.RunSynchronously
 
 
