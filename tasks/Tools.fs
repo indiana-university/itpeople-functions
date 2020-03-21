@@ -149,7 +149,8 @@ module Tools =
 
     let enqueueAccessUpdates (queue:ICollector<string>) toolJson connStr adUser adPassword (log:Serilog.ILogger) = pipeline {
         let! tool = tryDeserializeAsync<Tool> toolJson
-        log |> logInfo (sprintf "Processing tool access update for %s" tool.Name) None
+        log |> logInfo (sprintf "Processing tool access update for %s" tool.Name) (Some(tool))
+        log |> logInfo "Fetching members of tool AD group" None
         let! adGroupMembers = getADGroupMembers adUser adPassword tool.ADPath
         log |> logInfo (sprintf "Found %d members of tool AD group" (Seq.length adGroupMembers)) None        
         let! toolUsers = getAllToolUsers connStr tool 
