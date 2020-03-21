@@ -118,11 +118,12 @@ module Tools =
         log |> logDebug "Fetching members of tool AD group..." None
         let! adGroupMembers = getADGroupMembers adUser adPassword tool.ADPath
         log |> logDebug (sprintf "Found %d members of tool AD group." (Seq.length adGroupMembers)) None        
+        log |> logDebug "Fetching tool users from directory..." None
         let! toolUsers = getAllToolUsers connStr tool 
         log |> logDebug (sprintf "Found %d netids with access to tool." (Seq.length toolUsers)) None
 
         let addToAD = toolUsers |> Seq.except adGroupMembers |> Seq.sort 
-        log |> logDebug (sprintf "Tool access will be granted to %d netids." (Seq.length addToAD)) (Some(addToAD))        
+        log |> logDebug (sprintf "Tool access will be newly granted to %d netids." (Seq.length addToAD)) (Some(addToAD))        
         let remFromAD =  adGroupMembers |> Seq.except toolUsers |> Seq.sort                
         log |> logDebug (sprintf "Tool access will be revoked from %d netids." (Seq.length remFromAD)) (Some(remFromAD))
 

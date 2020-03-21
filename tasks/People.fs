@@ -138,6 +138,7 @@ module People =
             |> Seq.countBy(fun r -> r.NetId)
             |> Seq.filter(fun (_,count) -> count > 1)
             |> Seq.map (fun (key,_) -> key)
+            |> Seq.sort
         log |> logDebug (sprintf "Found %d duplicate netids." (Seq.length dupes)) (Some(dupes))
         let distinct = domain |> Seq.distinctBy (fun r -> r.NetId)
         log |> logDebug (sprintf "Found %d distinct netids." (Seq.length distinct)) None
