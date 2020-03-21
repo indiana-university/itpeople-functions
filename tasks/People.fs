@@ -53,7 +53,7 @@ module People =
         printfn "%s %s" (DateTime.Now.ToLongTimeString()) msg
 
     let private getUaaToken (log:Serilog.ILogger) (uaaUrl:string) username password =
-        log |> logInfo (sprintf "Fetching UAA token from %s for client id %s" uaaUrl username) None
+        log |> logDebug (sprintf "Fetching UAA token from %s for client id %s" uaaUrl username) None
         let content =
             dict [
                 "grant_type", "client_credentials"

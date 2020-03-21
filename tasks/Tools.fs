@@ -88,35 +88,6 @@ module Tools =
         ToolName: string;
         ToolPath: string; }
 
-    let private logADGroupUpdate connStr toolPersonUpdate =
-        let sql = 
-            """with cte (unit_id, unit_name) as
-                ( 
-                	select u.id, u.name
-                	from units u
-                	join unit_members um on u.id = um.unit_id
-                	join unit_member_tools umt on um.id = umt.membership_id
-                	join tools t on t.id = umt.tool_id
-                	join people p on p.id = um.person_id
-                	where p.netid = @NetId
-                	and t.name = @ToolName
-                )
-                INSERT INTO automationlog_tools (change_type, netid, tool_name, tool_path, unit_id, unit_name)
-                SELECT 
-                    @ChangeType,
-                    @NetId,
-                    @ToolName,
-                    @ToolPath,
-                	string_agg(unit_id, '; '), 
-                	string_agg(unit_name, '; ')
-                FROM cte
-                """
-        let param = 
-            match toolPersonUpdate with
-            | Add(netid, path, name)    -> { NetId=netid; ToolPath=path; ToolName=name; ChangeType="add"; }
-            | Remove(netid, path, name) -> { NetId=netid; ToolPath=path; ToolName=name; ChangeType="remove"; }
-        execute connStr sql param
-
     let enqueueTools (queue:ICollector<string>) connStr (log:Serilog.ILogger) = pipeline {
         let! tools = getAllTools connStr        
         log |> logInfo (sprintf "Enqueueing updates for %d tools." (Seq.length tools)) None
@@ -171,8 +142,8 @@ module Tools =
 
     let updatePersonAccess updateJson connStr adUser adPassword (log:Serilog.ILogger) = pipeline {
         let! update = tryDeserializeAsync<ToolPersonUpdate> updateJson
-        log |> logInfo "Processing AD group update" (Some(update))
-        // do! logADGroupUpdate connStr update
+        log |> logInfo "Processing AD group membership update..." (Some(update))
         do! updateADGroup adUser adPassword update
+        log |> logInfo "Processed AD group membership update." (Some(update))
         return ()         
     }
