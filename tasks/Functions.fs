@@ -108,8 +108,8 @@ module Functions=
     let toolUpdateBatcher
         ([<TimerTrigger("0 */5 * * * *")>] timer: TimerInfo,
          [<Queue("tool-update")>] queue: ICollector<string>,
-         log: ILogger) =
-         Tools.enqueueTools log queue connStr |> execute         
+         ctx:ExecutionContext) =
+         Tools.enqueueTools queue connStr |> execute' ctx         
 
     // Pluck a tool from the queue. 
     // Fetch all the people that should have access to this tool, then fetch 
@@ -121,8 +121,8 @@ module Functions=
     let toolUpdateWorker
         ([<QueueTrigger("tool-update")>] item: string,
          [<Queue("tool-update-person")>] queue: ICollector<string>,
-         log: ILogger) = 
-         Tools.enqueueAccessUpdates log queue item connStr adUser adPassword |> execute
+         ctx:ExecutionContext) =
+        Tools.enqueueAccessUpdates queue item connStr adUser adPassword |> execute' ctx
 
     // Pluck a tool-person from the queue. 
     // Add/remove the person to/from the specified AD group.
@@ -130,5 +130,5 @@ module Functions=
     [<FunctionName("ToolUpdatePersonWorker")>]
     let toolUpdatePersonWorker
         ([<QueueTrigger("tool-update-person")>] item: string,
-         log: ILogger) = 
-         Tools.updatePersonAccess log item connStr adUser adPassword |> execute
+         ctx:ExecutionContext) = 
+         Tools.updatePersonAccess item connStr adUser adPassword |> execute' ctx
