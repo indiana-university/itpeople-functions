@@ -31,7 +31,7 @@ module Logging =
             .MinimumLevel.Debug()
             .WriteTo.Console()
             .WriteTo.PostgreSQL(dbConnectionString, "logs_automation", (dict loggingColumns))
-            .WriteTo.ApplicationInsightsEvents(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
+            .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 
     let inline toJson properties = 
