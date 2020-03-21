@@ -249,13 +249,15 @@ module People =
             let msg = sprintf "HR data not found for %s. They should be removed from the directory." netid
             log |> logWarn msg None
 
-        let logDepartmentChange () =
-            let msg = sprintf "HR department has changed for %s. Unit memberships and tool assignments should be revoked." netid
-            log |> logWarn msg None
+        let logDepartmentChange dirPerson hrPerson =
+            log |> logWarn (sprintf "HR department has changed for %s. Unit memberships and tool assignments should be revoked." netid) None
+            log |> logWarn "Existing directory record" (Some(dirPerson))
+            log |> logWarn "New HR record" (Some(hrPerson))
 
-        let logPositionChange ()  =
-            let msg = sprintf "Postion has changed for %s. Unit memberships and tool assignments should be revoked." netid
-            log |> logWarn msg None
+        let logPositionChange dirPerson hrPerson =
+            log |> logWarn (sprintf "Postion has changed for %s. Unit memberships and tool assignments should be revoked." netid) None
+            log |> logWarn "Existing directory record" (Some(dirPerson))
+            log |> logWarn "New HR record" (Some(hrPerson))
 
         let departmentHasChanged (person:Person) (hrPerson:HrPerson) =
             (not(isNull(box(person.Department))) 
