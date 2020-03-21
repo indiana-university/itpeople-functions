@@ -41,7 +41,7 @@ module Functions=
     let processResult (log:Serilog.ILogger) workflowResult =
         match workflowResult with
         | Success -> 
-            log |> logInfo "Pipeline succeeded" None
+            log |> logInfo "Pipeline succeeded." None
         | HandledError(status, msg) -> 
             log |> logError status msg
             sprintf "Pipeline failed with handled error: (%A) %s" status msg |> failwith

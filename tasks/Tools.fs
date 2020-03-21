@@ -114,22 +114,22 @@ module Tools =
 
     let enqueueAccessUpdates (queue:ICollector<string>) toolJson connStr adUser adPassword (log:Serilog.ILogger) = pipeline {
         let! tool = tryDeserializeAsync<Tool> toolJson
-        log |> logInfo (sprintf "Processing tool access update for %s" tool.Name) (Some(tool))
-        log |> logDebug "Fetching members of tool AD group" None
+        log |> logInfo (sprintf "Processing tool access update for %s..." tool.Name) (Some(tool))
+        log |> logDebug "Fetching members of tool AD group..." None
         let! adGroupMembers = getADGroupMembers adUser adPassword tool.ADPath
-        log |> logDebug (sprintf "Found %d members of tool AD group" (Seq.length adGroupMembers)) None        
+        log |> logDebug (sprintf "Found %d members of tool AD group." (Seq.length adGroupMembers)) None        
         let! toolUsers = getAllToolUsers connStr tool 
-        log |> logDebug (sprintf "Found %d netids with access to tool" (Seq.length toolUsers)) None
+        log |> logDebug (sprintf "Found %d netids with access to tool." (Seq.length toolUsers)) None
 
         let addToAD = toolUsers |> Seq.except adGroupMembers |> Seq.sort 
-        log |> logDebug (sprintf "Tool access will be granted to %d netids" (Seq.length addToAD)) (Some(addToAD))        
+        log |> logDebug (sprintf "Tool access will be granted to %d netids." (Seq.length addToAD)) (Some(addToAD))        
         let remFromAD =  adGroupMembers |> Seq.except toolUsers |> Seq.sort                
-        log |> logDebug (sprintf "Tool access will be revoked from %d netids" (Seq.length remFromAD)) (Some(remFromAD))
+        log |> logDebug (sprintf "Tool access will be revoked from %d netids." (Seq.length remFromAD)) (Some(remFromAD))
 
         do! guardAgainstClearingOfGroup tool adGroupMembers addToAD remFromAD
 
         let count = enqueueUpdates queue tool addToAD remFromAD
-        log |> logInfo (sprintf "Enqueued %d AD group memberships updates" count) None
+        log |> logInfo (sprintf "Enqueued %d AD group memberships updates." count) None
         
         return ()
     }

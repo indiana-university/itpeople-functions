@@ -67,7 +67,7 @@ module Buildings =
                """
         execute connStr sql buildings
     let updateBuildings connStr buildingUrl buildingUser buildingPassword (log:Serilog.ILogger) = pipeline {
-        log |> logInfo "Fetching buildings from Denodo." None
+        log |> logInfo "Fetching buildings from Denodo..." None
         let! buildings = fetchAllBuildings buildingUrl buildingUser buildingPassword
         log |> logInfo (sprintf "Fetched %d buildings from Denodo." (buildings |> Seq.length)) None
         return! updateBuildingRecords connStr buildings

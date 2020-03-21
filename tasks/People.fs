@@ -53,7 +53,7 @@ module People =
         printfn "%s %s" (DateTime.Now.ToLongTimeString()) msg
 
     let private getUaaToken (log:Serilog.ILogger) (uaaUrl:string) username password =
-        log |> logDebug (sprintf "Fetching UAA token from %s for client id %s" uaaUrl username) None
+        log |> logDebug (sprintf "Fetching UAA token from %s for client id %s." uaaUrl username) None
         let content =
             dict [
                 "grant_type", "client_credentials"
@@ -250,14 +250,14 @@ module People =
             log |> logWarn msg None
 
         let logDepartmentChange dirPerson hrPerson =
-            log |> logWarn (sprintf "HR department has changed for %s. This person's unit memberships and tool assignments might be revoked." netid) None
-            log |> logWarn "Existing directory record" (Some(dirPerson))
-            log |> logWarn "New HR record" (Some(hrPerson))
+            log |> logWarn (sprintf "HR department has changed for %s. This person's unit memberships and tool assignments may be revoked." netid) None
+            log |> logDebug "Existing directory record." (Some(dirPerson))
+            log |> logDebug "New HR record." (Some(hrPerson))
 
         let logPositionChange dirPerson hrPerson =
-            log |> logWarn (sprintf "Postion has changed for %s. This person's unit memberships and tool assignments c revoked." netid) None
-            log |> logWarn "Existing directory record" (Some(dirPerson))
-            log |> logWarn "New HR record" (Some(hrPerson))
+            log |> logWarn (sprintf "Postion has changed for %s. This person's unit memberships and tool assignments may be revoked." netid) None
+            log |> logDebug "Existing directory record." (Some(dirPerson))
+            log |> logDebug "New HR record." (Some(hrPerson))
 
         let departmentHasChanged (person:Person) (hrPerson:HrPerson) =
             (not(isNull(box(person.Department))) 
@@ -267,7 +267,7 @@ module People =
             hrPerson.Position <> person.Position         
 
         let updateDirectoryRecord hrPerson = pipeline {
-            log |> logDebug "Updating directory from HR data" None
+            log |> logDebug "Updating directory from HR data." None
             do! updatePersonRecord connStr hrPerson
             let! person = fetchLatestDirectoryPerson connStr netid
             logUpdateSuccess person
