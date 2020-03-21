@@ -106,6 +106,7 @@ module People =
         return employees |> Seq.append affiliates |> Seq.append foundation
     }
 
+    let strOrNah str = if String.IsNullOrWhiteSpace(str) then "" else str
     let toDomainRecord e =
         let (position, deptName, deptDesc) = 
             match e.jobs |> Seq.tryFind (fun j -> j.jobStatus = "P") with
@@ -113,8 +114,8 @@ module People =
             | None -> ("","","")
         let (phone, campus) = 
             match e.contacts |> Seq.tryHead with
-            | Some(contact) -> (contact.phoneNumber, contact.campusCode)
-            | None -> ("","")                                
+            | Some(contact) -> (strOrNah contact.phoneNumber, strOrNah contact.phoneNumber)
+            | None -> ("","")                                        
         { Id=0
           Name=sprintf "%s %s" e.firstName e.lastName
           NameFirst=e.firstName
@@ -264,6 +265,7 @@ module People =
             hrPerson.Position <> person.Position         
 
         let updateDirectoryRecord hrPerson = pipeline {
+            log |> logDebug "Updating from HR person" (Some(hrPerson))
             do! updatePersonRecord connStr hrPerson
             let! person = fetchLatestDirectoryPerson connStr netid
             logUpdateSuccess person
