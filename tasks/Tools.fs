@@ -150,16 +150,16 @@ module Tools =
     let enqueueAccessUpdates (queue:ICollector<string>) toolJson connStr adUser adPassword (log:Serilog.ILogger) = pipeline {
         let! tool = tryDeserializeAsync<Tool> toolJson
         log |> logInfo (sprintf "Processing tool access update for %s" tool.Name) (Some(tool))
-        log |> logInfo "Fetching members of tool AD group" None
+        log |> logDebug "Fetching members of tool AD group" None
         let! adGroupMembers = getADGroupMembers adUser adPassword tool.ADPath
-        log |> logInfo (sprintf "Found %d members of tool AD group" (Seq.length adGroupMembers)) None        
+        log |> logDebug (sprintf "Found %d members of tool AD group" (Seq.length adGroupMembers)) None        
         let! toolUsers = getAllToolUsers connStr tool 
-        log |> logInfo (sprintf "Found %d netids with access to tool" (Seq.length toolUsers)) None
+        log |> logDebug (sprintf "Found %d netids with access to tool" (Seq.length toolUsers)) None
 
         let addToAD = toolUsers |> Seq.except adGroupMembers |> Seq.sort 
-        log |> logInfo (sprintf "Tool access will be granted to %d netids" (Seq.length addToAD)) (Some(addToAD))        
+        log |> logDebug (sprintf "Tool access will be granted to %d netids" (Seq.length addToAD)) (Some(addToAD))        
         let remFromAD =  adGroupMembers |> Seq.except toolUsers |> Seq.sort                
-        log |> logInfo (sprintf "Tool access will be revoked from %d netids" (Seq.length remFromAD)) (Some(remFromAD))
+        log |> logDebug (sprintf "Tool access will be revoked from %d netids" (Seq.length remFromAD)) (Some(remFromAD))
 
         do! guardAgainstClearingOfGroup tool adGroupMembers addToAD remFromAD
 
