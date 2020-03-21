@@ -51,7 +51,7 @@ let mapFlagsToSeq<'T when 'T :> System.Enum> (value: 'T) =
     |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s.Trim()) :?> 'T)
     |> Seq.filter (fun e -> e.ToString() <> "None")
 
-let serialize x = 
+let inline serialize (x:obj) = 
     JsonConvert.SerializeObject(x, JsonSettings)
 
 let deserialize<'T> str =

@@ -26,6 +26,7 @@ type PipelineBuilder() =
     }
     member __.Return(value) : Async<Result<'b, Error>> = ok value
     member __.ReturnFrom(value) = value
+    member __.Zero() = ()
 
 let pipeline = PipelineBuilder()
 
