@@ -238,24 +238,24 @@ module People =
     let updatePerson netid connStr (log:Serilog.ILogger) = pipeline {
 
         let logStart () = 
-            let msg = sprintf "Processing person update for %s." netid
+            let msg = sprintf "Processing profile update for %s." netid
             log |> logInfo msg None
 
         let logUpdateSuccess (person:Person) = 
             let msg = sprintf "Updated directory record for %s." netid
-            log |> logInfo msg (Some(person))
+            log |> logInfo msg None
 
         let logHrDataNotFound () =  
-            let msg = sprintf "HR data not found for %s. They should be removed from the directory." netid
+            let msg = sprintf "HR data not found for %s. This person should be removed from the directory." netid
             log |> logWarn msg None
 
         let logDepartmentChange dirPerson hrPerson =
-            log |> logWarn (sprintf "HR department has changed for %s. Unit memberships and tool assignments should be revoked." netid) None
+            log |> logWarn (sprintf "HR department has changed for %s. This person's unit memberships and tool assignments might be revoked." netid) None
             log |> logWarn "Existing directory record" (Some(dirPerson))
             log |> logWarn "New HR record" (Some(hrPerson))
 
         let logPositionChange dirPerson hrPerson =
-            log |> logWarn (sprintf "Postion has changed for %s. Unit memberships and tool assignments should be revoked." netid) None
+            log |> logWarn (sprintf "Postion has changed for %s. This person's unit memberships and tool assignments c revoked." netid) None
             log |> logWarn "Existing directory record" (Some(dirPerson))
             log |> logWarn "New HR record" (Some(hrPerson))
 
@@ -280,8 +280,10 @@ module People =
         let! hrPersonOpt = fetchLatestHrPerson connStr netid
 
         do match hrPersonOpt with
-            | Some(hrPerson) when departmentHasChanged dirPerson hrPerson -> logDepartmentChange ()
-            | Some(hrPerson) when positionHasChanged dirPerson hrPerson -> logPositionChange ()
+            | Some(hrPerson) when departmentHasChanged dirPerson hrPerson -> 
+                logDepartmentChange dirPerson hrPerson
+            | Some(hrPerson) when positionHasChanged dirPerson hrPerson -> 
+                logPositionChange dirPerson hrPerson
             | None -> logHrDataNotFound ()
             | _ -> () // no meaningful changes
 
