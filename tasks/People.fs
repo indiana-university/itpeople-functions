@@ -268,7 +268,7 @@ module People =
             hrPerson.Position <> person.Position         
 
         let updateDirectoryRecord hrPerson = pipeline {
-            log |> logDebug "Updating directory from HR data." None
+            log |> logDebug (sprintf "Updating directory record for %s from HR data." netid) None
             do! updatePersonRecord connStr hrPerson
             let! person = fetchLatestDirectoryPerson connStr netid
             logUpdateSuccess person
