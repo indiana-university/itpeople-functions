@@ -6,27 +6,8 @@ open System.Net
 open Dapper
 open Newtonsoft.Json
 
-let bind (f : 'a -> Async<Result<'b, 'error>>) (a : Async<Result<'a, 'error>>)  : Async<Result<'b, 'error>> = async {
-    let! r = a
-    match r with
-    | Ok value -> return! f value
-    | Error err -> return (Error err)
-}
-
-let compose (f : 'a -> Async<Result<'b, 'e>>) (g : 'b -> Async<Result<'c, 'e>>) : 'a -> Async<Result<'c, 'e>> =
-    fun x -> bind g (f x)
-
-let (>>=) a f = bind f a
-let (>=>) f g = compose f g
-let ar = async.Return
 let ok x = x |> Ok |> async.Return
 let error(status, msg) = Error(status, msg) |> async.Return  
-let tap f x =
-    f x // invoke f with the argument x
-    ok x // pass x unchanged to the next step in the workflow
-
-let ROLE_ADMIN = "admin"
-let ROLE_USER = "user"
 
 let WorkflowTimestamp = "WORKFLOW_TIMESTAMP"
 let WorkflowUser = "WORKFLOW_USER"
@@ -35,6 +16,19 @@ let WorkflowPermissions = "WORKFLOW_PERMISSIONS"
 type Status = HttpStatusCode
 type Message = string
 type Error = Status * Message
+
+type PipelineBuilder() =
+    member __.Bind  (a : Async<Result<'a, Error>>, f : 'a -> Async<Result<'b, Error>>) = async {
+      let! result = a
+      match result with
+      | Ok value -> return! f value
+      | Error err -> return (Error err)
+    }
+    member __.Return(value) : Async<Result<'b, Error>> = ok value
+    member __.ReturnFrom(value) = value
+    member __.Zero() = ()
+
+let pipeline = PipelineBuilder()
 
 type ErrorModel = 
   { errors: array<string> }
@@ -526,8 +520,8 @@ type PeopleRepository = {
 }
 
 type UnitMemberRecordFieldOptions = 
-    | MembersWithoutNotes of Unit
-    | MembersWithNotes of Unit
+    | MembersWithoutNotes of Id
+    | MembersWithNotes of Id
 
 type UnitRepository = {
     /// Get a list of all units
@@ -537,17 +531,17 @@ type UnitRepository = {
     /// Get a unit's members by unit ID 
     GetMembers: UnitMemberRecordFieldOptions -> Async<Result<UnitMember seq,Error>>
     /// Get a unit's supported departments by unit ID        
-    GetSupportedDepartments: Unit -> Async<Result<SupportRelationship seq,Error>>
+    GetSupportedDepartments: Id -> Async<Result<SupportRelationship seq,Error>>
     /// Get a unit's supported buildings by unit ID        
-    GetSupportedBuildings: Unit -> Async<Result<BuildingRelationship seq,Error>>
+    GetSupportedBuildings: Id -> Async<Result<BuildingRelationship seq,Error>>
     // Get a unit's child units by parent unit Id
-    GetChildren: Unit -> Async<Result<Unit seq,Error>>
+    GetChildren: Id -> Async<Result<Unit seq,Error>>
     /// Create a unit
     Create: Unit -> Async<Result<Unit,Error>>
     /// Update a unit
     Update: Unit -> Async<Result<Unit,Error>>
     /// Delete a unit
-    Delete: Unit -> Async<Result<unit,Error>>
+    Delete: Id -> Async<Result<unit,Error>>
     /// 
     GetDescendantOfParent: (Id * Id) -> Async<Result<Unit option,Error>>
 }
@@ -558,9 +552,9 @@ type DepartmentRepository = {
     /// Get a single department by ID
     Get: DepartmentId -> Async<Result<Department,Error>>
     /// Get a list of a department's member units
-    GetMemberUnits: Department -> Async<Result<Unit seq,Error>>
+    GetMemberUnits: Id -> Async<Result<Unit seq,Error>>
     /// Get a list of a department's supporting units        
-    GetSupportingUnits: Department -> Async<Result<SupportRelationship seq,Error>>
+    GetSupportingUnits: Id -> Async<Result<SupportRelationship seq,Error>>
 }
 
 type MembershipRepository = {
@@ -573,7 +567,7 @@ type MembershipRepository = {
     /// Update a unit membership
     Update: UnitMember -> Async<Result<UnitMember,Error>>
     /// Delete a unit membership
-    Delete: UnitMember -> Async<Result<unit,Error>>
+    Delete: Id -> Async<Result<unit,Error>>
 }
 
 type ToolsRepository = {
@@ -595,9 +589,7 @@ type MemberToolsRepository = {
     /// Update a unit membership
     Update: MemberTool -> Async<Result<MemberTool,Error>>
     /// Delete a unit membership
-    Delete: MemberTool -> Async<Result<unit,Error>>
-    // Get the membership that goes along with the member tool.
-    GetMember: MemberTool -> Async<Result<MemberTool*UnitMember,Error>>
+    Delete: Id -> Async<Result<unit,Error>>
 }
 
 type SupportRelationshipRepository = {
@@ -610,7 +602,7 @@ type SupportRelationshipRepository = {
     /// Update a support relationship
     Update: SupportRelationship -> Async<Result<SupportRelationship,Error>>
     /// Delete a support relationsihps
-    Delete : SupportRelationship -> Async<Result<unit,Error>>
+    Delete : Id -> Async<Result<unit,Error>>
 }
 
 type BuildingRepository = {
@@ -633,16 +625,16 @@ type BuildingRelationshipRepository = {
     /// Update a support relationship
     Update: BuildingRelationship -> Async<Result<BuildingRelationship,Error>>
     /// Delete a support relationsihps
-    Delete : BuildingRelationship -> Async<Result<unit,Error>>
+    Delete : Id -> Async<Result<unit,Error>>
 }
 
 type AuthorizationRepository = {
     /// Given an OAuth token_key URL and return the public key.
     UaaPublicKey: string -> Async<Result<string,Error>>
     IsServiceAdmin: NetId -> Async<Result<bool, Error>>
-    IsUnitManager: NetId -> Id -> Async<Result<bool, Error>>
-    IsUnitToolManager: NetId -> Id -> Async<Result<bool, Error>>
-    CanModifyPerson: NetId -> Id -> Async<Result<bool,Error>>
+    IsUnitManager: Id -> NetId -> Async<Result<bool, Error>>
+    IsUnitToolManager: Id -> NetId -> Async<Result<bool, Error>>
+    CanModifyPerson: Id -> NetId -> Async<Result<bool,Error>>
 }
 
 type LegacyRepository = {

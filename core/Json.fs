@@ -51,7 +51,7 @@ let mapFlagsToSeq<'T when 'T :> System.Enum> (value: 'T) =
     |> Seq.map (fun s -> System.Enum.Parse(typeof<'T>,s.Trim()) :?> 'T)
     |> Seq.filter (fun e -> e.ToString() <> "None")
 
-let serialize x = 
+let inline serialize (x:obj) = 
     JsonConvert.SerializeObject(x, JsonSettings)
 
 let deserialize<'T> str =
@@ -61,7 +61,7 @@ let tryDeserialize<'T> status str =
     with exn -> Error (status, exn.Message)
 
 let tryDeserializeAsync<'T> str =
-    tryDeserialize<'T> Status.BadRequest str |> ar
+    tryDeserialize<'T> Status.BadRequest str |> async.Return
 
 /// Attempt to deserialize the request body as an object of the given type.
 let deserializeBody<'T> (req:HttpRequestMessage) = async { 

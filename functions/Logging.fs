@@ -87,7 +87,7 @@ module Logging =
             .Enrich.FromLogContext()
             .WriteTo.Console()
             .WriteTo.PostgreSQL(dbConnectionString, "logs", (dict loggingColumns))
-            .WriteTo.ApplicationInsightsEvents(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
+            .WriteTo.ApplicationInsightsTraces(System.Environment.GetEnvironmentVariable("APPINSIGHTS_INSTRUMENTATIONKEY"))
             .CreateLogger()
 
     let logSuccess (log:Logger) req (status:Status) = async {

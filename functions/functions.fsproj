@@ -14,8 +14,6 @@
     <Compile Include="Api.fs" />
     <Compile Include="DatabaseRepository.fs" />
     <Compile Include="FakesRepository.fs" />
-    <Compile Include="Authorization.fs" />
-    <Compile Include="Validation.fs" />
     <Compile Include="Functions.fs" />
     <None Include="host.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -36,7 +34,7 @@
     <PackageReference Include="Npgsql" Version="4.0.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="2.1.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
-    <PackageReference Include="Serilog.Sinks.ApplicationInsights" Version="2.6.0" />
+    <PackageReference Include="Serilog.Sinks.ApplicationInsights" Version="2.6.4" />
     <PackageReference Include="Serilog.Sinks.PostgreSQL" Version="2.0.1" />
     <PackageReference Include="Serilog.Enrichers.Demystify" Version="0.1.0-dev-00016" />
     <PackageReference Include="BH.Swashbuckle.AspNetCore.Annotations" Version="4.0.0" />

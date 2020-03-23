@@ -76,7 +76,7 @@ module DatabaseTests=
         member __.``Get members with notes`` () = 
 
             let actual = 
-                parksAndRec
+                parksAndRec.Id
                 |> MembersWithNotes 
                 |> repo.Units.GetMembers  
                 |> awaitAndUnpack
@@ -95,7 +95,7 @@ module DatabaseTests=
         member __.``Get members without notes`` () = 
 
             let actual = 
-                parksAndRec
+                parksAndRec.Id
                 |> MembersWithoutNotes
                 |> repo.Units.GetMembers  
                 |> awaitAndUnpack
@@ -105,7 +105,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Get children`` () = 
-            let actual = repo.Units.GetChildren cityOfPawnee |> awaitAndUnpack
+            let actual = repo.Units.GetChildren cityOfPawnee.Id |> awaitAndUnpack
 
             actual |> Seq.length |> should equal 2
             actual |> should contain parksAndRec
@@ -113,7 +113,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Get supported departments`` () = 
-            let actual = repo.Units.GetSupportedDepartments cityOfPawnee |> awaitAndUnpack
+            let actual = repo.Units.GetSupportedDepartments cityOfPawnee.Id |> awaitAndUnpack
 
             Seq.length actual |> should equal 1
             actual |> should contain supportRelationship
@@ -144,7 +144,7 @@ module DatabaseTests=
 
         [<Fact>]
         member __.``Delete`` () = 
-            let _ = repo.Units.Delete fourthFloor |> awaitAndUnpack
+            let _ = repo.Units.Delete fourthFloor.Id |> awaitAndUnpack
             
             let actual = repo.Units.Get fourthFloor.Id |> await
             match actual with 
