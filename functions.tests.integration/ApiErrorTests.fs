@@ -495,6 +495,23 @@ module ApiErrorTests =
             |> evaluateXmlContent<LspDepartmentArray> (fun arr ->
                  arr.NetworkID |> should equal wyatt.NetId 
                  arr.DeptCodeList.Values |> should equal [| parksDept.Name |] )
+        
+        [<Fact>]       
+        member __.``Legacy: LspDepartments Parsing`` () = 
+            requestFor HttpMethod.Get (sprintf "LspdbWebService.svc/LspDepartments/%s" wyatt.NetId)
+            |> withAuthentication swansonJwt
+            |> shouldGetResponse HttpStatusCode.OK
+            |> evaluateRawContent (fun xml ->
+                let xmlDoc = System.Xml.XmlDocument()
+                let reader = new System.IO.StringReader(xml)
+                xmlDoc.Load(reader)
+                let depts = 
+                     xmlDoc.ChildNodes.[1].FirstChild.ChildNodes
+                    |> Seq.cast<System.Xml.XmlNode>
+                    |> Seq.map (fun node -> node.FirstChild.Value )
+                    |> Seq.toList
+                depts |> should equal [parksDept.Name])
+                 
 
         [<Fact>]       
         member __.``Legacy: DepartmentLsps`` () = 
