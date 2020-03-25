@@ -711,7 +711,7 @@ module DatabaseRepository =
     }
 
     let queryLspDepartmentsSql = """
-        SELECT d.name
+        SELECT DISTINCT d.name
         FROM departments d
         JOIN support_relationships sr ON sr.department_id = d.id
         JOIN unit_members um on um.unit_id = sr.unit_id
