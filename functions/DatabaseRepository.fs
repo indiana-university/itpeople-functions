@@ -171,8 +171,10 @@ module DatabaseRepository =
     let updateUnit = update<Unit> mapUnit
 
     let deleteUnitSql = """
+        DELETE FROM unit_member_tools WHERE membership_id in (SELECT id FROM unit_members WHERE unit_id=@Id);
         DELETE FROM unit_members WHERE unit_id=@Id;
         DELETE FROM support_relationships WHERE unit_id=@Id;
+        DELETE FROM building_relationships WHERE unit_id=@Id;
         DELETE FROM units WHERE id=@Id"""
 
     let deleteUnit connStr unitId =
