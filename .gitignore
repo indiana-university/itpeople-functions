@@ -335,3 +335,5 @@ local.settings.json
 .ionide/symbolCache.db
 scripts/ImportOrgData/uits-groups.json
 *.db-journal
+
+.ionide
