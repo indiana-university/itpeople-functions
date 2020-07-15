@@ -9,6 +9,7 @@ module Tools =
     open Microsoft.Azure.WebJobs
     open Microsoft.Extensions.Logging
     open Novell.Directory.Ldap
+    open Novell.Directory.Ldap.Controls
     open Logging
 
     type ADPath = string
@@ -52,11 +53,31 @@ module Tools =
 
     let private getADGroupMembers adUser adPassword dn =
         let getADGroupMembers' (ldap:LdapConnection) = 
+            // set up paging control
+            let mutable keepGoing = true
+            let mutable page = 0
+            let size = 500
+            let sorter = LdapSortControl(LdapSortKey("cn"), true)
+            let constraints = LdapSearchConstraints()
+            // query group for all members
             let sam = "sAMAccountName"
             let list = System.Collections.Generic.List<NetId>()
-            let search = ldap.Search(searchBase, 1, searchFilter dn, [|sam|], false)          
-            while search.hasMore() do
-                search.next().getAttribute(sam).StringValue |> list.Add
+            while keepGoing do
+                // update the pager for this page
+                let pager = LdapVirtualListControl (page*size+1, 0, size-1, 0)
+                // update the search constraints for this page
+                let controls : LdapControl array = [|pager; sorter|]
+                constraints.setControls(controls)
+                // perform the search
+                let search = ldap.Search(searchBase, LdapConnection.SCOPE_SUB, searchFilter dn, [|sam|], false, constraints)
+                // iterate over the results
+                while search.hasMore() do
+                    let result = search.next().getAttribute(sam).StringValue 
+                    if list.Contains (result)
+                    then keepGoing <- false  // when we see a duplicate result we've reached the end of the list.
+                    else list.Add (result) 
+                // advance the page
+                page <- page + 1
             list |> seq
         try
             getADGroupMembers' |> doLdapAction adUser adPassword         
