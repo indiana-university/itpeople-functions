@@ -51,7 +51,7 @@ module Tools =
             ldap.Bind(adUser, adsPassword)  
             ldap |> action |> ok
 
-    let getADGroupMembers adUser adPassword dn =
+    let private getADGroupMembers adUser adPassword dn =
         let getADGroupMembers' (ldap:LdapConnection) = 
             // set up paging control
             let mutable keepGoing = true
