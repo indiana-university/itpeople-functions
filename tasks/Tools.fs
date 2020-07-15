@@ -61,7 +61,7 @@ module Tools =
             let constraints = LdapSearchConstraints()
             // query group for all members
             let sam = "sAMAccountName"
-            let list = System.Collections.Generic.List<string>()
+            let list = System.Collections.Generic.List<NetId>()
             while keepGoing do
                 // update the pager for this page
                 let pager = LdapVirtualListControl (page*size+1, 0, size-1, 0)
