@@ -76,7 +76,7 @@ module Tools =
                     if list.Contains (result)
                     then keepGoing <- false  // when we see a duplicate result we've reached the end of the list.
                     else list.Add (result) 
-                // advamce the page
+                // advance the page
                 page <- page + 1
             list |> seq
         try
